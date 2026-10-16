@@ -1,0 +1,168 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------
+  # Frontend (Next.js) et serveur temps réel (Node)
+  # Les étapes sont ignorées tant que le dossier n'a pas de package.json.
+  # ---------------------------------------------------------------
+  node:
+    name: Node (${{ matrix.dir }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: [frontend, realtime]
+    defaults:
+      run:
+        working-directory: ${{ matrix.dir }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Vérifier la présence du projet
+        id: has
+        run: |
+          if [ -f package.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "Pas encore de package.json dans ${{ matrix.dir }} : étapes ignorées."
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.has.outputs.present == 'true'
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ${{ matrix.dir }}/package-lock.json
+
+      - name: Installer les dépendances
+        if: steps.has.outputs.present == 'true'
+        run: npm ci
+
+      - name: Lint
+        if: steps.has.outputs.present == 'true'
+        run: npm run lint --if-present
+
+      - name: Build
+        if: steps.has.outputs.present == 'true'
+        run: npm run build --if-present
+
+      - name: Tests
+        if: steps.has.outputs.present == 'true'
+        run: npm test --if-present
+
+  # ---------------------------------------------------------------
+  # Backend (Spring Boot)
+  # ---------------------------------------------------------------
+  backend:
+    name: Backend (Maven)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Vérifier la présence du projet
+        id: has
+        run: |
+          if [ -f pom.xml ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "Pas encore de pom.xml dans backend : étapes ignorées."
+          fi
+
+      - uses: actions/setup-java@v4
+        if: steps.has.outputs.present == 'true'
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Build et tests
+        if: steps.has.outputs.present == 'true'
+        run: mvn -B -ntp verify
+
+  # ---------------------------------------------------------------
+  # Licences des composants tiers
+  # Le règlement CADev rend le projet irrecevable avec une licence GPL, AGPL ou LGPL.
+  # - npm : bloquant. Seules les licences de la liste ci-dessous passent.
+  #   Faux positifs possibles (licences doubles) : vérifiez à la main,
+  #   puis documentez la décision dans docs/LICENCES-TIERCES.md.
+  # - Maven : informatif au départ. Passez continue-on-error à false
+  #   quand la liste est propre.
+  # ---------------------------------------------------------------
+  licences:
+    name: Licences des composants tiers
+    runs-on: ubuntu-latest
+    env:
+      ALLOWED: "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD;BlueOak-1.0.0;CC0-1.0;Unlicense;MIT-0;Python-2.0;CC-BY-4.0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Licences npm (bloquant)
+        run: |
+          for dir in frontend realtime; do
+            if [ -f "$dir/package-lock.json" ]; then
+              echo "== $dir =="
+              (cd "$dir" && npm ci --ignore-scripts \
+                && npx --yes license-checker-rseidelsohn --production --excludePrivatePackages --onlyAllow "$ALLOWED")
+            else
+              echo "== $dir : pas de package-lock.json, ignoré =="
+            fi
+          done
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Licences Maven (informatif)
+        continue-on-error: true
+        run: |
+          if [ -f backend/pom.xml ]; then
+            cd backend
+            mvn -B -ntp org.codehaus.mojo:license-maven-plugin:2.4.0:add-third-party
+            REPORT=target/generated-sources/license/THIRD-PARTY.txt
+            if [ -f "$REPORT" ]; then
+              echo "== Licences à revoir (GPL, LGPL, EPL, AGPL) =="
+              grep -iE "GPL|Lesser General Public|Eclipse Public|\bEPL\b" "$REPORT" || echo "Aucune correspondance."
+            fi
+          else
+            echo "Pas encore de pom.xml dans backend : étape ignorée."
+          fi
+
+  # ---------------------------------------------------------------
+  # Détection de secrets dans tout l'historique
+  # ---------------------------------------------------------------
+  secrets:
+    name: Détection de secrets (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Installer gitleaks
+        run: |
+          VERSION=8.18.4
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP" gitleaks
+
+      - name: Rechercher des secrets
+        run: |
+          "$RUNNER_TEMP/gitleaks" detect --source . --redact --verbose
