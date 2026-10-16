@@ -22,9 +22,9 @@
 ## Recevabilité (à faire en premier)
 
 - [ ] Vérifier l'inscription de l'équipe sur Datacloud : membres, représentant, répartition du prix, pays — *Diagne, 16/10*
-- [ ] Acheter le VPS à Dakar avec le code promo — *Diagne, 17/10*
-- [ ] Lire la documentation Systalink (interface, API, MCP) et la résumer dans `docs/DEPLOIEMENT.md` — *Gaye, 17/10*
-- [ ] Envoyer les questions à l'organisateur (`docs/QUESTIONS-ORGANISATEUR.md`) et noter les réponses — *Diagne, 17/10*
+- [ ] Acheter le Serveur Cloud Business (2 vCPU, 8 Go) à Dakar avec le code promo, après la réponse sur Docker, root et remises — *Diagne, 17/10*
+- [ ] Lire `docs.systalink.com` dans un navigateur (l'accès automatique est refusé) et compléter `docs/DEPLOIEMENT.md` : SSH, Docker, API, régions. Le relevé des pages publiques est déjà fait — *Gaye, 17/10*
+- [ ] Envoyer le message prêt de `docs/QUESTIONS-ORGANISATEUR.md` à cadev@systalink.com et par WhatsApp (+221 76 660 40 41), puis noter les réponses — *Diagne, 16/10, aujourd'hui*
 - [ ] Inviter les 4 autres membres au dépôt (rôle Write), désactiver le « squash » dans les réglages, chacun lance `pre-commit install` — *Pouye, 16/10*
 - [ ] Squelette en ligne en HTTPS (étapes 1 à 3 de `docs/DEPLOIEMENT.md`) — *Gaye avec Pouye, 18/10*
 

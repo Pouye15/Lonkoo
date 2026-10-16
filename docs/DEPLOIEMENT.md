@@ -14,11 +14,29 @@ Le déploiement A passe en premier : sans lui, le projet n'est pas noté. Le B s
 - Projet déployé et accessible en ligne avant la soumission.
 - Au moins un produit Datacloud acheté avec le code promo de l'équipe ; un VPS à Dakar garde la remise (les VPS hors Dakar en sont exclus).
 
+## Ce que Systalink publie (relevé du 2026-10-16)
+
+Source : pages publiques de Systalink, lues le 16/10/2026. À revérifier au moment de l'achat. La documentation `https://docs.systalink.com` refuse l'accès automatique : **elle doit être lue dans un navigateur** par la personne responsable du déploiement.
+
+| Sujet | Ce que dit la page | Source |
+|---|---|---|
+| Serveur Cloud (VPS) | Starter : 1 vCPU, 2 Go, 50 Go NVMe, 10 233 FCFA/mois. Business : 2 vCPU, 8 Go, 100 Go NVMe, 31 486 FCFA/mois. Performance : 6 vCPU, 16 Go, 320 Go, 75 566 FCFA/mois. Linux ou Windows. Sauvegardes automatiques incluses. Ressources modifiables à tout moment | [server-cloud](https://systalink.com/fr/server-cloud) |
+| Non précisé sur cette page | Ville du datacenter (Dakar n'y est pas citée), accès SSH ou root, Docker, domaine et certificat inclus ou non | idem |
+| Connexion MCP | Point d'accès `mcp.systalink.com`, clé d'API propre à la connexion, périmètre choisi par service et par action. Actions : déployer sur un service existant, provisionner un nouveau projet, configurer, surveiller, diagnostiquer. Services : application web, base de données, stockage d'objets, serveurs cloud, hébergement, domaine. Aucun exemple de code ni liste d'outils nommés | [connexion-mcp](https://systalink.com/fr/connexion-mcp) |
+| Concours | Prix de 5 000 000 FCFA. « -40 % sur les produits DataCloud pour les équipes qui participent » et « -70 % pour tous les participants pendant toute l'année 2026 ». Règlement : lien « Voir les conditions générales » sans contenu visible. Contact : cadev@systalink.com, WhatsApp +221 76 660 40 41 | [page CADev](https://systalink.com/fr/coupe-afrique-des-developpeurs-cadev) |
+
+Conséquences pour nous :
+
+- **Taille du serveur.** Le Starter (2 Go) est trop juste pour PostgreSQL, Spring Boot, Next.js, le serveur temps réel et Caddy ensemble, et une construction d'image Next.js dépasse facilement 2 Go. **Estimation de l'équipe, à confirmer par un essai** : prendre le **Business (2 vCPU, 8 Go)**. Si les remises s'appliquent à ce produit : 31 486 FCFA/mois deviennent environ 18 900 FCFA (-40 %) ou 9 400 FCFA (-70 %). L'application des remises au Serveur Cloud, et à Dakar, n'est pas confirmée.
+- **Option MCP.** Elle est pensée pour des agents IA et ne dit pas qu'elle lance un `docker compose` arbitraire. Notre décision reste **SSH puis `docker compose`** (voir `architecture.md`). Le MCP pourra servir pour la création du serveur et la supervision, à tester seulement si la documentation montre un gain.
+- **À valider avant d'acheter** (questions dans `QUESTIONS-ORGANISATEUR.md`) : accès root ou sudo en SSH, Docker autorisé, ville du datacenter, application des remises.
+
 ## Étape 0 : acheter et préparer (une personne, à faire en premier)
 
-- [ ] Acheter le VPS à Dakar avec le code promo. Noter l'adresse IP, le système et les ressources (mémoire, disque).
-- [ ] Choisir l'adresse publique : un nom de domaine ou sous-domaine dont l'enregistrement A pointe vers l'IP. Sans domaine, repli possible avec un nom de type `IP.sslip.io` (service tiers, à tester).
-- [ ] Lire la documentation Systalink (interface, API, MCP) et noter ce qui est réellement disponible dans `docs/` : l'avis sur l'option « MCP / API » en dépend.
+- [ ] Lire `https://docs.systalink.com` dans un navigateur et noter dans ce fichier : accès SSH, Docker, API, régions.
+- [ ] Obtenir la réponse de l'organisateur sur Docker, root et remises (message prêt dans `QUESTIONS-ORGANISATEUR.md`).
+- [ ] Acheter le Serveur Cloud **Business** (ou équivalent), au meilleur prix avec le code promo, en vérifiant que la région est Dakar. Noter l'adresse IP, le système, les ressources.
+- [ ] Choisir l'adresse publique : un nom de domaine ou sous-domaine dont l'enregistrement A pointe vers l'IP (le domaine est un achat séparé chez Systalink). Sans domaine, repli possible avec un nom de type `IP.sslip.io` (service tiers, à tester).
 
 ## Étape 1 : durcir le VPS
 
