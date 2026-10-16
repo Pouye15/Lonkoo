@@ -9,4 +9,4 @@ Journal des questions posées au comité CADev. Une ligne par question : date d'
 | Logback (EPL 2.0 ou LGPL 2.1) est-il admis, ou faut-il Log4j2 ? | | | |
 | Les dépendances de développement et de build (MPL-2.0 : lightningcss, axe-core) entrent-elles dans le périmètre ? | | | |
 | Quels droits le lauréat cède-t-il (choix de la licence finale du dépôt) ? | | | |
-| Le dépôt doit-il être public ou privé pendant le concours ? | | | |
+| Le dépôt est privé : comment donner accès au jury (invitation de comptes précis, ou passage en public à la soumission) ? | | | |

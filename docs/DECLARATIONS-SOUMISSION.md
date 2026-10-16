@@ -27,6 +27,7 @@ Visez le **samedi 24 octobre** pour garder une marge.
 - [ ] Vidéo de démonstration de secours enregistrée.
 - [ ] Secrets absents du dépôt (gitleaks passe) et des journaux.
 - [ ] README à jour, dépôt propre.
+- [ ] Dépôt privé : accès donné au jury selon la réponse de l'organisateur (voir `QUESTIONS-ORGANISATEUR.md`).
 - [ ] Les cinq membres peuvent expliquer n'importe quelle partie du code.
 
 ## Vote des pairs (obligatoire pour chaque membre)
