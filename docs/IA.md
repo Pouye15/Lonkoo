@@ -9,7 +9,7 @@ Le règlement CADev (article 6) autorise l'IA librement, mais impose de déclare
 | Date | Personne | Outil | Partie du projet | Nature de l'usage |
 |---|---|---|---|---|
 | 2026-10-16 | Ibrahima Pouye | Claude (Sonnet 5.5) | Analyse du cahier des charges, kit de démarrage du dépôt | Conseil, rédaction de fichiers de base |
-| 2026-10-16 | Ibrahima Pouye | Claude Code (Sonnet 5.5) | Dépôt entier : audit, restructuration, CI | Audit, correction de fichiers de configuration et de documentation |
+| 2026-10-16 | Ibrahima Pouye | Claude Code (Sonnet 5.5) | Dépôt entier : audit, restructuration, CI, architecture, contrat du canvas, déploiement, devcontainer, backlog | Audit, rédaction et correction de fichiers de configuration, de scripts de contrôle et de documentation |
 | | | | | |
 
 Exemples de nature d'usage : génération de code, génération de tests, relecture, rédaction de documentation, génération de maquettes, recherche de bibliothèques.

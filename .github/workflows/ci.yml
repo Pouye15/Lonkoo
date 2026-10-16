@@ -93,6 +93,19 @@ jobs:
         run: mvn -B -ntp verify
 
   # ---------------------------------------------------------------
+  # Contrat du canvas : le schéma est valide et les exemples le respectent
+  # ---------------------------------------------------------------
+  canvas-schema:
+    name: Contrat du canvas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Valider le schéma et les exemples
+        run: |
+          python3 -m pip install --quiet jsonschema
+          python3 scripts/check_canvas_schema.py
+
+  # ---------------------------------------------------------------
   # Licences des composants tiers
   # Le règlement CADev rend le projet irrecevable avec une licence GPL, AGPL ou LGPL.
   # - npm : bloquant. Seules les licences de la liste ci-dessous passent.

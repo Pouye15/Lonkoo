@@ -9,6 +9,9 @@ Ces règles remplacent la protection de branche (indisponible sur un dépôt pri
 - Une pull request est relue par **au moins une autre personne** avant la fusion.
 - `main` doit toujours compiler et pouvoir être déployé.
 - Fusionnez au moins une fois par jour. Les branches longues créent des conflits.
+- Relecture sous 4 heures, pull requests de moins de 300 lignes quand c'est possible. Une pull request qui attend bloque l'équipe.
+- Fusion par « merge commit » ou « rebase », jamais par « squash » : les petits commits sont la preuve du travail.
+- Le contrat du canvas (`docs/schema-canvas.md` et `docs/canvas.schema.json`) ne change que par pull request relue par l'interface, le backend, l'IA et la génération.
 - Ne jamais faire de `git push --force` sur `main`. Ne pas réécrire l'historique.
 
 ## Commits

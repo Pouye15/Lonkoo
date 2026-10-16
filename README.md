@@ -19,7 +19,7 @@ Lonkoo est un studio collaboratif où une équipe de développeurs conçoit l'ar
 
 ## Architecture
 
-Voir [docs/architecture.md](docs/architecture.md).
+Voir [docs/architecture.md](docs/architecture.md). Format du canvas : [docs/schema-canvas.md](docs/schema-canvas.md). Mise en ligne : [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md).
 
 ## Structure du dépôt
 
@@ -27,9 +27,9 @@ Voir [docs/architecture.md](docs/architecture.md).
 |---|---|
 | `frontend/` | Interface web (Next.js, React Flow) |
 | `backend/` | API et logique métier (Spring Boot) |
-| `realtime/` | Serveur de collaboration en temps réel (y-websocket) |
+| `realtime/` | Serveur de collaboration en temps réel (Hocuspocus, Yjs) |
 | `infra/` | Docker Compose, scripts de déploiement |
-| `docs/` | Architecture, déclarations de conformité, backlog |
+| `docs/` | Architecture, contrat du canvas, déploiement, déclarations de conformité, backlog |
 
 ## Démarrer en local
 
@@ -55,7 +55,7 @@ cd realtime && npm ci && npm start
 
 | Nom | Rôle |
 |---|---|
-| Mouhamadoul Moustapha Diagne |  Qualité, sécurité, démo |
+| Mouhamadoul Moustapha Diagne | Qualité, sécurité, démo |
 | Mamadou Ismaila Fall | Interface et canvas |
 | Gnatam Gaye | Génération et déploiement |
 | Serine fallou Ngom | IA |

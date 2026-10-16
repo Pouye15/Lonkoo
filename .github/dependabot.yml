@@ -1,0 +1,8 @@
+# Mises à jour automatiques. Ajouter les blocs npm (frontend, realtime) et maven (backend)
+# dès que package.json et pom.xml existent.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

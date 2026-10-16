@@ -1,62 +1,87 @@
 # Backlog initial
 
-À copier dans GitHub Projects (une ligne = un élément du tableau). Mettez une étiquette de priorité à chaque élément et un responsable.
+À copier dans GitHub Projects (une ligne = un élément du tableau). Chaque élément a une priorité, un responsable et une date cible.
 
 **Priorités :** Indispensable, Important, À couper.
+
+**Responsables (proposition du 2026-10-16, à valider en équipe) :** Diagne = qualité, sécurité, démo ; Fall = interface et canvas ; Gaye = génération et déploiement ; Ngom = IA ; Pouye = backend et temps réel. Un élément « en binôme » nomme les deux personnes : la seconde relit et peut reprendre.
 
 ## Jalons
 
 | Date | Jalon |
 |---|---|
-| Vendredi 16 octobre | Dépôt créé, décisions techniques prises, squelette du projet |
-| Jeudi 22 octobre | Parcours indispensable de bout en bout |
-| Vendredi 23 octobre | Gel du périmètre. Audit des licences, tests, sécurité, déclarations |
-| Samedi 24 octobre | Soumission (marge d'un jour) |
+| Vendredi 16 octobre | Dépôt structuré et privé, décisions techniques prises, contrat du canvas, VPS acheté |
+| Dimanche 18 octobre | **Squelette en ligne en HTTPS**, déployé par le pipeline (front, `/actuator/health`, PostgreSQL, serveur temps réel) |
+| Mercredi 21 octobre | Trois tranches terminées : canvas collaboratif persistant ; connexion GitHub, versions, export ; IA, génération, envoi GitHub |
+| Jeudi 22 octobre | Parcours indispensable de bout en bout **sur la production**. Ce qui ne marche pas est coupé |
+| Vendredi 23 octobre | Gel du périmètre. Audit des licences, tests, sécurité, déclarations, vidéo de secours |
+| Samedi 24 octobre, midi | Soumission (marge d'un jour) |
 | Dimanche 25 octobre, 17 h | Date limite absolue |
+| Dimanche 25, 18 h au lundi 26, 23 h 59 | Vote de chaque membre (5 sur 5) |
+
+## Recevabilité (à faire en premier)
+
+- [ ] Vérifier l'inscription de l'équipe sur Datacloud : membres, représentant, répartition du prix, pays — *Diagne, 16/10*
+- [ ] Acheter le VPS à Dakar avec le code promo — *Diagne, 17/10*
+- [ ] Lire la documentation Systalink (interface, API, MCP) et la résumer dans `docs/DEPLOIEMENT.md` — *Gaye, 17/10*
+- [ ] Envoyer les questions à l'organisateur (`docs/QUESTIONS-ORGANISATEUR.md`) et noter les réponses — *Diagne, 17/10*
+- [ ] Inviter les 4 autres membres au dépôt (rôle Write), désactiver le « squash » dans les réglages, chacun lance `pre-commit install` — *Pouye, 16/10*
+- [ ] Squelette en ligne en HTTPS (étapes 1 à 3 de `docs/DEPLOIEMENT.md`) — *Gaye avec Pouye, 18/10*
+
+## Contrats (avant d'écrire le code qui en dépend)
+
+- [x] Contrat du canvas : `docs/schema-canvas.md` et `docs/canvas.schema.json` — *fait le 16/10, relecture par Fall, Pouye, Ngom, Gaye*
+- [ ] `openapi.yaml` de l'API publique et de l'API interne (routes de `docs/architecture.md`) — *Pouye avec Fall, 17/10*
+- [ ] Choix du fournisseur et du modèle d'IA, noté dans `docs/architecture.md` et `docs/IA.md` — *Ngom, 17/10*
 
 ## Indispensable
 
-- [ ] Frontend : canvas React Flow avec 6 à 8 types de blocs personnalisés
-- [ ] Export du schéma en JSON et en Mermaid
-- [ ] Temps réel : serveur y-websocket, présence, curseurs, synchronisation
-- [ ] Temps réel : authentification des connexions et contrôle d'accès par canvas
-- [ ] Backend : connexion avec GitHub, canvas, projets
-- [ ] Backend : instantanés nommés (versions) et restauration
-- [ ] IA : esquisse d'architecture depuis un cahier des charges
-- [ ] IA : audit d'architecture (points de défaillance unique, failles, surcoûts)
-- [ ] Génération du projet de démarrage : entités du schéma, docker-compose, README avec schémas Mermaid, openapi.yaml
-- [ ] Envoi sur GitHub : création du dépôt et commit initial
-- [ ] Déploiement réel sur un VPS Systalink (GitHub Actions, SSH, docker compose) avec suivi de l'état
-- [ ] Sécurité de base : jetons non stockés ou chiffrés, pas de secret dans les journaux, quota IA, journal des actions
-- [ ] Compte de démonstration et données d'exemple
+- [ ] Frontend : canvas React Flow avec les 8 types de blocs du contrat, dont les blocs locaux (paiement mobile, messagerie SMS / USSD / WhatsApp, facturation), génériques et sans logo de marque — *Fall, 20/10*
+- [ ] Export du schéma en JSON (instantané conforme au contrat) et en Mermaid — *Fall, 21/10*
+- [ ] Temps réel : serveur Hocuspocus, présence, curseurs, synchronisation, chargement et sauvegarde via le backend — *Pouye, 19/10*
+- [ ] Temps réel : ticket court délivré par le backend, vérifié à la connexion, contrôle d'accès par canvas — *Pouye, 19/10*
+- [ ] Backend : squelette Spring Boot (Log4j2, Spring Data JDBC, Flyway, `/actuator/health`) — *Pouye, 17/10*
+- [ ] Backend : connexion GitHub côté serveur, projets, canvas, droits d'accès — *Pouye, 20/10*
+- [ ] Backend : compte invité éphémère avec une copie du modèle d'exemple (`docs/exemples/`) — *Pouye, 20/10*
+- [ ] Backend : instantanés nommés (versions) et restauration — *Pouye, 21/10*
+- [ ] IA : esquisse d'architecture depuis un cahier des charges, sortie validée par le schéma — *Ngom, 21/10*
+- [ ] IA : audit d'architecture (points de défaillance unique, failles, surcoûts), consultatif — *Ngom, 21/10*
+- [ ] IA : quota par utilisateur, plafond de coût, délai maximal, démo enregistrée de secours — *Ngom avec Pouye, 21/10*
+- [ ] Génération du projet de démarrage depuis un instantané : entités du schéma, docker-compose, README avec schémas Mermaid, `openapi.yaml` — *Gaye, 21/10*
+- [ ] Envoi sur GitHub : création du dépôt et commit initial avec la session de l'utilisateur — *Gaye, 21/10*
+- [ ] Déploiement des applications générées sur le VPS, avec suivi de l'état (si trop risqué au 21/10 : plan B de `docs/DEPLOIEMENT.md`) — *Gaye, 22/10*
+- [ ] Sécurité de base : jetons non stockés, aucun secret dans les journaux, journal des actions, validation des identifiants du générateur — *Diagne avec Pouye, 22/10*
+- [ ] Tests : trois tests de fumée et un test de bout en bout (`docs/architecture.md`) — *Diagne, 22/10*
+- [ ] Compte de démonstration utilisable sans inscription, première page claire en 30 secondes — *Diagne avec Fall, 22/10*
 
 ## Important
 
 - [ ] Comparaison visuelle de deux versions (ajouts en vert, suppressions en rouge, modifications en orange)
 - [ ] IA : complétion de sous-graphe sur un bloc sélectionné
-- [ ] Commentaires ancrés sur un bloc
-- [ ] Galerie publique de modèles, copie d'un canvas, partage en lecture seule par lien
-- [ ] Blocs et modèles locaux : paiement mobile, SMS / USSD, WhatsApp, facturation (blocs génériques, sans logo de marque, sans intégration réelle)
 - [ ] Génération des DTO et des contrôleurs
-- [ ] Annuler / rétablir, export SVG et PNG
+- [ ] Partage en lecture seule par lien, copie d'un canvas
+- [ ] Export SVG et PNG
 
-## À couper ou à reporter
+## À couper ou à reporter (dans cet ordre si le calendrier glisse)
 
+- [ ] Annuler / rétablir
+- [ ] Commentaires ancrés sur un bloc
+- [ ] Galerie publique de modèles
 - [ ] SystaDrive (introuvable dans l'offre publique)
 - [ ] Dimensionnement automatique des instances (garder au plus une recommandation simple)
 - [ ] Branches d'expérimentation (garder les instantanés)
 - [ ] Protocoles réseau détaillés (gRPC, etc.)
 - [ ] Plus de 8 types de blocs
 
-## Qualité et conformité (à faire en parallèle)
+## Qualité et conformité (en continu)
 
-- [ ] Décision Hibernate (Spring Boot 4 ou sans JPA) et Logback (Log4j2) avant le premier code du backend
-- [ ] Lire la documentation Systalink (MCP et API) et tester un déploiement
-- [ ] Acheter le produit Datacloud avec le code promo
-- [ ] Tenir `docs/IA.md` et `docs/LICENCES-TIERCES.md` à jour
-- [ ] Audit complet des licences (22 et 23 octobre)
-- [ ] Tests du parcours complet sur l'adresse de production
-- [ ] Démo de secours enregistrée
-- [ ] Soigner la première page (30 premières secondes)
-- [ ] Rédiger les déclarations de soumission (titularité, composants, IA)
-- [ ] Rappel : voter, les 5 membres, du 25 octobre 18 h au 26 octobre 23 h 59
+- [ ] Tenir `docs/IA.md` et `docs/LICENCES-TIERCES.md` à jour dans chaque pull request — *tous*
+- [ ] Rendre bloquant le contrôle de licences Maven dès que le `pom.xml` existe — *Pouye, dès le premier `pom.xml`*
+- [ ] Produire un SBOM (npm et Maven) pour la déclaration des composants — *Diagne, 23/10*
+- [ ] Audit complet des licences (22 et 23 octobre), y compris les images Docker — *Diagne*
+- [ ] Sauvegarde quotidienne de PostgreSQL et restauration testée — *Gaye, 22/10*
+- [ ] Tests du parcours complet sur l'adresse de production, après un redémarrage du serveur — *Diagne, 22/10*
+- [ ] Démo de secours enregistrée — *Diagne, 23/10*
+- [ ] Rédiger les déclarations de soumission (titularité de chaque membre, composants, IA) — *Diagne, chacun pour la sienne, 23/10*
+- [ ] Nettoyer les textes de travail avant la soumission (`LICENSE`, `[à préciser]`, notes internes) — *Diagne, 23/10*
+- [ ] Rappel : voter, les 5 membres, du 25 octobre 18 h au 26 octobre 23 h 59 — *tous*

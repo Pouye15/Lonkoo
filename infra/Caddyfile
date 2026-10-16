@@ -1,0 +1,28 @@
+# Origine unique : / (frontend), /api (backend), /ws (temps réel).
+# DOMAIN est fourni par l'environnement (ex. lonkoo.example.com). Caddy obtient le certificat TLS seul.
+{$DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Routes réservées au serveur temps réel : jamais exposées.
+	@internal path /internal/*
+	respond @internal 404
+
+	handle /api/* {
+		reverse_proxy backend:8080
+	}
+
+	handle /ws* {
+		reverse_proxy realtime:1234
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

@@ -6,7 +6,7 @@ Mise à jour obligatoire à chaque nouvelle dépendance, dans la même pull requ
 
 ## 1. Composants utilisés
 
-La colonne « Vérifié » se coche seulement après avoir lu la licence dans le dépôt ou le paquet du composant, et pas seulement ce tableau. Les licences indiquées sont celles que je connais, à confirmer.
+La colonne « Vérifié » se coche seulement après avoir lu la licence dans le dépôt ou le paquet du composant, et pas seulement ce tableau. Les licences indiquées sont à confirmer à la source avant de cocher « Vérifié ».
 
 | Composant | Version | Licence | Permissive ? | Usage | Source | Vérifié |
 |---|---|---|---|---|---|---|
