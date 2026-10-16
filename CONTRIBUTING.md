@@ -1,6 +1,6 @@
 # Règles de travail de l'équipe
 
-Ces règles remplacent la protection de branche (indisponible sur un dépôt privé en offre gratuite). Elles reposent sur la discipline de chacun.
+Ces règles remplacent la protection de branche (à activer dans les réglages GitHub : gratuite sur un dépôt public, indisponible sur un dépôt privé en offre gratuite). Elles reposent sur la discipline de chacun.
 
 ## Branches et pull requests
 
@@ -21,7 +21,7 @@ Ces règles remplacent la protection de branche (indisponible sur un dépôt pri
 
 - Jamais de clé, mot de passe ou jeton dans le code, les journaux ou les captures d'écran.
 - Les vraies valeurs vont dans `.env` (local, ignoré par Git) ou dans GitHub Secrets (CI).
-- Installez le hook gitleaks : `pip install pre-commit && pre-commit install`.
+- Installez le hook gitleaks : `pip install pre-commit && pre-commit install` (à la racine du dépôt).
 - Si un secret fuit : **révoquez-le immédiatement**, créez-en un nouveau, prévenez l'équipe.
 
 ## Nouvelles dépendances

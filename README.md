@@ -19,7 +19,7 @@ Lonkoo est un studio collaboratif où une équipe de développeurs conçoit l'ar
 
 ## Architecture
 
-Voir [docs/architecture.md].
+Voir [docs/architecture.md](docs/architecture.md).
 
 ## Structure du dépôt
 
@@ -35,11 +35,11 @@ Voir [docs/architecture.md].
 
 À compléter au fur et à mesure que le code arrive.
 
-Prérequis : Java 21, Node.js 20, Docker.
+Prérequis : Java 21, Node.js 24 (LTS), Docker.
 
 ```bash
 cp .env.example .env            # puis remplir les valeurs
-docker compose -f infra/docker-compose.dev.yml up -d   # base PostgreSQL
+docker compose -f infra/docker-compose.dev.yml --env-file .env up -d   # base PostgreSQL
 
 # Backend
 cd backend && ./mvnw spring-boot:run
@@ -63,10 +63,10 @@ cd realtime && npm ci && npm start
 
 ## Conformité au règlement CADev
 
-- Composants tiers et licences : [docs/LICENCES-TIERCES.md]
-- Usage de l'intelligence artificielle : [docs/IA.md]
-- Déclarations de soumission : [docs/DECLARATIONS-SOUMISSION.md]
+- Composants tiers et licences : [docs/LICENCES-TIERCES.md](docs/LICENCES-TIERCES.md)
+- Usage de l'intelligence artificielle : [docs/IA.md](docs/IA.md)
+- Déclarations de soumission : [docs/DECLARATIONS-SOUMISSION.md](docs/DECLARATIONS-SOUMISSION.md)
 
 ## Licence
 
-© 2026 VISION X. Tous droits réservés. Voir [LICENSE].
+© 2026 VISION X. Tous droits réservés. Voir [LICENSE](LICENSE).

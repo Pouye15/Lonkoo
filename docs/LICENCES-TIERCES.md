@@ -15,7 +15,7 @@ La colonne « Vérifié » se coche seulement après avoir lu la licence dans le
 | React Flow (@xyflow/react) | [x] | MIT | Oui | Canvas | npm | [ ] |
 | Tailwind CSS | [x] | MIT | Oui | Style | npm | [ ] |
 | Yjs | [x] | MIT | Oui | Synchronisation temps réel | npm | [ ] |
-| y-websocket | [x] | MIT | Oui | Serveur temps réel | npm | [ ] |
+| y-websocket (client) / serveur à choisir (Hocuspocus, MIT) | [x] | MIT | Oui | Synchronisation et serveur temps réel | npm | [ ] |
 | Spring Boot | [x] | Apache 2.0 | Oui | Backend | Maven | [ ] |
 | PostgreSQL | 16 | Licence PostgreSQL | Oui | Base de données | Docker | [ ] |
 | [Bibliothèque d'icônes] | [x] | [à vérifier] | [ ] | Icônes | [ ] | [ ] |
@@ -26,8 +26,10 @@ La colonne « Vérifié » se coche seulement après avoir lu la licence dans le
 | Composant | Problème | Action |
 |---|---|---|
 | Hibernate ORM (avant la version 7) | LGPL 2.1. La relicence Apache 2.0 ne s'applique qu'à partir de la 7.0 | Utiliser Hibernate 7 ou ne pas utiliser JPA. Vérifier avec `mvn dependency:tree` |
-| Logback (journaux par défaut de Spring Boot) | Double licence EPL 1.0 ou LGPL 2.1 | Remplacer par Log4j2, ou obtenir la confirmation de l'organisateur |
+| Logback (journaux par défaut de Spring Boot) | Double licence EPL 2.0 ou LGPL 2.1 (1.5.x) | Remplacer par Log4j2, ou obtenir la confirmation de l'organisateur |
 | OpenJDK | GPL 2 avec exception Classpath | Question posée à l'organisateur. Usage courant, à confirmer |
+| Next.js : sharp / @img/sharp-libvips-* | LGPL-3.0-or-later, installé en dépendance optionnelle de `next` ; fait échouer le contrôle de licences | `"overrides": {"sharp": "file:./stubs/sharp"}` (stub local privé) et `images: { unoptimized: true }` dans next.config |
+| jakarta.annotation-api | EPL 2.0 ou GPL 2 avec exception Classpath, présent dans toute application Spring Boot | Question à l'organisateur (voir QUESTIONS-ORGANISATEUR.md) |
 | tldraw | Licence propre, clé exigée en production | Ne pas utiliser |
 | PlantUML | Plusieurs licences au choix, la version GPL est la plus complète | Si utilisé, télécharger la version MIT ou Apache |
 | Jakarta EE (certaines API) | Double licence EPL 2.0 ou GPL 2 avec exception Classpath | Vérifier dans le rapport de licences |

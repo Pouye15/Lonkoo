@@ -39,7 +39,7 @@ jobs:
       - uses: actions/setup-node@v4
         if: steps.has.outputs.present == 'true'
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
           cache-dependency-path: ${{ matrix.dir }}/package-lock.json
 
@@ -111,7 +111,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Licences npm (bloquant)
         run: |
@@ -119,13 +119,14 @@ jobs:
             if [ -f "$dir/package-lock.json" ]; then
               echo "== $dir =="
               (cd "$dir" && npm ci --ignore-scripts \
-                && npx --yes license-checker-rseidelsohn --production --excludePrivatePackages --onlyAllow "$ALLOWED")
+                && npx --yes license-checker-rseidelsohn@5.0.1 --production --excludePrivatePackages --onlyAllow "$ALLOWED")
             else
               echo "== $dir : pas de package-lock.json, ignoré =="
             fi
           done
 
       - uses: actions/setup-java@v4
+        if: hashFiles('backend/pom.xml') != ''
         with:
           distribution: temurin
           java-version: 21
@@ -159,7 +160,7 @@ jobs:
 
       - name: Installer gitleaks
         run: |
-          VERSION=8.18.4
+          VERSION=8.30.1
           curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz" \
             | tar -xz -C "$RUNNER_TEMP" gitleaks
 
