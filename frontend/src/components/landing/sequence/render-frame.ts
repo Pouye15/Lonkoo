@@ -7,10 +7,10 @@
  * ni sprite à télécharger.
  *
  * Chapitres
- *   0   à  60  Modéliser : le schéma se dessine, curseurs collaboratifs
- *   60  à 125  Valider   : balayage Nianthio, point de défaillance, réplique
+ *   0   à  60  Concevoir : le schéma se dessine, curseurs collaboratifs
+ *   60  à 125  Auditer   : balayage de l'audit IA, point de défaillance, réplique
  *   125 à 185  Générer   : bascule isométrique, extrusion, fichiers générés
- *   185 à 240  Déployer  : le système rejoint Dakar et irrigue le continent
+ *   185 à 240  Déployer  : le système rejoint Dakar et se déploie
  */
 
 export const SCENE_W = 1600;
@@ -108,14 +108,14 @@ interface SceneNode {
 
 const NODES: readonly SceneNode[] = [
   { id: "users", label: "Clients mobiles", tech: "Android et USSD", file: "openapi.yaml", x: 200, y: 450, appear: 2 },
-  { id: "gateway", label: "Passerelle API", tech: "Kong 3.6", file: "kong.yml", x: 520, y: 450, appear: 8 },
-  { id: "payments", label: "Service paiements", tech: "Go 1.23", file: "Dockerfile", x: 840, y: 290, appear: 14 },
-  { id: "auth", label: "Authentification", tech: "Keycloak 25", file: "realm.json", x: 840, y: 610, appear: 20 },
-  { id: "queue", label: "File de messages", tech: "Redis Streams", file: "compose.yml", x: 1160, y: 290, appear: 26 },
-  { id: "db", label: "Base de données", tech: "PostgreSQL 16", file: "main.tf", x: 1160, y: 610, appear: 32 },
+  { id: "gateway", label: "Passerelle API", tech: "Proxy HTTPS", file: "Caddyfile", x: 520, y: 450, appear: 8 },
+  { id: "payments", label: "Service paiements", tech: "Spring Boot", file: "PaiementController.java", x: 840, y: 290, appear: 14 },
+  { id: "auth", label: "Authentification", tech: "Connexion GitHub", file: "SecurityConfig.java", x: 840, y: 610, appear: 20 },
+  { id: "queue", label: "File de messages", tech: "Événements", file: "docker-compose.yml", x: 1160, y: 290, appear: 26 },
+  { id: "db", label: "Base de données", tech: "PostgreSQL", file: "V1__schema.sql", x: 1160, y: 610, appear: 32 },
 ];
 
-const REPLICA = { label: "Réplique synchrone", tech: "PostgreSQL 16", file: "replica.tf", x: 1420, y: 610 };
+const REPLICA = { label: "Réplique de lecture", tech: "PostgreSQL", file: "V2__replica.sql", x: 1420, y: 610 };
 
 const NODE_BY_ID: ReadonlyMap<string, SceneNode> = new Map(NODES.map((n) => [n.id, n]));
 
@@ -157,13 +157,13 @@ const MADAGASCAR: ReadonlyArray<readonly [number, number]> = [
 ];
 
 const CITIES = [
-  { name: "Bamako", lon: -8.0, lat: 12.6, ms: "16 ms" },
-  { name: "Abidjan", lon: -4.0, lat: 5.35, ms: "18 ms" },
-  { name: "Lagos", lon: 3.4, lat: 6.5, ms: "24 ms" },
-  { name: "Casablanca", lon: -7.6, lat: 33.6, ms: "39 ms" },
-  { name: "Kinshasa", lon: 15.3, lat: -4.3, ms: "47 ms" },
-  { name: "Nairobi", lon: 36.8, lat: -1.3, ms: "68 ms" },
-  { name: "Johannesburg", lon: 28.0, lat: -26.2, ms: "86 ms" },
+  { name: "Bamako", lon: -8.0, lat: 12.6 },
+  { name: "Abidjan", lon: -4.0, lat: 5.35 },
+  { name: "Lagos", lon: 3.4, lat: 6.5 },
+  { name: "Casablanca", lon: -7.6, lat: 33.6 },
+  { name: "Kinshasa", lon: 15.3, lat: -4.3 },
+  { name: "Nairobi", lon: 36.8, lat: -1.3 },
+  { name: "Johannesburg", lon: 28.0, lat: -26.2 },
 ] as const;
 
 function inPolygon(lon: number, lat: number, poly: ReadonlyArray<readonly [number, number]>) {
@@ -474,7 +474,7 @@ export function renderFrame(
     ctx.globalAlpha = 1;
   }
 
-  /* Balayage de l'audit Nianthio */
+  /* Balayage de l'audit IA */
   const sx = scanX(f);
   const scanAlpha = seg(f, 64, 70) * (1 - seg(f, 96, 102));
 
@@ -565,10 +565,6 @@ export function renderFrame(
         ctx.textBaseline = "middle";
         ctx.fillStyle = rgba("mist", 0.9);
         ctx.fillText(city.name, cx + 14, cy);
-        const nameW = ctx.measureText(city.name).width;
-        ctx.font = `400 ${minText(12)}px ${fonts.mono}`;
-        ctx.fillStyle = rgba("ice", 0.85);
-        ctx.fillText(city.ms, cx + 14 + nameW + 8, cy + 0.5);
         ctx.globalAlpha = 1;
       }
     });
@@ -594,10 +590,10 @@ export function renderFrame(
       ctx.textBaseline = "alphabetic";
       ctx.font = `600 ${minText(20)}px ${fonts.sans}`;
       ctx.fillStyle = rgba("mist", 1);
-      ctx.fillText("Release Git v2.4.0", DAKAR.x - 22, DAKAR.y - 4);
+      ctx.fillText("En ligne à Dakar", DAKAR.x - 22, DAKAR.y - 4);
       ctx.font = `500 ${minText(14)}px ${fonts.mono}`;
       ctx.fillStyle = rgba("ice", 1);
-      ctx.fillText("MCP · Orion Sync", DAKAR.x - 22, DAKAR.y + 18);
+      ctx.fillText("Docker Compose · HTTPS", DAKAR.x - 22, DAKAR.y + 18);
       ctx.globalAlpha = 1;
     }
   }
@@ -834,7 +830,7 @@ export function renderFrame(
     ctx.fillRect(sx - 160, 120, 168, 660);
     ctx.fillStyle = rgba("ice", 0.85 * scanAlpha);
     ctx.fillRect(sx, 120, 1.5, 660);
-    pill(ctx, sx, 104, "Audit Nianthio", fonts.mono, minText(12), "ice", "ice", scanAlpha);
+    pill(ctx, sx, 104, "Audit IA", fonts.mono, minText(12), "ice", "ice", scanAlpha);
   }
 
   /* Curseurs collaboratifs */
