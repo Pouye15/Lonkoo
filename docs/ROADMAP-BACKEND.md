@@ -223,7 +223,7 @@ Le backend fournit à Gaye : l'instantané validé (WP7), l'accès au jeton GitH
 
 ### WP11 — Dockerfiles, compose de production, pipeline (Gaye et Diagne ; Pouye fournit les images, J0 à J2)
 
-- [ ] `backend/Dockerfile` (WP2), `realtime/Dockerfile` (WP6), `frontend/Dockerfile` (`output: "standalone"` dans `next.config.ts`, Node 24, utilisateur non root).
+- [ ] `backend/Dockerfile` (WP2), `realtime/Dockerfile` (WP6), `frontend/Dockerfile` (`output: "standalone"` dans `next.config.ts`, Node 24, utilisateur non root). Attention : `frontend/` n'a plus de dossier `public/` (les images de la vidéo d'accueil ont été retirées) : ne pas faire de `COPY public` sans le recréer ; `next/font/google` télécharge les polices pendant le build, qui a donc besoin d'Internet.
 - [ ] `infra/docker-compose.prod.yml` : Caddy, frontend, backend, realtime, PostgreSQL (sans port publié, volume nommé, `healthcheck`, `restart: unless-stopped`, réseau interne, secrets lus dans le `.env` du serveur).
 - [ ] Pipeline de déploiement A (`DEPLOIEMENT.md`, étape 3) avec vérification de `https://<domaine>/api/actuator/health`.
 - [ ] Question restante pour l'organisateur : les images de base (Temurin, Debian, Alpine) relèvent-elles du périmètre de la règle sur les licences (`QUESTIONS-ORGANISATEUR.md`) ?
