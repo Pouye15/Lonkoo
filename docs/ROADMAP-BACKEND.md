@@ -24,7 +24,7 @@
 | `realtime/` | vide (`.gitkeep`) | serveur Hocuspocus et tickets : 19/10 | 1 jour |
 | `docs/openapi.yaml` | absent | 17/10 (Pouye avec Fall) | 3 jours |
 | `infra/` | `Caddyfile` et `docker-compose.dev.yml` (base seule) ; ni Dockerfile ni compose de production | squelette en ligne en HTTPS : 18/10 | à confirmer avec Diagne et Gaye |
-| `frontend/` | **importé** depuis `Gnatam/Lonkoo-frontend` avec son historique ; maquette navigable, données fictives, **aucun appel d'API** | canvas React Flow et 8 types de blocs : 20/10 (Fall) | le modèle de blocs diffère du contrat (§ 11, D2) |
+| `frontend/` | **importé** depuis `Gnatam/Lonkoo-frontend` avec son historique, puis finitions du 20/10 : connexion (GitHub ou invité, simulée), thème sombre, shell par projet, tableau blanc façon draw.io ; données gardées dans le navigateur, **aucun appel d'API** ; lint, build et licences passent | canvas React Flow et 8 types de blocs : 20/10 (Fall) | canevas maison (pas React Flow) et modèle de blocs différent du contrat (§ 11, D2) |
 | Contrat du canvas | fait (`schema-canvas.md`, `canvas.schema.json`, exemple validé par la CI) | 16/10 | aucun |
 | CI | active ; étapes Maven et temps réel ignorées tant que `pom.xml` / `package.json` n'existent pas | | le front passe maintenant lint, build et licences |
 | Poste de développement | JDK 25, Maven 3.9, Node 22, Python 3.12 ; **Docker absent, virtualisation inactive** | Java 21, Node 24, Docker | voir WP0 |
@@ -226,8 +226,9 @@ Le backend fournit à Gaye : l'instantané validé (WP7), l'accès au jeton GitH
 
 ### WP12 — Branchement du front (Fall avec Pouye, J1 à J2)
 
-- [ ] Remplacer l'adaptateur de session simulé du front (`frontend/src/lib/session`) par `POST /auth/guest`, `GET /auth/github/login`, `GET /me`, `POST /auth/logout`.
-- [ ] Projets : `GET/POST/PATCH /projects` ; retirer des écrans les champs fictifs sans équivalent (voir § 8).
+- [ ] Session : `frontend/src/lib/session.tsx` contient déjà l'adaptateur API (`POST /auth/guest`, `GET /auth/github/login`, `GET /me`, `POST /auth/logout`) ; il n'a pas pu être testé faute de backend. Le front l'active avec `NEXT_PUBLIC_API_MODE=live` au **build**.
+- [ ] Variables du front : Next lit `frontend/.env.local` (pas le `.env` de la racine) et inline les `NEXT_PUBLIC_*` au build. Copier `NEXT_PUBLIC_API_MODE`, `NEXT_PUBLIC_API_URL` et `NEXT_PUBLIC_REALTIME_URL` dans `frontend/.env.local` en développement, et les passer en arguments de build dans le Dockerfile du front.
+- [ ] Projets : remplacer `frontend/src/lib/workspace.tsx` (données locales) par `GET/POST/PATCH /projects` ; retirer des écrans les champs fictifs sans équivalent (voir § 8).
 - [ ] Canvas : `HocuspocusProvider` + Yjs selon la correspondance de `schema-canvas.md` ; curseurs et présence (*awareness*) ; ticket via `POST .../realtime-ticket` ; mode lecture seule.
 - [ ] Versions : créer, lister, restaurer ; export JSON via `GET .../snapshot`.
 - [ ] Gestion propre des `401` (retour à la connexion) et des erreurs `problem+json`.
@@ -398,6 +399,7 @@ create table audit_log (
 | `AI_ENABLED` | `false` par défaut ; tant que l'IA n'est pas prête, le contrôle des valeurs `change-me` ignore `AI_*` |
 | `SPRING_PROFILES_ACTIVE` | `dev` ou `prod` |
 | `GUEST_TTL_HOURS` | durée de vie d'un invité (24 par défaut) |
+| `NEXT_PUBLIC_API_MODE` | `mock` (défaut, déjà dans `.env.example`) ou `live` : le front appelle l'API ; lue au build, dans `frontend/.env.local` |
 
 ## 8. Front et backend : correspondances
 
@@ -407,7 +409,7 @@ Le front importé est une maquette navigable : toutes les données viennent de `
 |---|---|---|---|
 | Connexion (nouvelle page) | `POST /auth/guest`, `GET /auth/github/login`, `GET /me`, `POST /auth/logout` | T1 | session simulée dans le front, à remplacer (WP12) |
 | Projets | `GET/POST/PATCH /projects` | T1 | retirer `aiScore`, `mcpActive`, `orionSynced`, `openReviewsCount`, `forkedFrom` : pas d'équivalent |
-| Studio, Architecture | ticket, WebSocket `/ws`, `GET /snapshot` | T1 | modèle de blocs à aligner sur le contrat (D2) ; ajouter les blocs locaux du contrat (paiement mobile, messagerie, facturation), qui font la différence du produit |
+| Studio, Architecture | ticket, WebSocket `/ws`, `GET /snapshot` | T1 | modèle de blocs à aligner sur le contrat (D2). Les blocs locaux du contrat (paiement mobile, messagerie, facturation) existent déjà dans la boîte à outils ; le graphe est gardé par projet dans `frontend/src/lib/project-graph.ts`, à remplacer par le document Yjs |
 | Studio, Versions | `GET/POST /versions`, restauration | T1 | les « tags Git » du front n'ont pas d'équivalent tant qu'aucune release GitHub n'est créée |
 | Studio, Équipe | liens de partage (T1), membres (T3) | T1/T3 | les sous-équipes et la protection de branche n'existent pas côté backend |
 | Studio, Analyse IA, Documentation | endpoints IA | — | colleague |
@@ -457,7 +459,7 @@ Ce que le backend fournit à Ngom, pour que l'IA se branche sans toucher au rest
 | # | Sujet | Constat | Recommandation | Qui tranche | Avant |
 |---|---|---|---|---|---|
 | D1 | **Qui convertit Yjs en JSON ?** | `architecture.md` dit que « le backend lit l'état courant, produit le JSON », mais l'état est un binaire Yjs et nous ne connaissons pas de bibliothèque Yjs mûre côté JVM | le serveur temps réel (Node, qui a Yjs) expose deux routes internes : instantané JSON et restauration (§ 7.2) ; le backend valide et stocke | Pouye, Fall | J0, soir |
-| D2 | **Modèle de blocs** | contrat : 8 types (`webapp`, `service`, `database`, `auth`, `queue`, `mobile-payment`, `messaging`, `billing`) avec des `data` précis ; front : 9 formes (`generic`, `gateway`, `cache`, `ai`, `user`, `cylinder`…) avec `tech`, `port`, débit | le front adopte les 8 types ; ajouter au contrat v1 un type `generic` (bloc libre, ignoré par le générateur) pour garder les blocs sans stack ; correspondance provisoire : `service`→`service`, `cylinder`→`database`, `security`→`auth`, `queue`→`queue`, `user`→`webapp`, le reste→`generic` | Fall, Pouye, Gaye, Ngom (le contrat change par pull request relue par les quatre) | J1, matin |
+| D2 | **Modèle de blocs** | contrat : 8 types (`webapp`, `service`, `database`, `auth`, `queue`, `mobile-payment`, `messaging`, `billing`) avec des `data` précis ; front : 12 formes (`generic`, `gateway`, `cache`, `ai`, `user`, `cylinder`… et les 3 blocs locaux déjà ajoutés) avec `tech`, `port`, débit | le front adopte les 8 types ; ajouter au contrat v1 un type `generic` (bloc libre, ignoré par le générateur) pour garder les blocs sans stack ; correspondance provisoire : `service`→`service`, `cylinder`→`database`, `security`→`auth`, `queue`→`queue`, `user`→`webapp`, le reste→`generic` | Fall, Pouye, Gaye, Ngom (le contrat change par pull request relue par les quatre) | J1, matin |
 | D3 | Authentification | le cahier des charges (PDF) parle de **JWT** ; `architecture.md` (16/10) retient une **session serveur** (jeton GitHub jamais dans le navigateur, révocation simple) | garder la session ; le mentionner dans la soumission comme écart assumé | Pouye | — |
 | D4 | Santé | `DEPLOIEMENT.md` vérifie `/actuator/health`, mais Caddy ne route que `/api`, `/ws` et `/` | exposer `/api/actuator/health` et corriger `DEPLOIEMENT.md` | Pouye, Gaye | J1 |
 | D5 | Collaboration entre jurés | un invité n'a que sa copie du modèle ; deux jurés ne peuvent pas éditer le même canvas | liens de partage en T1 (WP5) ; invitation par identifiant GitHub en T3 | Pouye, Diagne | J0 |
