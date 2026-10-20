@@ -1,26 +1,25 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import Link from "next/link";
-import { AppShell } from "@/components/layout/AppSidebar";
+import React, { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Button } from "@/components/ui/Button";
+import { cn } from "@/lib/cn";
+import { useWorkspace } from "@/lib/workspace";
+import { useProjectGraph } from "@/lib/project-graph";
 import { ArchitectureWhiteboard } from "@/components/studio/ArchitectureWhiteboard";
 import {
-  CORE_STUDIO_NODES,
-  STUDIO_EDGES,
   AI_SUGGESTIONS,
   ARCHITECTURE_VERSIONS,
   AI_DOC_SECTIONS,
-  WORKSPACE_PROJECTS,
-  PALABRE_BLUEPRINTS,
   COMMUNITY_ARCHITECTS,
   DEFAULT_PROJECT_TEAMS,
-  type ArchitectureNode,
-  type ArchitectureEdge,
   type ArchitectureVersion,
   type AIDocSection,
   type GitHubRole,
   type ProjectCollaborator,
   type ProjectTeamGroup,
+  type WorkspaceProject,
 } from "@/lib/lonkoo-data";
 import {
   SlidersHorizontal,
@@ -28,11 +27,8 @@ import {
   ChartLineUp,
   FileText,
   GitCommit,
-  Plus,
   CheckCircle,
   Sparkle,
-  Tag,
-  GitBranch,
   PlugsConnected,
   Users,
   ArrowsClockwise,
@@ -47,15 +43,42 @@ import {
 
 type StudioTab = "canvas" | "scanner" | "simulator" | "docs" | "versions" | "team";
 
-export default function StudioPage() {
-  const [activeTab, setActiveTab] = useState<StudioTab>("canvas");
-  const [activeProjectSlug, setActiveProjectSlug] = useState<string>(
-    WORKSPACE_PROJECTS[0]?.slug ?? "passerelle-paiement-uemoa"
-  );
+const STUDIO_TABS: ReadonlyArray<StudioTab> = ["canvas", "scanner", "simulator", "docs", "versions", "team"];
 
-  const [nodes, setNodes] = useState<ArchitectureNode[]>(CORE_STUDIO_NODES);
-  const [edges, setEdges] = useState<ArchitectureEdge[]>(STUDIO_EDGES);
-  const [selectedNodeId, setSelectedNodeId] = useState<string>("pg-primary");
+function parseTab(value: string | null): StudioTab {
+  return STUDIO_TABS.find((tab) => tab === value) ?? "canvas";
+}
+
+export default function StudioPage() {
+  const { activeProject } = useWorkspace();
+  if (!activeProject) {
+    return (
+      <div className="mx-auto max-w-md py-20 text-center">
+        <h1 className="text-lg font-semibold text-ink">Aucun projet</h1>
+        <p className="mt-1 text-sm text-ink-3">Créez un projet pour ouvrir le studio.</p>
+        <Button href="/dashboard?new=1" className="mt-5">
+          Nouveau projet
+        </Button>
+      </div>
+    );
+  }
+  // La clé réinitialise tout l'état local quand on change de projet.
+  return <StudioWorkspace key={activeProject.slug} project={activeProject} />;
+}
+
+function StudioWorkspace({ project: currentProject }: { project: WorkspaceProject }) {
+  const router = useRouter();
+  const search = useSearchParams();
+  const activeTab = parseTab(search.get("tab"));
+  const setActiveTab = (tab: StudioTab) =>
+    router.replace(`/studio?project=${currentProject.slug}${tab === "canvas" ? "" : `&tab=${tab}`}`, {
+      scroll: false,
+    });
+
+  const { nodes, edges, setNodes, setEdges } = useProjectGraph(currentProject.slug);
+  const [selectedNodeId, setSelectedNodeId] = useState<string>(
+    () => nodes.find((node) => node.id === "pg-primary")?.id ?? nodes[0]?.id ?? "",
+  );
   const [appliedSuggestionIds, setAppliedSuggestionIds] = useState<string[]>([]);
 
   const [simulatedRps, setSimulatedRps] = useState<number>(8500);
@@ -65,7 +88,7 @@ export default function StudioPage() {
   const [customDocPrompt, setCustomDocPrompt] = useState<string>("");
 
   const [versions, setVersions] = useState<ArchitectureVersion[]>(ARCHITECTURE_VERSIONS);
-  const [newTagInput, setNewTagInput] = useState<string>("v2.5.0");
+  const [newTagInput, setNewTagInput] = useState<string>("");
   const [newCommitTitle, setNewCommitTitle] = useState<string>("");
 
   // État de l'équipe du projet (Modèle GitHub Collaborators & Teams)
@@ -109,29 +132,6 @@ export default function StudioPage() {
   const [requireTwoApprovals, setRequireTwoApprovals] = useState<boolean>(true);
   const [requireAiCheck, setRequireAiCheck] = useState<boolean>(true);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const tab = params.get("tab");
-    const proj = params.get("project");
-    if (tab === "scanner" || tab === "nianthio") setActiveTab("scanner");
-    else if (tab === "simulator") setActiveTab("simulator");
-    else if (tab === "docs") setActiveTab("docs");
-    else if (tab === "versions") setActiveTab("versions");
-    else if (tab === "team") setActiveTab("team");
-    if (proj) setActiveProjectSlug(proj);
-  }, []);
-
-  useEffect(() => {
-    const foundBlueprint = PALABRE_BLUEPRINTS.find((b) => b.slug === activeProjectSlug);
-    if (foundBlueprint && foundBlueprint.nodes) {
-      setNodes(foundBlueprint.nodes);
-      if (foundBlueprint.nodes[0]) setSelectedNodeId(foundBlueprint.nodes[0].id);
-    }
-  }, [activeProjectSlug]);
-
-  const currentProject =
-    WORKSPACE_PROJECTS.find((p) => p.slug === activeProjectSlug) ?? WORKSPACE_PROJECTS[0]!;
-
   const aiHealthScore = Math.min(100, 86 + appliedSuggestionIds.length * 5);
 
   const applySuggestion = (sugId: string) => {
@@ -166,7 +166,7 @@ export default function StudioPage() {
       setDocSections((prev) => [
         {
           id: `doc-auto-${Date.now()}`,
-          title: `Mise à jour — Topologie (${versions[0]?.versionTag ?? "v2.4.0"})`,
+          title: `Mise à jour de la topologie${versions[0] ? ` (${versions[0].versionTag})` : ""}`,
           badge: "À jour",
           lastGenerated: "À l'instant",
           content: customDocPrompt.trim()
@@ -298,97 +298,71 @@ export default function StudioPage() {
   );
 
   return (
-    <AppShell
-      title="Studio"
-      fullHeight={activeTab === "canvas"}
-      actions={
-        <div className="flex items-center gap-2">
-          <Link
-            href="/reviews"
-            className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 hover:text-slate-950 bg-white hover:bg-slate-50 border border-slate-200 transition-colors flex items-center gap-1.5"
-          >
-            <GitPullRequest size={14} />
-            <span className="hidden md:inline">Créer une revue</span>
-          </Link>
-          <Link
-            href="/deploy"
-            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#1265DD] hover:bg-blue-700 text-white transition-colors flex items-center gap-1.5"
-          >
-            <PlugsConnected size={14} />
-            <span className="hidden sm:inline">Déployer</span>
-          </Link>
-        </div>
-      }
-    >
+    <>
+      <PageHeader
+        title="Studio"
+        fullBleed={activeTab === "canvas"}
+        actions={
+          <>
+            <Button href="/reviews" variant="secondary" size="sm">
+              <GitPullRequest size={14} />
+              <span className="hidden md:inline">Créer une revue</span>
+            </Button>
+            <Button href={`/deploy?project=${currentProject.slug}`} size="sm">
+              <PlugsConnected size={14} />
+              <span className="hidden sm:inline">Déployer</span>
+            </Button>
+          </>
+        }
+      />
+
       <div
-        className={`flex flex-col ${
-          activeTab === "canvas"
-            ? "w-full flex-1 h-[calc(100vh-5.5rem)] min-h-[600px] gap-2.5"
-            : "max-w-6xl mx-auto w-full space-y-5"
-        }`}
+        className={cn(
+          "flex flex-col",
+          activeTab === "canvas" ? "h-full min-h-[28rem] gap-2" : "mx-auto w-full max-w-6xl space-y-5",
+        )}
       >
-        {/* BARRE DE NAVIGATION DU PROJET (Responsive Medium & Desktop) */}
-        <div className="bg-white rounded-xl px-3 py-2 border border-slate-200 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 flex-shrink-0">
-          <div className="flex items-center justify-between md:justify-start gap-2.5 min-w-0">
-            <select
-              value={activeProjectSlug}
-              onChange={(e) => setActiveProjectSlug(e.target.value)}
-              aria-label="Sélectionner un projet"
-              className="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:border-[#1265DD] cursor-pointer truncate max-w-[200px] sm:max-w-xs"
-            >
-              {WORKSPACE_PROJECTS.map((p) => (
-                <option key={p.id} value={p.slug}>
-                  {p.name} ({p.gitTag})
-                </option>
-              ))}
-            </select>
-
-            <div className="hidden xl:flex items-center gap-2 text-xs font-mono text-slate-500">
-              <GitBranch size={13} className="text-slate-400" />
-              <span>{currentProject.branch}</span>
-              <span className="text-slate-300">·</span>
-              <span className="text-slate-800 font-medium">
-                {versions[0]?.versionTag ?? currentProject.gitTag}
-              </span>
-            </div>
-          </div>
-
-          {/* Onglets compacts avec scroll horizontal fluide sur petits/moyens écrans */}
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg overflow-x-auto">
-            {(
-              [
-                { id: "canvas", label: "Architecture", icon: SlidersHorizontal },
-                {
-                  id: "scanner",
-                  label: `Analyse IA (${AI_SUGGESTIONS.length - appliedSuggestionIds.length})`,
-                  icon: Cpu,
-                },
-                { id: "simulator", label: "Simulateur", icon: ChartLineUp },
-                { id: "docs", label: "Documentation", icon: FileText },
-                { id: "versions", label: "Versions", icon: GitCommit },
-                { id: "team", label: `Équipe (${collaborators.length})`, icon: Users },
-              ] as const
-            ).map((t) => {
-              const Icon = t.icon;
-              const active = activeTab === t.id;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setActiveTab(t.id)}
-                  className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap flex-shrink-0 ${
-                    active
-                      ? "bg-white text-slate-950 shadow-2xs"
-                      : "text-slate-600 hover:text-slate-950"
-                  }`}
-                >
-                  <Icon size={14} weight={active ? "bold" : "regular"} />
-                  <span>{t.label}</span>
-                </button>
-              );
-            })}
-          </div>
+        {/* Sections du studio : une seule ligne, défilement horizontal sur écran étroit */}
+        <div
+          role="tablist"
+          aria-label="Sections du studio"
+          className="flex flex-shrink-0 items-center gap-1 overflow-x-auto rounded-xl border border-edge bg-surface p-1"
+        >
+          {(
+            [
+              { id: "canvas", label: "Architecture", icon: SlidersHorizontal },
+              {
+                id: "scanner",
+                label: `Analyse IA (${AI_SUGGESTIONS.length - appliedSuggestionIds.length})`,
+                icon: Cpu,
+              },
+              { id: "simulator", label: "Simulateur", icon: ChartLineUp },
+              { id: "docs", label: "Documentation", icon: FileText },
+              { id: "versions", label: "Versions", icon: GitCommit },
+              { id: "team", label: `Équipe (${collaborators.length})`, icon: Users },
+            ] as const
+          ).map((t) => {
+            const Icon = t.icon;
+            const active = activeTab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setActiveTab(t.id)}
+                className={cn(
+                  "flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                  active ? "bg-subtle text-ink" : "text-ink-3 hover:bg-sunken hover:text-ink",
+                )}
+              >
+                <Icon size={15} weight={active ? "fill" : "regular"} />
+                <span>{t.label}</span>
+              </button>
+            );
+          })}
         </div>
+
 
         {/* ONGLET 1 : ARCHITECTURE (TABLEAU BLANC) */}
         {activeTab === "canvas" && (
@@ -407,27 +381,27 @@ export default function StudioPage() {
         {/* ONGLET 2 : ANALYSE IA */}
         {activeTab === "scanner" && (
           <div className="space-y-4">
-            <div className="bg-white rounded-xl p-5 border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="bg-surface rounded-xl p-5 border border-edge flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <h2 className="text-base font-bold text-slate-950">
+                <h2 className="text-base font-bold text-ink">
                   Diagnostic de topologie et recommandations
                 </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-ink-3 mt-0.5">
                   Analyse des {nodes.length} blocs du projet {currentProject.name}.
                 </p>
               </div>
 
-              <div className="flex items-center gap-4 bg-slate-50 px-4 py-2.5 rounded-lg border border-slate-200">
+              <div className="flex items-center gap-4 bg-sunken px-4 py-2.5 rounded-lg border border-edge">
                 <div>
-                  <div className="text-[11px] text-slate-500">Score de cohérence</div>
-                  <div className="text-xl font-bold font-mono text-slate-950">
+                  <div className="text-[11px] text-ink-3">Score de cohérence</div>
+                  <div className="text-xl font-bold font-mono text-ink">
                     {aiHealthScore}%
                   </div>
                 </div>
-                <div className="h-7 w-px bg-slate-200" />
+                <div className="h-7 w-px bg-strong" />
                 <div>
-                  <div className="text-[11px] text-slate-500">Correctifs</div>
-                  <div className="text-sm font-bold font-mono text-[#1265DD]">
+                  <div className="text-[11px] text-ink-3">Correctifs</div>
+                  <div className="text-sm font-bold font-mono text-accent">
                     {appliedSuggestionIds.length} / {AI_SUGGESTIONS.length}
                   </div>
                 </div>
@@ -440,33 +414,33 @@ export default function StudioPage() {
                 return (
                   <div
                     key={sug.id}
-                    className="bg-white rounded-xl p-5 border border-slate-200"
+                    className="bg-surface rounded-xl p-5 border border-edge"
                   >
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div className="space-y-2 max-w-3xl">
                         <div className="flex flex-wrap items-center gap-2 text-xs">
-                          <span className="font-mono uppercase text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-800 font-semibold">
+                          <span className="font-mono uppercase text-[11px] px-2 py-0.5 rounded bg-subtle text-ink-2 font-semibold">
                             {sug.severity}
                           </span>
-                          <span className="text-slate-500">{sug.category}</span>
-                          <span className="text-slate-300">·</span>
-                          <span className="font-mono text-[#1265DD] font-medium">
+                          <span className="text-ink-3">{sug.category}</span>
+                          <span className="text-ink-4">·</span>
+                          <span className="font-mono text-accent font-medium">
                             {sug.impactScore}
                           </span>
                         </div>
 
-                        <h3 className="text-sm font-bold text-slate-950">{sug.title}</h3>
-                        <p className="text-xs text-slate-600 leading-relaxed">{sug.rationale}</p>
+                        <h3 className="text-sm font-bold text-ink">{sug.title}</h3>
+                        <p className="text-xs text-ink-2 leading-relaxed">{sug.rationale}</p>
 
                         <div className="pt-1 grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs font-mono">
-                          <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-600">
-                            <span className="block text-[10px] text-slate-400 mb-0.5">
+                          <div className="p-2.5 rounded-lg bg-sunken border border-edge text-ink-2">
+                            <span className="block text-[11px] text-ink-4 mb-0.5">
                               Actuel
                             </span>
                             {sug.currentConfig}
                           </div>
-                          <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-semibold">
-                            <span className="block text-[10px] text-[#1265DD] mb-0.5">
+                          <div className="p-2.5 rounded-lg bg-sunken border border-edge text-ink font-semibold">
+                            <span className="block text-[11px] text-accent mb-0.5">
                               Proposition
                             </span>
                             {sug.proposedConfig}
@@ -476,15 +450,15 @@ export default function StudioPage() {
 
                       <div className="flex-shrink-0">
                         {isApplied ? (
-                          <div className="px-3.5 py-2 rounded-lg bg-slate-100 text-slate-700 text-xs font-medium flex items-center gap-1.5">
-                            <CheckCircle size={15} weight="fill" className="text-emerald-600" />
+                          <div className="px-3.5 py-2 rounded-lg bg-subtle text-ink-2 text-xs font-medium flex items-center gap-1.5">
+                            <CheckCircle size={15} weight="fill" className="text-ok" />
                             <span>Appliqué</span>
                           </div>
                         ) : (
                           <button
                             type="button"
                             onClick={() => applySuggestion(sug.id)}
-                            className="px-4 py-2 rounded-lg bg-[#1265DD] hover:bg-blue-700 text-white text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
+                            className="px-4 py-2 rounded-lg bg-brand hover:bg-brand-hover text-inverse-ink text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
                           >
                             <Sparkle size={14} weight="fill" />
                             <span>Appliquer</span>
@@ -502,27 +476,27 @@ export default function StudioPage() {
         {/* ONGLET 3 : SIMULATEUR DE CHARGE */}
         {activeTab === "simulator" && (
           <div className="space-y-4">
-            <div className="bg-white rounded-xl p-5 border border-slate-200">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+            <div className="bg-surface rounded-xl p-5 border border-edge">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-edge-soft">
                 <div>
-                  <h2 className="text-base font-bold text-slate-950">
+                  <h2 className="text-base font-bold text-ink">
                     Simulation de charge et débit
                   </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className="text-xs text-ink-3 mt-0.5">
                     Ajustez le trafic entrant pour tester les limites de chaque composant.
                   </p>
                 </div>
 
-                <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-right">
-                  <div className="text-[10px] font-mono text-slate-500">Trafic cible</div>
-                  <div className="text-xl font-bold font-mono text-slate-950">
+                <div className="bg-sunken border border-edge rounded-lg px-4 py-2 text-right">
+                  <div className="text-[11px] font-mono text-ink-3">Trafic cible</div>
+                  <div className="text-xl font-bold font-mono text-ink">
                     {simulatedRps.toLocaleString("fr-FR")} req/s
                   </div>
                 </div>
               </div>
 
               <div className="py-5">
-                <div className="flex items-center justify-between text-xs font-mono text-slate-500 mb-2">
+                <div className="flex items-center justify-between text-xs font-mono text-ink-3 mb-2">
                   <span>1 000 req/s</span>
                   <span>10 000 req/s</span>
                   <span>20 000 req/s</span>
@@ -534,7 +508,7 @@ export default function StudioPage() {
                   step={500}
                   value={simulatedRps}
                   onChange={(e) => setSimulatedRps(Number(e.target.value))}
-                  className="w-full accent-[#1265DD] cursor-pointer h-2 bg-slate-200 rounded-lg"
+                  className="w-full accent-accent cursor-pointer h-2 bg-strong rounded-lg"
                 />
               </div>
 
@@ -553,45 +527,45 @@ export default function StudioPage() {
                   return (
                     <div
                       key={node.id}
-                      className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between"
+                      className="p-4 rounded-xl bg-sunken border border-edge flex flex-col justify-between"
                     >
                       <div>
                         <div className="flex items-start justify-between gap-2 mb-1.5">
                           <div className="min-w-0">
-                            <div className="text-xs font-bold text-slate-950 truncate">
+                            <div className="text-xs font-bold text-ink truncate">
                               {node.title}
                             </div>
-                            <div className="text-[11px] font-mono text-slate-500 truncate">
+                            <div className="text-[11px] font-mono text-ink-3 truncate">
                               {node.tech || "Bloc générique"} · {node.replicas} rép.
                             </div>
                           </div>
                           <span
                             className={`text-xs font-mono font-bold ${
                               saturated
-                                ? "text-red-600"
+                                ? "text-danger"
                                 : high
-                                ? "text-amber-600"
-                                : "text-slate-900"
+                                ? "text-warn"
+                                : "text-ink"
                             }`}
                           >
                             {loadPct}%
                           </span>
                         </div>
 
-                        <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden my-2.5">
+                        <div className="w-full h-1.5 rounded-full bg-strong overflow-hidden my-2.5">
                           <div
                             className={`h-full transition-all duration-300 ${
                               saturated
-                                ? "bg-red-600"
+                                ? "bg-danger"
                                 : high
-                                ? "bg-amber-500"
-                                : "bg-[#1265DD]"
+                                ? "bg-warn-fill"
+                                : "bg-brand"
                             }`}
                             style={{ width: `${Math.min(100, loadPct)}%` }}
                           />
                         </div>
 
-                        <div className="flex items-center justify-between text-[11px] font-mono text-slate-500">
+                        <div className="flex items-center justify-between text-[11px] font-mono text-ink-3">
                           <span>Max: {node.maxRpsCapacity} req/s</span>
                           <span>Latence: {dynamicLatency} ms</span>
                         </div>
@@ -614,7 +588,7 @@ export default function StudioPage() {
                               )
                             )
                           }
-                          className="mt-3 w-full py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-medium transition-colors cursor-pointer"
+                          className="mt-3 w-full py-1.5 rounded-lg bg-inverse hover:bg-inverse-hover text-inverse-ink text-[11px] font-medium transition-colors cursor-pointer"
                         >
                           + Ajouter 2 répliques
                         </button>
@@ -634,21 +608,21 @@ export default function StudioPage() {
               {docSections.map((sec) => (
                 <div
                   key={sec.id}
-                  className="bg-white rounded-xl p-5 border border-slate-200"
+                  className="bg-surface rounded-xl p-5 border border-edge"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100 mb-3">
-                    <h3 className="text-sm font-bold text-slate-950">{sec.title}</h3>
-                    <span className="text-[11px] text-slate-400 font-mono">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-edge-soft mb-3">
+                    <h3 className="text-sm font-bold text-ink">{sec.title}</h3>
+                    <span className="text-[11px] text-ink-4 font-mono">
                       {sec.lastGenerated}
                     </span>
                   </div>
-                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed mb-4">
+                  <p className="text-xs sm:text-sm text-ink-2 leading-relaxed mb-4">
                     {sec.content}
                   </p>
-                  <ul className="space-y-1.5 bg-slate-50 p-3.5 rounded-lg border border-slate-200 text-xs text-slate-700">
+                  <ul className="space-y-1.5 bg-sunken p-3.5 rounded-lg border border-edge text-xs text-ink-2">
                     {sec.highlights.map((h) => (
                       <li key={h} className="flex items-start gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#1265DD] mt-1.5 flex-shrink-0" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-brand mt-1.5 flex-shrink-0" />
                         <span>{h}</span>
                       </li>
                     ))}
@@ -658,15 +632,15 @@ export default function StudioPage() {
             </div>
 
             <div className="lg:col-span-4">
-              <div className="bg-white rounded-xl p-5 border border-slate-200">
-                <h3 className="text-sm font-bold text-slate-950 mb-1">
+              <div className="bg-surface rounded-xl p-5 border border-edge">
+                <h3 className="text-sm font-bold text-ink mb-1">
                   Génération documentaire
                 </h3>
-                <p className="text-xs text-slate-500 leading-relaxed mb-4">
+                <p className="text-xs text-ink-3 leading-relaxed mb-4">
                   Mettez à jour la documentation technique et les décisions d&apos;architecture (ADR) selon l&apos;état actuel du graphe.
                 </p>
 
-                <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                <label className="block text-xs font-medium text-ink-2 mb-1.5">
                   Instruction spécifique
                 </label>
                 <textarea
@@ -674,14 +648,14 @@ export default function StudioPage() {
                   value={customDocPrompt}
                   onChange={(e) => setCustomDocPrompt(e.target.value)}
                   placeholder="Préciser un point d'architecture à documenter..."
-                  className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-900 mb-3 focus:outline-none focus:border-[#1265DD] focus:bg-white"
+                  className="w-full px-3 py-2 rounded-lg bg-sunken border border-edge text-xs text-ink mb-3 focus:outline-none focus:border-accent focus:bg-surface"
                 />
 
                 <button
                   type="button"
                   disabled={isGeneratingDoc}
                   onClick={handleRegenerateDocs}
-                  className="w-full py-2 rounded-lg bg-[#1265DD] hover:bg-blue-700 text-white text-xs font-medium flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-60"
+                  className="w-full py-2 rounded-lg bg-brand hover:bg-brand-hover text-white text-xs font-medium flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-60"
                 >
                   <ArrowsClockwise
                     size={14}
@@ -702,43 +676,43 @@ export default function StudioPage() {
               {versions.map((ver) => (
                 <div
                   key={ver.id}
-                  className={`bg-white rounded-xl p-5 border ${
-                    ver.isCurrent ? "border-[#1265DD]" : "border-slate-200"
+                  className={`bg-surface rounded-xl p-5 border ${
+                    ver.isCurrent ? "border-accent" : "border-edge"
                   }`}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-900 text-xs font-mono font-bold">
+                      <span className="px-2 py-0.5 rounded bg-subtle text-ink text-xs font-mono font-bold">
                         {ver.versionTag}
                       </span>
-                      <span className="text-xs font-mono text-slate-500">
+                      <span className="text-xs font-mono text-ink-3">
                         {ver.gitCommit} · {ver.branch}
                       </span>
                       {ver.isCurrent && (
-                        <span className="text-[11px] font-medium text-[#1265DD]">
+                        <span className="text-[11px] font-medium text-accent">
                           Actuelle
                         </span>
                       )}
                     </div>
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-ink-4">
                       {ver.author} · {ver.createdAt}
                     </span>
                   </div>
 
-                  <h3 className="text-sm font-bold text-slate-950 mb-2">{ver.title}</h3>
+                  <h3 className="text-sm font-bold text-ink mb-2">{ver.title}</h3>
 
-                  <ul className="space-y-1 text-xs text-slate-600 mb-3">
+                  <ul className="space-y-1 text-xs text-ink-2 mb-3">
                     {ver.changesSummary.map((c) => (
                       <li key={c} className="flex items-center gap-2">
-                        <span className="w-1 h-1 rounded-full bg-slate-400" />
+                        <span className="w-1 h-1 rounded-full bg-ink-4" />
                         <span>{c}</span>
                       </li>
                     ))}
                   </ul>
 
-                  <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-slate-500">
+                  <div className="pt-2.5 border-t border-edge-soft flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-ink-3">
                     <span>{ver.stackDelta}</span>
-                    <span className="flex items-center gap-1.5 text-slate-700">
+                    <span className="flex items-center gap-1.5 text-ink-2">
                       <GithubLogo size={13} />
                       <span>Release {ver.versionTag}</span>
                     </span>
@@ -750,17 +724,17 @@ export default function StudioPage() {
             <div className="lg:col-span-4">
               <form
                 onSubmit={handleCreateVersion}
-                className="bg-white rounded-xl p-5 border border-slate-200 space-y-3.5 text-xs"
+                className="bg-surface rounded-xl p-5 border border-edge space-y-3.5 text-xs"
               >
-                <div className="text-sm font-bold text-slate-950">
+                <div className="text-sm font-bold text-ink">
                   Créer une release
                 </div>
-                <p className="text-slate-500 leading-relaxed">
+                <p className="text-ink-3 leading-relaxed">
                   Enregistrez une version de l&apos;architecture et associez-la à un tag Git.
                 </p>
 
                 <div>
-                  <label className="block font-medium text-slate-700 mb-1">
+                  <label className="block font-medium text-ink-2 mb-1">
                     Tag Git
                   </label>
                   <input
@@ -768,13 +742,13 @@ export default function StudioPage() {
                     required
                     value={newTagInput}
                     onChange={(e) => setNewTagInput(e.target.value)}
-                    placeholder="v2.5.0"
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-mono font-semibold"
+                    placeholder="v1.0.0"
+                    className="w-full px-3 py-2 rounded-lg bg-sunken border border-edge text-ink font-mono font-semibold"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-medium text-slate-700 mb-1">
+                  <label className="block font-medium text-ink-2 mb-1">
                     Note de version
                   </label>
                   <input
@@ -783,13 +757,13 @@ export default function StudioPage() {
                     value={newCommitTitle}
                     onChange={(e) => setNewCommitTitle(e.target.value)}
                     placeholder="Description des changements..."
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900"
+                    className="w-full px-3 py-2 rounded-lg bg-sunken border border-edge text-ink"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-2 rounded-lg bg-[#1265DD] hover:bg-blue-700 text-white font-medium transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                  className="w-full py-2 rounded-lg bg-brand hover:bg-brand-hover text-white font-medium transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   <FloppyDisk size={14} weight="bold" />
                   <span>Publier la version</span>
@@ -807,17 +781,17 @@ export default function StudioPage() {
             {/* Colonne principale : Membres de l'équipe & Invitation */}
             <div className="lg:col-span-8 space-y-5">
               {/* Ajouter des collaborateurs au projet */}
-              <div className="bg-white rounded-xl p-5 border border-slate-200 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+              <div className="bg-surface rounded-xl p-5 border border-edge space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-edge-soft">
                   <div>
-                    <h2 className="text-sm font-bold text-slate-950">
+                    <h2 className="text-sm font-bold text-ink">
                       Accès et collaborateurs — {currentProject.name}
                     </h2>
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <p className="text-xs text-ink-3 mt-0.5">
                       Constituez votre équipe projet, attribuez les rôles d&apos;accès et gérez les permissions de fusion.
                     </p>
                   </div>
-                  <span className="text-xs font-mono text-slate-600">
+                  <span className="text-xs font-mono text-ink-2">
                     {collaborators.length} membres actifs
                   </span>
                 </div>
@@ -827,14 +801,14 @@ export default function StudioPage() {
                   <div className="sm:col-span-6 relative">
                     <MagnifyingGlass
                       size={14}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4"
                     />
                     <input
                       type="text"
                       value={memberSearch}
                       onChange={(e) => setMemberSearch(e.target.value)}
                       placeholder="Rechercher un profil (@handle, nom, compétence)..."
-                      className="w-full pl-8 pr-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:border-[#1265DD] focus:bg-white"
+                      className="w-full pl-8 pr-3 py-2 rounded-lg bg-sunken border border-edge text-ink focus:outline-none focus:border-accent focus:bg-surface"
                     />
                   </div>
                   <div className="sm:col-span-3">
@@ -842,7 +816,7 @@ export default function StudioPage() {
                       value={inviteRole}
                       onChange={(e) => setInviteRole(e.target.value as GitHubRole)}
                       aria-label="Rôle du collaborateur"
-                      className="w-full px-2.5 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-medium"
+                      className="w-full px-2.5 py-2 rounded-lg bg-sunken border border-edge text-ink font-medium"
                     >
                       <option value="Maintainer">Maintainer</option>
                       <option value="Write">Write (Écriture)</option>
@@ -853,7 +827,7 @@ export default function StudioPage() {
                   </div>
                   <button
                     type="submit"
-                    className="sm:col-span-3 py-2 px-3 rounded-lg bg-[#1265DD] hover:bg-blue-700 text-white font-medium flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="sm:col-span-3 py-2 px-3 rounded-lg bg-brand hover:bg-brand-hover text-white font-medium flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <UserPlus size={14} weight="bold" />
                     <span>Ajouter</span>
@@ -863,27 +837,27 @@ export default function StudioPage() {
                 {/* Suggestions rapides de profils de la communauté */}
                 {candidateArchitects.length > 0 && (
                   <div className="pt-1">
-                    <div className="text-[11px] font-medium text-slate-400 mb-2">
+                    <div className="text-[11px] font-medium text-ink-4 mb-2">
                       Membres de la communauté disponibles :
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {candidateArchitects.slice(0, 4).map((arch) => (
                         <div
                           key={arch.id}
-                          className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between gap-2 text-xs"
+                          className="p-2.5 rounded-lg bg-sunken border border-edge flex items-center justify-between gap-2 text-xs"
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
                             <span
                               style={{ backgroundColor: arch.color }}
-                              className="w-7 h-7 rounded-full text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0"
+                              className="w-7 h-7 rounded-full text-white text-[11px] font-bold flex items-center justify-center flex-shrink-0"
                             >
                               {arch.initials}
                             </span>
                             <div className="min-w-0">
-                              <div className="font-semibold text-slate-900 truncate">
+                              <div className="font-semibold text-ink truncate">
                                 {arch.name}
                               </div>
-                              <div className="text-[10px] font-mono text-slate-500 truncate">
+                              <div className="text-[11px] font-mono text-ink-3 truncate">
                                 @{arch.handle} · {arch.specialties.slice(0, 2).join(", ")}
                               </div>
                             </div>
@@ -891,7 +865,7 @@ export default function StudioPage() {
                           <button
                             type="button"
                             onClick={() => handleAddCollaborator(arch)}
-                            className="px-2.5 py-1 rounded bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 text-[11px] font-medium cursor-pointer flex-shrink-0"
+                            className="px-2.5 py-1 rounded bg-surface hover:bg-subtle text-ink-2 border border-edge text-[11px] font-medium cursor-pointer flex-shrink-0"
                           >
                             + Inviter
                           </button>
@@ -902,7 +876,7 @@ export default function StudioPage() {
                 )}
 
                 {/* Liste des collaborateurs du projet */}
-                <div className="divide-y divide-slate-100 pt-2">
+                <div className="divide-y divide-edge-soft pt-2">
                   {collaborators.map((collab) => (
                     <div
                       key={collab.id}
@@ -917,17 +891,17 @@ export default function StudioPage() {
                         </span>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-950">{collab.name}</span>
-                            <span className="font-mono text-[11px] text-slate-400">
+                            <span className="font-bold text-ink">{collab.name}</span>
+                            <span className="font-mono text-[11px] text-ink-4">
                               @{collab.handle}
                             </span>
                             {collab.status === "En attente" && (
-                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-mono">
+                              <span className="text-[11px] px-1.5 py-0.2 rounded bg-subtle text-ink-2 font-mono">
                                 Invitation envoyée
                               </span>
                             )}
                           </div>
-                          <div className="text-[11px] text-slate-500">{collab.jobTitle}</div>
+                          <div className="text-[11px] text-ink-3">{collab.jobTitle}</div>
                         </div>
                       </div>
 
@@ -938,7 +912,7 @@ export default function StudioPage() {
                             handleRoleChange(collab.id, e.target.value as GitHubRole)
                           }
                           aria-label={`Rôle de ${collab.name}`}
-                          className="px-2.5 py-1 rounded-md bg-slate-50 border border-slate-200 text-xs font-mono font-medium text-slate-800"
+                          className="px-2.5 py-1 rounded-md bg-sunken border border-edge text-xs font-mono font-medium text-ink-2"
                         >
                           <option value="Owner">Owner</option>
                           <option value="Maintainer">Maintainer</option>
@@ -951,7 +925,7 @@ export default function StudioPage() {
                           type="button"
                           onClick={() => handleRemoveCollaborator(collab.id)}
                           title="Retirer du projet"
-                          className="p-1.5 rounded-md text-slate-400 hover:text-red-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-md text-ink-4 hover:text-danger hover:bg-subtle transition-colors cursor-pointer"
                         >
                           <Trash size={14} />
                         </button>
@@ -965,12 +939,12 @@ export default function StudioPage() {
             {/* Colonne droite : Sous-équipes (Teams) & Règles de branche */}
             <div className="lg:col-span-4 space-y-5">
               {/* Groupes d'équipes */}
-              <div className="bg-white rounded-xl p-5 border border-slate-200 space-y-4 text-xs">
+              <div className="bg-surface rounded-xl p-5 border border-edge space-y-4 text-xs">
                 <div>
-                  <h3 className="text-sm font-bold text-slate-950">
+                  <h3 className="text-sm font-bold text-ink">
                     Sous-équipes assignées
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className="text-xs text-ink-3 mt-0.5">
                     Groupes d&apos;architectes rattachés à ce dépôt.
                   </p>
                 </div>
@@ -979,35 +953,35 @@ export default function StudioPage() {
                   {teamGroups.map((tg) => (
                     <div
                       key={tg.id}
-                      className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-1"
+                      className="p-3 rounded-lg bg-sunken border border-edge space-y-1"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-mono font-semibold text-slate-900">
+                        <span className="font-mono font-semibold text-ink">
                           {tg.slug}
                         </span>
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-700">
+                        <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-surface border border-edge text-ink-2">
                           {tg.permission}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-500">{tg.description}</p>
+                      <p className="text-[11px] text-ink-3">{tg.description}</p>
                     </div>
                   ))}
                 </div>
 
-                <form onSubmit={handleCreateTeamGroup} className="pt-2 border-t border-slate-100 space-y-2">
-                  <div className="font-medium text-slate-700">Créer une sous-équipe</div>
+                <form onSubmit={handleCreateTeamGroup} className="pt-2 border-t border-edge-soft space-y-2">
+                  <div className="font-medium text-ink-2">Créer une sous-équipe</div>
                   <div className="flex gap-2">
                     <input
                       type="text"
                       value={newTeamName}
                       onChange={(e) => setNewTeamName(e.target.value)}
                       placeholder="ex: infra-sre"
-                      className="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-900"
+                      className="flex-1 px-2.5 py-1.5 rounded-lg bg-sunken border border-edge text-ink"
                     />
                     <select
                       value={newTeamPerm}
                       onChange={(e) => setNewTeamPerm(e.target.value as GitHubRole)}
-                      className="px-2 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-800 font-mono"
+                      className="px-2 py-1.5 rounded-lg bg-sunken border border-edge text-ink-2 font-mono"
                     >
                       <option value="Maintainer">Maintainer</option>
                       <option value="Write">Write</option>
@@ -1016,7 +990,7 @@ export default function StudioPage() {
                   </div>
                   <button
                     type="submit"
-                    className="w-full py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-medium cursor-pointer"
+                    className="w-full py-1.5 rounded-lg bg-inverse hover:bg-inverse-hover text-inverse-ink font-medium cursor-pointer"
                   >
                     + Ajouter la sous-équipe
                   </button>
@@ -1024,9 +998,9 @@ export default function StudioPage() {
               </div>
 
               {/* Protection de la branche d'architecture */}
-              <div className="bg-white rounded-xl p-5 border border-slate-200 space-y-3 text-xs">
-                <div className="flex items-center gap-2 text-sm font-bold text-slate-950">
-                  <ShieldCheck size={17} className="text-[#1265DD]" weight="fill" />
+              <div className="bg-surface rounded-xl p-5 border border-edge space-y-3 text-xs">
+                <div className="flex items-center gap-2 text-sm font-bold text-ink">
+                  <ShieldCheck size={17} className="text-accent" weight="fill" />
                   <span>Protection de branche ({currentProject.branch})</span>
                 </div>
 
@@ -1035,9 +1009,9 @@ export default function StudioPage() {
                     type="checkbox"
                     checked={requireTwoApprovals}
                     onChange={(e) => setRequireTwoApprovals(e.target.checked)}
-                    className="mt-0.5 accent-[#1265DD]"
+                    className="mt-0.5 accent-accent"
                   />
-                  <span className="text-slate-600 leading-snug">
+                  <span className="text-ink-2 leading-snug">
                     Exiger l&apos;approbation d&apos;au moins 2 membres (Maintainer ou Owner) avant de fusionner une revue.
                   </span>
                 </label>
@@ -1047,9 +1021,9 @@ export default function StudioPage() {
                     type="checkbox"
                     checked={requireAiCheck}
                     onChange={(e) => setRequireAiCheck(e.target.checked)}
-                    className="mt-0.5 accent-[#1265DD]"
+                    className="mt-0.5 accent-accent"
                   />
-                  <span className="text-slate-600 leading-snug">
+                  <span className="text-ink-2 leading-snug">
                     Bloquer la fusion si l&apos;analyse de cohérence détecte un point critique.
                   </span>
                 </label>
@@ -1058,6 +1032,6 @@ export default function StudioPage() {
           </div>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }
