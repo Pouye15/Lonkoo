@@ -4,7 +4,7 @@ Ce fichier centralise l'ensemble du contexte produit, fonctionnel, architectural
 
 ---
 
-## Ce cue tu dois faire (ceci est seulement pour le front)
+## Ce que tu dois faire (ceci est seulement pour le front)
 d'abord coté front il y'a des incoherence et beaucoup de problemes d'abord la landing page tu peux  plus l'adapter a ce showcase :https://dribbble.com/shots/26366091-Landing-page-design-for-a-social-media-management-platform
 revoie aussi l'ux et fais que l'experinece utilisateur soit fluide simple et intuitifs
 professionalise le ui et rends le tous tres moderne et professionnel
