@@ -49,6 +49,12 @@
 3. **Déployable à tout moment.** Chaque lot arrive sur `main` en laissant `main` déployable (règle de `CONTRIBUTING.md`). Pull requests de moins de 300 lignes quand c'est possible, une par lot.
 4. **Couper tôt, couper proprement.** À chaque fin de journée on compare l'avancement au plan ; ce qui glisse de plus d'une demi-journée passe dans la liste du § 10.
 
+### Flux git
+
+- La branche `backend` a été créée depuis `chore/structure`. Elle contient le monorepo, le front importé **avec son historique** (`git subtree`, sans squash : les commits de Fall restent) et ce document.
+- Ordre conseillé : (1) fusionner `chore/structure` dans `main` (aujourd'hui `main` ne contient que le commit initial) ; (2) une pull request `backend` vers `main` pour l'import du front et ses finitions : volumineuse mais lisible commit par commit, à faire relire par Fall ; (3) ensuite un lot du § 6 par branche `feature/backend-<lot>` créée depuis `main`, avec une pull request de moins de 300 lignes quand c'est possible.
+- Pour renvoyer les évolutions du front vers `Gnatam/Lonkoo-frontend` si l'équipe le souhaite : `git subtree push --prefix=frontend origin <branche>`. Sinon ce dépôt devient la seule source du front (décision de l'équipe).
+
 ## 5. Plan jour par jour
 
 Durées en heures de travail focalisé, avec assistance IA, hors pauses ; marge de 30 % non incluse. Total pour le backend (Pouye) : environ 37 h.
