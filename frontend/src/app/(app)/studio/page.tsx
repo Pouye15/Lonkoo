@@ -976,12 +976,13 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
                       value={newTeamName}
                       onChange={(e) => setNewTeamName(e.target.value)}
                       placeholder="ex: infra-sre"
-                      className="flex-1 px-2.5 py-1.5 rounded-lg bg-sunken border border-edge text-ink"
+                      className="min-w-0 flex-1 px-2.5 py-1.5 rounded-lg bg-sunken border border-edge text-ink"
                     />
                     <select
                       value={newTeamPerm}
                       onChange={(e) => setNewTeamPerm(e.target.value as GitHubRole)}
-                      className="px-2 py-1.5 rounded-lg bg-sunken border border-edge text-ink-2 font-mono"
+                      aria-label="Permission de la sous-équipe"
+                      className="w-28 flex-shrink-0 px-2 py-1.5 rounded-lg bg-sunken border border-edge text-ink-2 font-mono"
                     >
                       <option value="Maintainer">Maintainer</option>
                       <option value="Write">Write</option>

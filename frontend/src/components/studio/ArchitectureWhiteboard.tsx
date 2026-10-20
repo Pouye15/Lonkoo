@@ -1,423 +1,46 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  type ArchitectureNode,
-  type ArchitectureEdge,
-  type ArchitectureShape,
-  type NodeRole,
-} from "@/lib/lonkoo-data";
-import {
-  Cpu,
-  ShieldCheck,
-  Lightning,
-  Sparkle,
-  Plus,
-  Trash,
-  ArrowsOutSimple,
+  ArrowClockwise,
+  ArrowCounterClockwise,
   Copy,
-  ShareNetwork,
+  CornersOut,
   Cursor,
-  HardDrives,
-  CaretDown,
-  CaretUp,
-  Cube,
-  Prohibit,
+  DotsNine,
+  GridFour,
+  Hand,
+  MapTrifold,
+  Magnet,
+  Minus,
+  Plus,
+  ShareNetwork,
+  Square,
+  Trash,
 } from "@phosphor-icons/react";
-
-export interface TechStackPreset {
-  name: string;
-  version: string;
-  port: number;
-  description: string;
-  baseLatencyMs: number;
-  maxRpsCapacity: number;
-  envVars: string[];
-}
-
-export const STACK_PRESETS_BY_SHAPE: Record<ArchitectureShape, TechStackPreset[]> = {
-  generic: [
-    {
-      name: "Docker Container",
-      version: "v27.0",
-      port: 8080,
-      description: "Conteneur applicatif générique isolé.",
-      baseLatencyMs: 2.5,
-      maxRpsCapacity: 12000,
-      envVars: ["PORT", "ENV"],
-    },
-    {
-      name: "Node.js Runtime",
-      version: "v22 LTS",
-      port: 3000,
-      description: "Service JavaScript / TypeScript polyvalent.",
-      baseLatencyMs: 5.0,
-      maxRpsCapacity: 9000,
-      envVars: ["NODE_ENV"],
-    },
-    {
-      name: "Go Binary",
-      version: "v1.23",
-      port: 8080,
-      description: "Binaire compilé léger haute concurrence.",
-      baseLatencyMs: 2.0,
-      maxRpsCapacity: 16000,
-      envVars: ["GOMAXPROCS"],
-    },
-  ],
-  cylinder: [
-    {
-      name: "PostgreSQL 16 HA",
-      version: "v16.4",
-      port: 5432,
-      description: "Stockage relationnel ACID avec réplique de lecture et PgBouncer.",
-      baseLatencyMs: 6.2,
-      maxRpsCapacity: 8000,
-      envVars: ["POSTGRES_DB", "POSTGRES_USER", "PGBOUNCER_POOL_MODE"],
-    },
-    {
-      name: "MySQL 8.4 LTS",
-      version: "v8.4",
-      port: 3306,
-      description: "Base relationnelle InnoDB avec réplication binaire.",
-      baseLatencyMs: 7.0,
-      maxRpsCapacity: 7500,
-      envVars: ["MYSQL_DATABASE", "MYSQL_ROOT_PASSWORD"],
-    },
-    {
-      name: "MongoDB",
-      version: "v7.0",
-      port: 27017,
-      description: "Base orientée document NoSQL avec sharding horizontal.",
-      baseLatencyMs: 4.5,
-      maxRpsCapacity: 12000,
-      envVars: ["MONGO_INITDB_ROOT_USERNAME"],
-    },
-    {
-      name: "Qdrant Vector DB",
-      version: "v1.9",
-      port: 6333,
-      description: "Moteur vectoriel pour recherche sémantique et RAG.",
-      baseLatencyMs: 14.0,
-      maxRpsCapacity: 6000,
-      envVars: ["QDRANT_API_KEY"],
-    },
-    {
-      name: "MinIO S3",
-      version: "v2024",
-      port: 9000,
-      description: "Stockage objet compatible S3.",
-      baseLatencyMs: 9.0,
-      maxRpsCapacity: 10000,
-      envVars: ["MINIO_ROOT_USER"],
-    },
-    {
-      name: "Apache Cassandra",
-      version: "v5.0",
-      port: 9042,
-      description: "Stockage distribué multi-nœuds.",
-      baseLatencyMs: 8.5,
-      maxRpsCapacity: 16000,
-      envVars: ["CASSANDRA_DC"],
-    },
-  ],
-  user: [
-    {
-      name: "Application Web (Next.js)",
-      version: "v16.4",
-      port: 443,
-      description: "Interface web SSR et composants réactifs.",
-      baseLatencyMs: 1.0,
-      maxRpsCapacity: 25000,
-      envVars: ["NEXT_PUBLIC_API_URL"],
-    },
-    {
-      name: "Application Mobile (Flutter)",
-      version: "v3.22",
-      port: 443,
-      description: "Clients iOS et Android natifs.",
-      baseLatencyMs: 1.0,
-      maxRpsCapacity: 20000,
-      envVars: ["APP_CLIENT_ID"],
-    },
-    {
-      name: "Client API B2B",
-      version: "v1.0",
-      port: 443,
-      description: "Intégrateurs externes via mTLS / API Keys.",
-      baseLatencyMs: 1.5,
-      maxRpsCapacity: 15000,
-      envVars: ["API_KEY_HEADER"],
-    },
-  ],
-  gateway: [
-    {
-      name: "Kong Gateway",
-      version: "v3.7",
-      port: 443,
-      description: "Passerelle API, validation JWT, rate-limit et TLS 1.3.",
-      baseLatencyMs: 3.4,
-      maxRpsCapacity: 15000,
-      envVars: ["KONG_PROXY_LISTEN"],
-    },
-    {
-      name: "Traefik Proxy",
-      version: "v3.0",
-      port: 443,
-      description: "Routeur cloud-native avec découverte automatique.",
-      baseLatencyMs: 3.8,
-      maxRpsCapacity: 14000,
-      envVars: ["TRAEFIK_ENTRYPOINTS"],
-    },
-    {
-      name: "Envoy Proxy",
-      version: "v1.30",
-      port: 443,
-      description: "Proxy service mesh gRPC et HTTP/3.",
-      baseLatencyMs: 2.9,
-      maxRpsCapacity: 18000,
-      envVars: ["ENVOY_CONFIG"],
-    },
-    {
-      name: "Nginx",
-      version: "v1.26",
-      port: 443,
-      description: "Reverse proxy et répartiteur de charge.",
-      baseLatencyMs: 3.1,
-      maxRpsCapacity: 20000,
-      envVars: ["WORKER_PROCESSES"],
-    },
-  ],
-  service: [
-    {
-      name: "Go Fiber / gRPC",
-      version: "v1.23",
-      port: 9090,
-      description: "Service transactionnel compilé en Go.",
-      baseLatencyMs: 4.8,
-      maxRpsCapacity: 12000,
-      envVars: ["GRPC_PORT", "DATABASE_URL"],
-    },
-    {
-      name: "Rust Axum",
-      version: "v0.7",
-      port: 8080,
-      description: "Serveur asynchrone Tokio haute performance.",
-      baseLatencyMs: 2.2,
-      maxRpsCapacity: 18000,
-      envVars: ["RUST_LOG"],
-    },
-    {
-      name: "Python FastAPI",
-      version: "v0.115",
-      port: 8000,
-      description: "API REST asynchrone typée.",
-      baseLatencyMs: 7.5,
-      maxRpsCapacity: 7000,
-      envVars: ["UVICORN_WORKERS"],
-    },
-    {
-      name: "Node.js NestJS",
-      version: "v10.3",
-      port: 3000,
-      description: "Architecture modulaire TypeScript.",
-      baseLatencyMs: 6.8,
-      maxRpsCapacity: 8500,
-      envVars: ["NODE_ENV"],
-    },
-    {
-      name: "Spring Boot 3",
-      version: "v3.3",
-      port: 8080,
-      description: "Service Java 21 avec Virtual Threads.",
-      baseLatencyMs: 8.9,
-      maxRpsCapacity: 9500,
-      envVars: ["SPRING_PROFILES_ACTIVE"],
-    },
-  ],
-  queue: [
-    {
-      name: "Redpanda",
-      version: "v24.1",
-      port: 9092,
-      description: "Streaming compatible Kafka sans JVM.",
-      baseLatencyMs: 2.1,
-      maxRpsCapacity: 20000,
-      envVars: ["REDPANDA_BROKERS"],
-    },
-    {
-      name: "Apache Kafka",
-      version: "v3.7",
-      port: 9092,
-      description: "Plateforme de streaming distribué KRaft.",
-      baseLatencyMs: 4.0,
-      maxRpsCapacity: 16000,
-      envVars: ["KAFKA_CFG_NUM_PARTITIONS"],
-    },
-    {
-      name: "RabbitMQ",
-      version: "v3.13",
-      port: 5672,
-      description: "Courtier de messages AMQP.",
-      baseLatencyMs: 3.5,
-      maxRpsCapacity: 11000,
-      envVars: ["RABBITMQ_DEFAULT_USER"],
-    },
-    {
-      name: "Redis Streams",
-      version: "v7.2",
-      port: 6379,
-      description: "Journal de messages en mémoire.",
-      baseLatencyMs: 1.2,
-      maxRpsCapacity: 22000,
-      envVars: ["STREAM_NAME"],
-    },
-  ],
-  cache: [
-    {
-      name: "Valkey Cluster",
-      version: "v7.2",
-      port: 6379,
-      description: "Cache distribué sub-milliseconde et verrous.",
-      baseLatencyMs: 0.7,
-      maxRpsCapacity: 25000,
-      envVars: ["VALKEY_CLUSTER_NODES"],
-    },
-    {
-      name: "Redis",
-      version: "v7.2",
-      port: 6379,
-      description: "Base clé-valeur en mémoire avec persistance.",
-      baseLatencyMs: 0.8,
-      maxRpsCapacity: 24000,
-      envVars: ["REDIS_PASSWORD"],
-    },
-    {
-      name: "Memcached",
-      version: "v1.6",
-      port: 11211,
-      description: "Cache d'objets en mémoire distribuée.",
-      baseLatencyMs: 0.6,
-      maxRpsCapacity: 28000,
-      envVars: ["MEMCACHED_MEMORY_LIMIT"],
-    },
-  ],
-  security: [
-    {
-      name: "Keycloak OIDC",
-      version: "v25.0",
-      port: 8080,
-      description: "Serveur d'identité OAuth2 / OIDC et RBAC.",
-      baseLatencyMs: 1.2,
-      maxRpsCapacity: 9500,
-      envVars: ["KC_DB_URL"],
-    },
-    {
-      name: "Authentik",
-      version: "v2024.4",
-      port: 9000,
-      description: "Fournisseur d'identité SSO.",
-      baseLatencyMs: 2.1,
-      maxRpsCapacity: 8000,
-      envVars: ["AUTHENTIK_SECRET_KEY"],
-    },
-    {
-      name: "HashiCorp Vault",
-      version: "v1.16",
-      port: 8200,
-      description: "Gestion des secrets et certificats mTLS.",
-      baseLatencyMs: 3.0,
-      maxRpsCapacity: 7500,
-      envVars: ["VAULT_ADDR"],
-    },
-  ],
-  ai: [
-    {
-      name: "vLLM Engine",
-      version: "v0.5",
-      port: 8000,
-      description: "Serveur d'inférence LLM haute performance.",
-      baseLatencyMs: 28.0,
-      maxRpsCapacity: 1200,
-      envVars: ["MODEL_NAME"],
-    },
-    {
-      name: "Pipeline RAG",
-      version: "v1.0",
-      port: 8090,
-      description: "Orchestration d'agents et recherche vectorielle.",
-      baseLatencyMs: 18.0,
-      maxRpsCapacity: 3500,
-      envVars: ["EMBEDDING_MODEL"],
-    },
-    {
-      name: "Ollama",
-      version: "v0.3",
-      port: 11434,
-      description: "Exécution locale de modèles.",
-      baseLatencyMs: 35.0,
-      maxRpsCapacity: 800,
-      envVars: ["OLLAMA_MODELS"],
-    },
-  ],
-};
-
-export const STENCIL_ITEMS = [
-  {
-    shape: "generic" as ArchitectureShape,
-    role: "generic" as NodeRole,
-    label: "Bloc libre",
-    group: "Générique",
-  },
-  {
-    shape: "service" as ArchitectureShape,
-    role: "service" as NodeRole,
-    label: "Service / API",
-    group: "Calcul",
-  },
-  {
-    shape: "cylinder" as ArchitectureShape,
-    role: "database" as NodeRole,
-    label: "Base de données",
-    group: "Données",
-  },
-  {
-    shape: "user" as ArchitectureShape,
-    role: "user" as NodeRole,
-    label: "Utilisateur / Client",
-    group: "Acteurs",
-  },
-  {
-    shape: "gateway" as ArchitectureShape,
-    role: "gateway" as NodeRole,
-    label: "Passerelle",
-    group: "Réseau",
-  },
-  {
-    shape: "queue" as ArchitectureShape,
-    role: "queue" as NodeRole,
-    label: "File / Bus",
-    group: "Asynchrone",
-  },
-  {
-    shape: "cache" as ArchitectureShape,
-    role: "cache" as NodeRole,
-    label: "Cache",
-    group: "Données",
-  },
-  {
-    shape: "security" as ArchitectureShape,
-    role: "auth" as NodeRole,
-    label: "Sécurité / Auth",
-    group: "Sécurité",
-  },
-  {
-    shape: "ai" as ArchitectureShape,
-    role: "ai" as NodeRole,
-    label: "Module IA",
-    group: "IA",
-  },
-] as const;
+import type { ArchitectureEdge, ArchitectureNode } from "@/lib/lonkoo-data";
+import { cn } from "@/lib/cn";
+import { Dock, STENCIL_DRAG_TYPE } from "./whiteboard/Dock";
+import { EdgesLayer, type ConnectPreview, type Guide } from "./whiteboard/EdgesLayer";
+import {
+  GRID,
+  anchorPoint,
+  findFreeSpot,
+  nodeRect,
+  nodeSize,
+  pointInRect,
+  rectCenter,
+  rectsIntersect,
+  snapToGrid,
+  unionRects,
+  type Point,
+  type Rect,
+  type Side,
+} from "./whiteboard/geometry";
+import { Minimap } from "./whiteboard/Minimap";
+import { NodeView } from "./whiteboard/NodeView";
+import { PROTOCOLS, STENCIL_ITEMS, type StencilItem, type TechStackPreset } from "./whiteboard/stencils";
+import { useViewport } from "./whiteboard/use-viewport";
 
 interface WhiteboardProps {
   nodes: ArchitectureNode[];
@@ -428,6 +51,167 @@ interface WhiteboardProps {
   onUpdateEdges: (edges: ArchitectureEdge[]) => void;
 }
 
+type Tool = "select" | "hand" | "connect";
+type GridType = "dots" | "lines" | "blank";
+
+interface Graph {
+  nodes: ArchitectureNode[];
+  edges: ArchitectureEdge[];
+}
+
+type Drag =
+  | { kind: "pan"; last: Point }
+  | {
+      kind: "nodes";
+      start: Point;
+      origin: Map<string, Point>;
+      moved: boolean;
+      toggleOnRelease: string | null;
+    }
+  | { kind: "marquee"; start: Point; base: string[]; additive: boolean; hits: string[] }
+  | { kind: "connect"; fromId: string; side: Side; start: Point; moved: boolean };
+
+interface Draft {
+  dx: number;
+  dy: number;
+  guides: Guide[];
+}
+
+interface PreviewState {
+  fromId: string;
+  side: Side | null;
+  to: Point;
+  targetId: string | null;
+}
+
+const GRID_IMAGE: Record<GridType, string> = {
+  dots: "radial-gradient(var(--board-dot) 1.2px, transparent 1.2px)",
+  lines: "linear-gradient(to right, var(--board-line) 1px, transparent 1px), linear-gradient(to bottom, var(--board-line) 1px, transparent 1px)",
+  blank: "none",
+};
+
+const GRID_LABEL: Record<GridType, string> = { dots: "Points", lines: "Grille", blank: "Uni" };
+
+const HISTORY_LIMIT = 80;
+/** Hauteur approximative de la boîte à outils posée en bas : le cadrage lui réserve cette place. */
+const DOCK_INSET = 176;
+const NO_GUIDES: Guide[] = [];
+
+let idCounter = 0;
+/** Identifiant local unique, en attendant ceux du serveur. */
+function newId(prefix: string): string {
+  idCounter += 1;
+  return `${prefix}-${Math.random().toString(36).slice(2, 7)}${idCounter.toString(36)}`;
+}
+
+let clipboard: { nodes: ArchitectureNode[]; edges: ArchitectureEdge[]; pastes: number } | null = null;
+
+function guessProtocol(from: ArchitectureNode, to: ArchitectureNode): ArchitectureEdge["protocol"] {
+  if (to.shape === "cylinder") return "TCP / TLS";
+  if (to.shape === "queue" || from.shape === "queue") return "Kafka / Events";
+  if (to.shape === "cache") return "Redis PubSub";
+  if (from.shape === "service" && to.shape === "service") return "gRPC";
+  return "REST / HTTP3";
+}
+
+function sideToward(rect: Rect, point: Point): Side {
+  const c = rectCenter(rect);
+  const dx = point.x - c.x;
+  const dy = point.y - c.y;
+  if (Math.abs(dx) * rect.h >= Math.abs(dy) * rect.w) return dx >= 0 ? "right" : "left";
+  return dy >= 0 ? "bottom" : "top";
+}
+
+/**
+ * Aimantation d'un déplacement : alignement sur les bords et centres des autres blocs (guides),
+ * à défaut sur la grille.
+ */
+function snapDrag(
+  box: Rect,
+  dx: number,
+  dy: number,
+  others: Rect[],
+  zoom: number,
+): { dx: number; dy: number; guides: Guide[] } {
+  const threshold = 7 / zoom;
+  const moved = { x: box.x + dx, y: box.y + dy, w: box.w, h: box.h };
+
+  let bestX: { diff: number; at: number } | null = null;
+  let bestY: { diff: number; at: number } | null = null;
+  for (const other of others) {
+    for (const target of [other.x, other.x + other.w / 2, other.x + other.w]) {
+      for (const own of [moved.x, moved.x + moved.w / 2, moved.x + moved.w]) {
+        const diff = target - own;
+        if (Math.abs(diff) < threshold && (!bestX || Math.abs(diff) < Math.abs(bestX.diff))) bestX = { diff, at: target };
+      }
+    }
+    for (const target of [other.y, other.y + other.h / 2, other.y + other.h]) {
+      for (const own of [moved.y, moved.y + moved.h / 2, moved.y + moved.h]) {
+        const diff = target - own;
+        if (Math.abs(diff) < threshold && (!bestY || Math.abs(diff) < Math.abs(bestY.diff))) bestY = { diff, at: target };
+      }
+    }
+  }
+
+  const snappedDx = bestX ? dx + bestX.diff : snapToGrid(box.x + dx) - box.x;
+  const snappedDy = bestY ? dy + bestY.diff : snapToGrid(box.y + dy) - box.y;
+  const final = { x: box.x + snappedDx, y: box.y + snappedDy, w: box.w, h: box.h };
+
+  const guides: Guide[] = [];
+  if (bestX) {
+    const at = bestX.at;
+    const related = others.filter((o) => [o.x, o.x + o.w / 2, o.x + o.w].some((v) => Math.abs(v - at) < 0.5));
+    const span = unionRects([final, ...related]);
+    if (span) guides.push({ orientation: "v", at, from: span.y - 12, to: span.y + span.h + 12 });
+  }
+  if (bestY) {
+    const at = bestY.at;
+    const related = others.filter((o) => [o.y, o.y + o.h / 2, o.y + o.h].some((v) => Math.abs(v - at) < 0.5));
+    const span = unionRects([final, ...related]);
+    if (span) guides.push({ orientation: "h", at, from: span.x - 12, to: span.x + span.w + 12 });
+  }
+  return { dx: snappedDx, dy: snappedDy, guides };
+}
+
+function ToolbarButton({
+  label,
+  shortcut,
+  active,
+  disabled,
+  onClick,
+  children,
+  showLabel = false,
+  className,
+}: {
+  label: string;
+  shortcut?: string;
+  active?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  showLabel?: boolean;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      aria-pressed={active === undefined ? undefined : active}
+      title={shortcut ? `${label} (${shortcut})` : label}
+      className={cn(
+        "flex h-8 flex-shrink-0 items-center justify-center gap-1.5 rounded-md px-2 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-40",
+        active ? "bg-surface text-ink shadow-card" : "text-ink-2 hover:bg-surface hover:text-ink",
+        className,
+      )}
+    >
+      {children}
+      {showLabel && <span className="hidden xl:inline">{label}</span>}
+    </button>
+  );
+}
+
 export function ArchitectureWhiteboard({
   nodes,
   edges,
@@ -436,866 +220,960 @@ export function ArchitectureWhiteboard({
   onUpdateNodes,
   onUpdateEdges,
 }: WhiteboardProps) {
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 20, y: 20 });
-  const [gridType, setGridType] = useState<"dots" | "lines" | "blank">("dots");
-  const [activeTool, setActiveTool] = useState<"select" | "connect" | "pan">("select");
-  const [connectSourceId, setConnectSourceId] = useState<string | null>(null);
+  const {
+    containerRef,
+    layerRef,
+    view,
+    size,
+    viewRef,
+    fit,
+    panBy,
+    zoomAt,
+    zoomStep,
+    zoomTo,
+    animateTo,
+    screenToWorld,
+    cancelAnimation,
+  } = useViewport();
 
-  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
-  const dragStartRef = useRef<{ mouseX: number; mouseY: number; nodeX: number; nodeY: number } | null>(null);
-  const isPanningRef = useRef<{ mouseX: number; mouseY: number; panX: number; panY: number } | null>(null);
+  const [tool, setTool] = useState<Tool>("select");
+  const [spaceHeld, setSpaceHeld] = useState(false);
+  const spaceRef = useRef(false);
+  const [gridType, setGridType] = useState<GridType>("dots");
+  const [magnet, setMagnet] = useState(true);
+  const [showMinimap, setShowMinimap] = useState(true);
 
-  const [toolboxTab, setToolboxTab] = useState<"components" | "techstack">("components");
-  const [isToolboxMinimized, setIsToolboxMinimized] = useState(false);
+  // Sélection : le dernier identifiant est le bloc « principal » (celui que la boîte à outils édite).
+  const [selection, setSelection] = useState<string[]>(selectedNodeId ? [selectedNodeId] : []);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [prevPropId, setPrevPropId] = useState(selectedNodeId);
+  if (selectedNodeId !== prevPropId) {
+    // Le parent a changé de bloc actif (ex. correctif de l'analyse IA appliqué) : on s'aligne.
+    setPrevPropId(selectedNodeId);
+    if (selectedNodeId && selection[selection.length - 1] !== selectedNodeId) {
+      setSelection([selectedNodeId]);
+      setSelectedEdgeId(null);
+    }
+  }
 
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [marquee, setMarquee] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
+  const [preview, setPreview] = useState<PreviewState | null>(null);
+  const [armedSourceId, setArmedSourceId] = useState<string | null>(null);
 
-  const selectedNode = nodes.find((n) => n.id === selectedNodeId) ?? nodes[0];
+  const dragRef = useRef<Drag | null>(null);
+  // Dernières valeurs du geste, lisibles par pointerup même si React n'a pas encore rendu le dernier mouvement.
+  const live = useRef<{ draft: Draft | null; target: string | null }>({ draft: null, target: null });
+  const pointers = useRef(new Map<number, Point>());
+  const pinchRef = useRef<{ distance: number; center: Point } | null>(null);
+  const fittedRef = useRef(false);
 
-  // Navigation naturelle au Trackpad (Pan à 2 doigts + Pinch-to-Zoom)
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
+  /* -------------------------------- Historique -------------------------------- */
 
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-
-      // Pinch-to-zoom sur trackpad ou Ctrl + molette
-      if (e.ctrlKey || e.metaKey) {
-        const rect = el.getBoundingClientRect();
-        const cursorX = e.clientX - rect.left;
-        const cursorY = e.clientY - rect.top;
-
-        const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
-        setZoom((prevZoom) => {
-          const nextZoom = Math.min(2.4, Math.max(0.35, Number((prevZoom * zoomFactor).toFixed(2))));
-          const scaleChange = nextZoom / prevZoom;
-          setPan((prevPan) => ({
-            x: Math.round(cursorX - (cursorX - prevPan.x) * scaleChange),
-            y: Math.round(cursorY - (cursorY - prevPan.y) * scaleChange),
-          }));
-          return nextZoom;
-        });
-      } else {
-        // Glissement à 2 doigts sur le trackpad (Pan X et Y)
-        setPan((prev) => ({
-          x: prev.x - e.deltaX,
-          y: prev.y - e.deltaY,
-        }));
-      }
-    };
-
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
+  const history = useRef<{ past: Graph[]; future: Graph[]; lastKey: { key: string; at: number } | null }>({
+    past: [],
+    future: [],
+    lastKey: null,
+  });
+  const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
+  const refreshHistory = useCallback(() => {
+    const h = history.current;
+    setHistoryState({ canUndo: h.past.length > 0, canRedo: h.future.length > 0 });
   }, []);
 
-  const handleNodeMouseDown = (e: React.MouseEvent, nodeId: string) => {
-    e.stopPropagation();
-    onSelectNode(nodeId);
+  /** Applique une modification et l'enregistre pour annuler/rétablir ; `mergeKey` regroupe les frappes. */
+  const commit = useCallback(
+    (nextNodes: ArchitectureNode[] | null, nextEdges: ArchitectureEdge[] | null, mergeKey?: string) => {
+      const h = history.current;
+      const now = performance.now();
+      const merge = Boolean(mergeKey && h.lastKey?.key === mergeKey && now - h.lastKey.at < 1000);
+      if (!merge) {
+        h.past.push({ nodes, edges });
+        if (h.past.length > HISTORY_LIMIT) h.past.shift();
+      }
+      h.future = [];
+      h.lastKey = mergeKey ? { key: mergeKey, at: now } : null;
+      if (nextNodes) onUpdateNodes(nextNodes);
+      if (nextEdges) onUpdateEdges(nextEdges);
+      refreshHistory();
+    },
+    [nodes, edges, onUpdateNodes, onUpdateEdges, refreshHistory],
+  );
 
-    if (activeTool === "connect") {
-      if (!connectSourceId) {
-        setConnectSourceId(nodeId);
-      } else if (connectSourceId !== nodeId) {
-        const newEdge: ArchitectureEdge = {
-          id: `e-${Date.now()}`,
-          from: connectSourceId,
-          to: nodeId,
-          protocol: "REST / HTTP3",
-          throughput: "5.0k req/s",
-        };
-        onUpdateEdges([...edges, newEdge]);
-        setConnectSourceId(null);
-        setActiveTool("select");
+  const undo = useCallback(() => {
+    const h = history.current;
+    const previous = h.past.pop();
+    if (!previous) return;
+    h.future.push({ nodes, edges });
+    h.lastKey = null;
+    onUpdateNodes(previous.nodes);
+    onUpdateEdges(previous.edges);
+    setSelection((current) => current.filter((id) => previous.nodes.some((n) => n.id === id)));
+    setSelectedEdgeId(null);
+    refreshHistory();
+  }, [nodes, edges, onUpdateNodes, onUpdateEdges, refreshHistory]);
+
+  const redo = useCallback(() => {
+    const h = history.current;
+    const next = h.future.pop();
+    if (!next) return;
+    h.past.push({ nodes, edges });
+    h.lastKey = null;
+    onUpdateNodes(next.nodes);
+    onUpdateEdges(next.edges);
+    setSelection((current) => current.filter((id) => next.nodes.some((n) => n.id === id)));
+    setSelectedEdgeId(null);
+    refreshHistory();
+  }, [nodes, edges, onUpdateNodes, onUpdateEdges, refreshHistory]);
+
+  /* ------------------------------- Géométrie dérivée ------------------------------- */
+
+  const nodesById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
+
+  const rects = useMemo(() => {
+    const map = new Map<string, Rect>();
+    for (const node of nodes) {
+      const moving = draft && selection.includes(node.id);
+      map.set(node.id, nodeRect(node, moving ? draft.dx : 0, moving ? draft.dy : 0));
+    }
+    return map;
+  }, [nodes, draft, selection]);
+
+  const primaryId = selection[selection.length - 1] ?? null;
+  const selectedNode = primaryId ? (nodesById.get(primaryId) ?? null) : null;
+  const selectedEdge = selectedEdgeId ? (edges.find((edge) => edge.id === selectedEdgeId) ?? null) : null;
+  const solo = selection.length === 1;
+
+  const contentBounds = useCallback(() => unionRects(nodes.map((node) => nodeRect(node))), [nodes]);
+
+  // Cadrage initial une fois la taille connue.
+  useEffect(() => {
+    if (fittedRef.current || size.w === 0 || size.h === 0) return;
+    fittedRef.current = true;
+    fit(contentBounds(), false, DOCK_INSET);
+  }, [size.w, size.h, fit, contentBounds]);
+
+  /* ----------------------------------- Actions ----------------------------------- */
+
+  const select = useCallback(
+    (ids: string[]) => {
+      setSelection(ids);
+      setSelectedEdgeId(null);
+      const last = ids[ids.length - 1];
+      if (last) onSelectNode(last);
+    },
+    [onSelectNode],
+  );
+
+  const visibleCenter = useCallback((): Point => {
+    const v = viewRef.current;
+    const box = containerRef.current;
+    return {
+      x: ((box?.clientWidth ?? 600) / 2 - v.x) / v.zoom,
+      y: ((box?.clientHeight ?? 400) / 2 - v.y) / v.zoom,
+    };
+  }, [viewRef, containerRef]);
+
+  const addNode = useCallback(
+    (item: StencilItem, at?: Point) => {
+      const count = nodes.filter((node) => node.shape === item.shape).length;
+      const center = at ?? visibleCenter();
+      const { w, h } = nodeSize({ shape: item.shape, tech: "" });
+      // Posé au curseur s'il vient d'un glisser-déposer, sinon au plus près du centre sans chevaucher un autre bloc.
+      const spot = at
+        ? { x: center.x - w / 2, y: center.y - h / 2 }
+        : findFreeSpot(center, { w, h }, nodes.map((node) => nodeRect(node)));
+      const node: ArchitectureNode = {
+        id: newId(item.shape),
+        title: `${item.label} ${count + 1}`,
+        tech: "", // aucune stack imposée à la pose du bloc
+        version: "",
+        shape: item.shape,
+        moduleGroup: item.group,
+        description: "Composant logique d'architecture.",
+        status: "Actif",
+        metricLabel: "Capacité",
+        metricValue: "Standard",
+        baseLatencyMs: 3,
+        maxRpsCapacity: 10000,
+        replicas: 1,
+        port: 0,
+        role: item.role,
+        x: snapToGrid(spot.x),
+        y: snapToGrid(spot.y),
+        envVars: [],
+        dependencies: [],
+      };
+      commit([...nodes, node], null);
+      select([node.id]);
+    },
+    [nodes, commit, select, visibleCenter],
+  );
+
+  const deleteSelection = useCallback(() => {
+    if (selectedEdgeId) {
+      commit(null, edges.filter((edge) => edge.id !== selectedEdgeId));
+      setSelectedEdgeId(null);
+      return;
+    }
+    if (selection.length === 0) return;
+    const gone = new Set(selection);
+    commit(
+      nodes.filter((node) => !gone.has(node.id)),
+      edges.filter((edge) => !gone.has(edge.from) && !gone.has(edge.to)),
+    );
+    setSelection([]);
+  }, [selectedEdgeId, selection, nodes, edges, commit]);
+
+  const cloneNodes = useCallback(
+    (source: ArchitectureNode[], sourceEdges: ArchitectureEdge[], offset: number) => {
+      const ids = new Map<string, string>();
+      const clones = source.map((node) => {
+        const id = newId(node.shape);
+        ids.set(node.id, id);
+        return { ...node, id, x: node.x + offset, y: node.y + offset };
+      });
+      const cloneEdges = sourceEdges
+        .filter((edge) => ids.has(edge.from) && ids.has(edge.to))
+        .map((edge) => ({ ...edge, id: newId("e"), from: ids.get(edge.from) ?? edge.from, to: ids.get(edge.to) ?? edge.to }));
+      commit([...nodes, ...clones], cloneEdges.length ? [...edges, ...cloneEdges] : null);
+      select(clones.map((node) => node.id));
+    },
+    [nodes, edges, commit, select],
+  );
+
+  const selectedNodes = useCallback(() => nodes.filter((node) => selection.includes(node.id)), [nodes, selection]);
+
+  const duplicateSelection = useCallback(() => {
+    const chosen = selectedNodes();
+    if (chosen.length) cloneNodes(chosen, edges, 30);
+  }, [selectedNodes, cloneNodes, edges]);
+
+  const copySelection = useCallback(() => {
+    const chosen = selectedNodes();
+    if (chosen.length) clipboard = { nodes: chosen, edges: edges.filter((e) => chosen.some((n) => n.id === e.from) && chosen.some((n) => n.id === e.to)), pastes: 0 };
+  }, [selectedNodes, edges]);
+
+  const pasteClipboard = useCallback(() => {
+    if (!clipboard) return;
+    clipboard.pastes += 1;
+    cloneNodes(clipboard.nodes, clipboard.edges, 30 * clipboard.pastes);
+  }, [cloneNodes]);
+
+  const updateNode = useCallback(
+    (id: string, patch: Partial<ArchitectureNode>, mergeKey?: string) => {
+      commit(
+        nodes.map((node) => (node.id === id ? { ...node, ...patch } : node)),
+        null,
+        mergeKey,
+      );
+    },
+    [nodes, commit],
+  );
+
+  const renameNode = useCallback(
+    (id: string, title: string) => {
+      setEditingId(null);
+      const clean = title.trim();
+      const current = nodesById.get(id);
+      if (!clean || !current || clean === current.title) return;
+      updateNode(id, { title: clean });
+    },
+    [nodesById, updateNode],
+  );
+
+  const stopEditing = useCallback(() => setEditingId(null), []);
+
+  const clearStack = useCallback(() => {
+    if (!selectedNode) return;
+    updateNode(selectedNode.id, { tech: "", version: "", port: 0 });
+  }, [selectedNode, updateNode]);
+
+  const applyPreset = useCallback(
+    (preset: TechStackPreset) => {
+      if (!selectedNode) return;
+      updateNode(selectedNode.id, {
+        tech: preset.name,
+        version: preset.version,
+        port: preset.port,
+        description: preset.description,
+        baseLatencyMs: preset.baseLatencyMs,
+        maxRpsCapacity: preset.maxRpsCapacity,
+        envVars: preset.envVars,
+        status: "Optimisé",
+      });
+    },
+    [selectedNode, updateNode],
+  );
+
+  const createEdge = useCallback(
+    (fromId: string, toId: string) => {
+      const from = nodesById.get(fromId);
+      const to = nodesById.get(toId);
+      if (!from || !to || fromId === toId) return;
+      if (edges.some((edge) => edge.from === fromId && edge.to === toId)) return;
+      const edge: ArchitectureEdge = {
+        id: newId("e"),
+        from: fromId,
+        to: toId,
+        protocol: guessProtocol(from, to),
+        throughput: "",
+      };
+      commit(null, [...edges, edge]);
+      setSelection([]);
+      setSelectedEdgeId(edge.id);
+    },
+    [nodesById, edges, commit],
+  );
+
+  const setProtocol = (protocol: ArchitectureEdge["protocol"]) => {
+    if (!selectedEdgeId) return;
+    commit(null, edges.map((edge) => (edge.id === selectedEdgeId ? { ...edge, protocol } : edge)), `edge:${selectedEdgeId}`);
+  };
+
+  const nudge = useCallback(
+    (dx: number, dy: number) => {
+      if (selection.length === 0) return;
+      commit(
+        nodes.map((node) => (selection.includes(node.id) ? { ...node, x: node.x + dx, y: node.y + dy } : node)),
+        null,
+        "nudge",
+      );
+    },
+    [selection, nodes, commit],
+  );
+
+  const fitContent = useCallback(() => fit(contentBounds(), true, DOCK_INSET), [fit, contentBounds]);
+
+  const nodeAt = useCallback(
+    (point: Point, excludeId: string | null): string | null => {
+      for (let i = nodes.length - 1; i >= 0; i--) {
+        const node = nodes[i];
+        if (!node || node.id === excludeId) continue;
+        const rect = rects.get(node.id);
+        if (rect && pointInRect(point, rect, 8)) return node.id;
+      }
+      return null;
+    },
+    [nodes, rects],
+  );
+
+  /* ----------------------------------- Pointeur ----------------------------------- */
+
+  const localPoint = (event: React.PointerEvent | React.DragEvent): Point => {
+    const box = containerRef.current?.getBoundingClientRect();
+    return { x: event.clientX - (box?.left ?? 0), y: event.clientY - (box?.top ?? 0) };
+  };
+
+  const beginPinch = () => {
+    const [a, b] = Array.from(pointers.current.values());
+    if (!a || !b) return;
+    dragRef.current = null;
+    setDraft(null);
+    setMarquee(null);
+    setPreview(null);
+    pinchRef.current = {
+      distance: Math.hypot(a.x - b.x, a.y - b.y),
+      center: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
+    };
+  };
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    const target = event.target as Element;
+    if (target.closest("input, textarea, select")) return;
+    containerRef.current?.focus({ preventScroll: true });
+    cancelAnimation();
+
+    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (pointers.current.size === 2) {
+      beginPinch();
+      return;
+    }
+    if (pointers.current.size > 2) return;
+
+    const box = containerRef.current;
+    const world = screenToWorld(event.clientX, event.clientY);
+
+    // Déplacer la vue : outil Main, Espace maintenu ou bouton du milieu.
+    if (event.button === 1 || (event.button === 0 && (tool === "hand" || spaceRef.current))) {
+      event.preventDefault();
+      dragRef.current = { kind: "pan", last: { x: event.clientX, y: event.clientY } };
+      box?.setPointerCapture(event.pointerId);
+      return;
+    }
+    if (event.button !== 0) return;
+
+    const anchorEl = target.closest<HTMLElement>("[data-anchor]");
+    const nodeEl = target.closest<HTMLElement>("[data-node-id]");
+    const edgeEl = target.closest("[data-edge-id]");
+    const additive = event.shiftKey || event.metaKey || event.ctrlKey;
+
+    // Tracer une liaison depuis un point d'ancrage.
+    if (anchorEl && nodeEl?.dataset.nodeId) {
+      event.preventDefault();
+      const fromId = nodeEl.dataset.nodeId;
+      const side = anchorEl.dataset.anchor as Side;
+      live.current.target = null;
+      dragRef.current = { kind: "connect", fromId, side, start: { x: event.clientX, y: event.clientY }, moved: false };
+      setPreview({ fromId, side, to: world, targetId: null });
+      box?.setPointerCapture(event.pointerId);
+      return;
+    }
+
+    if (nodeEl?.dataset.nodeId) {
+      const id = nodeEl.dataset.nodeId;
+
+      // Mode « Relier » : un clic sur la source, un clic sur la cible.
+      if (tool === "connect") {
+        if (!armedSourceId) {
+          setArmedSourceId(id);
+          setPreview({ fromId: id, side: null, to: world, targetId: null });
+        } else if (armedSourceId !== id) {
+          createEdge(armedSourceId, id);
+          setArmedSourceId(null);
+          setPreview(null);
+        }
+        return;
+      }
+
+      let toggleOnRelease: string | null = null;
+      let next = selection;
+      if (additive) {
+        if (selection.includes(id)) toggleOnRelease = id;
+        else next = [...selection, id];
+      } else if (!selection.includes(id)) {
+        next = [id];
+      } else {
+        // Bloc déjà sélectionné : il devient le principal sans casser la sélection multiple.
+        next = [...selection.filter((other) => other !== id), id];
+      }
+      if (next !== selection) select(next);
+
+      const origin = new Map<string, Point>();
+      for (const moveId of next) {
+        const node = nodesById.get(moveId);
+        if (node) origin.set(moveId, { x: node.x, y: node.y });
+      }
+      dragRef.current = { kind: "nodes", start: { x: event.clientX, y: event.clientY }, origin, moved: false, toggleOnRelease };
+      box?.setPointerCapture(event.pointerId);
+      return;
+    }
+
+    if (edgeEl instanceof Element && edgeEl.getAttribute("data-edge-id")) {
+      setSelection([]);
+      setSelectedEdgeId(edgeEl.getAttribute("data-edge-id"));
+      return;
+    }
+
+    // Fond du canevas.
+    if (tool === "connect") {
+      setArmedSourceId(null);
+      setPreview(null);
+      return;
+    }
+    const base = additive ? selection : [];
+    if (!additive) {
+      setSelection([]);
+      setSelectedEdgeId(null);
+    }
+    const local = localPoint(event);
+    dragRef.current = { kind: "marquee", start: local, base, additive, hits: [] };
+    setMarquee({ x1: local.x, y1: local.y, x2: local.x, y2: local.y });
+    box?.setPointerCapture(event.pointerId);
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (pointers.current.has(event.pointerId)) {
+      pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    }
+
+    // Pincement à deux doigts : zoom et déplacement.
+    if (pinchRef.current && pointers.current.size === 2) {
+      const [a, b] = Array.from(pointers.current.values());
+      const box = containerRef.current?.getBoundingClientRect();
+      if (a && b && box) {
+        const distance = Math.hypot(a.x - b.x, a.y - b.y);
+        const center = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        const previous = pinchRef.current;
+        if (previous.distance > 0 && distance > 0) {
+          zoomAt(distance / previous.distance, center.x - box.left, center.y - box.top);
+        }
+        panBy(center.x - previous.center.x, center.y - previous.center.y);
+        pinchRef.current = { distance, center };
       }
       return;
     }
 
-    const targetNode = nodes.find((n) => n.id === nodeId);
-    if (!targetNode) return;
+    const drag = dragRef.current;
 
-    setDraggingNodeId(nodeId);
-    dragStartRef.current = {
-      mouseX: e.clientX,
-      mouseY: e.clientY,
-      nodeX: targetNode.x,
-      nodeY: targetNode.y,
-    };
-  };
-
-  const handleAnchorClick = (e: React.MouseEvent, nodeId: string) => {
-    e.stopPropagation();
-    if (!connectSourceId) {
-      setConnectSourceId(nodeId);
-      setActiveTool("connect");
-    } else if (connectSourceId !== nodeId) {
-      const newEdge: ArchitectureEdge = {
-        id: `e-${Date.now()}`,
-        from: connectSourceId,
-        to: nodeId,
-        protocol: "gRPC",
-        throughput: "7.2k req/s",
-      };
-      onUpdateEdges([...edges, newEdge]);
-      setConnectSourceId(null);
-      setActiveTool("select");
-    }
-  };
-
-  const handleCanvasMouseDown = (e: React.MouseEvent) => {
-    setConnectSourceId(null);
-    // Cliquer-glisser sur le fond du canevas déplace la vue directement
-    isPanningRef.current = {
-      mouseX: e.clientX,
-      mouseY: e.clientY,
-      panX: pan.x,
-      panY: pan.y,
-    };
-  };
-
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent) => {
-      if (draggingNodeId && dragStartRef.current) {
-        const dx = (e.clientX - dragStartRef.current.mouseX) / zoom;
-        const dy = (e.clientY - dragStartRef.current.mouseY) / zoom;
-        const newX = Math.round(dragStartRef.current.nodeX + dx);
-        const newY = Math.round(dragStartRef.current.nodeY + dy);
-
-        onUpdateNodes(
-          nodes.map((n) => (n.id === draggingNodeId ? { ...n, x: newX, y: newY } : n))
-        );
-      } else if (isPanningRef.current) {
-        const dx = e.clientX - isPanningRef.current.mouseX;
-        const dy = e.clientY - isPanningRef.current.mouseY;
-        setPan({
-          x: isPanningRef.current.panX + dx,
-          y: isPanningRef.current.panY + dy,
-        });
+    if (!drag) {
+      // Mode « Relier » armé : le tracé suit le pointeur.
+      if (armedSourceId) {
+        const world = screenToWorld(event.clientX, event.clientY);
+        setPreview({ fromId: armedSourceId, side: null, to: world, targetId: nodeAt(world, armedSourceId) });
       }
-    },
-    [draggingNodeId, zoom, nodes, onUpdateNodes]
-  );
+      return;
+    }
 
-  const handleMouseUp = () => {
-    setDraggingNodeId(null);
-    dragStartRef.current = null;
-    isPanningRef.current = null;
-  };
+    const zoom = viewRef.current.zoom;
 
-  // Ajouter un bloc sur le canevas SANS imposer de stack technique par défaut
-  const handleAddStencil = (item: (typeof STENCIL_ITEMS)[number]) => {
-    const id = `${item.shape}-${Date.now().toString(36)}`;
-    const count = nodes.filter((n) => n.shape === item.shape).length + 1;
+    if (drag.kind === "pan") {
+      panBy(event.clientX - drag.last.x, event.clientY - drag.last.y);
+      drag.last = { x: event.clientX, y: event.clientY };
+      return;
+    }
 
-    const centerX = Math.round((-pan.x + 280) / zoom + (nodes.length % 4) * 45);
-    const centerY = Math.round((-pan.y + 140) / zoom + (nodes.length % 3) * 45);
+    if (drag.kind === "nodes") {
+      const sx = event.clientX - drag.start.x;
+      const sy = event.clientY - drag.start.y;
+      if (!drag.moved && Math.hypot(sx, sy) < 4) return;
+      drag.moved = true;
 
-    const newNode: ArchitectureNode = {
-      id,
-      title: `${item.label} ${count}`,
-      tech: "", // Aucune stack forcée à la pose du bloc
-      version: "",
-      shape: item.shape,
-      moduleGroup: item.group,
-      description: "Composant logique d'architecture.",
-      status: "Actif",
-      metricLabel: "Capacité",
-      metricValue: "Standard",
-      baseLatencyMs: 3.0,
-      maxRpsCapacity: 10000,
-      replicas: 1,
-      port: 0,
-      role: item.role,
-      x: centerX,
-      y: centerY,
-      envVars: [],
-      dependencies: [],
-    };
+      const movingRects = Array.from(drag.origin.keys())
+        .map((id) => nodesById.get(id))
+        .filter((node): node is ArchitectureNode => Boolean(node))
+        .map((node) => nodeRect(node));
+      const box = unionRects(movingRects);
+      if (!box) return;
 
-    onUpdateNodes([...nodes, newNode]);
-    onSelectNode(id);
-  };
+      const others = nodes.filter((node) => !drag.origin.has(node.id)).map((node) => nodeRect(node));
+      const rawDx = sx / zoom;
+      const rawDy = sy / zoom;
+      const snapped = magnet
+        ? snapDrag(box, rawDx, rawDy, others, zoom)
+        : { dx: Math.round(rawDx), dy: Math.round(rawDy), guides: [] as Guide[] };
+      const next = { dx: snapped.dx, dy: snapped.dy, guides: snapped.guides };
+      live.current.draft = next;
+      setDraft(next);
+      return;
+    }
 
-  const handleClearStack = () => {
-    if (!selectedNode) return;
-    onUpdateNodes(
-      nodes.map((n) =>
-        n.id === selectedNode.id
-          ? {
-              ...n,
-              tech: "",
-              version: "",
-              port: 0,
-            }
-          : n
-      )
-    );
-  };
+    if (drag.kind === "marquee") {
+      const local = localPoint(event);
+      setMarquee({ x1: drag.start.x, y1: drag.start.y, x2: local.x, y2: local.y });
+      const bounds = containerRef.current?.getBoundingClientRect();
+      const a = screenToWorld(drag.start.x + (bounds?.left ?? 0), drag.start.y + (bounds?.top ?? 0));
+      const b = screenToWorld(event.clientX, event.clientY);
+      const area: Rect = { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(a.x - b.x), h: Math.abs(a.y - b.y) };
+      const hits = nodes.filter((node) => rectsIntersect(nodeRect(node), area)).map((node) => node.id);
+      drag.hits = hits;
+      setSelection(drag.additive ? [...drag.base, ...hits.filter((id) => !drag.base.includes(id))] : hits);
+      return;
+    }
 
-  const handleApplyPreset = (preset: TechStackPreset) => {
-    if (!selectedNode) return;
-    onUpdateNodes(
-      nodes.map((n) =>
-        n.id === selectedNode.id
-          ? {
-              ...n,
-              tech: preset.name,
-              version: preset.version,
-              port: preset.port,
-              description: preset.description,
-              baseLatencyMs: preset.baseLatencyMs,
-              maxRpsCapacity: preset.maxRpsCapacity,
-              envVars: preset.envVars,
-              status: "Optimisé",
-            }
-          : n
-      )
-    );
-  };
-
-  const handleDeleteSelected = () => {
-    if (!selectedNode || nodes.length <= 1) return;
-    onUpdateNodes(nodes.filter((n) => n.id !== selectedNode.id));
-    onUpdateEdges(edges.filter((e) => e.from !== selectedNode.id && e.to !== selectedNode.id));
-    const nextNode = nodes.find((n) => n.id !== selectedNode.id);
-    if (nextNode) onSelectNode(nextNode.id);
-  };
-
-  const handleDuplicateSelected = () => {
-    if (!selectedNode) return;
-    const dupId = `${selectedNode.shape}-${Date.now().toString(36)}`;
-    const duplicated: ArchitectureNode = {
-      ...selectedNode,
-      id: dupId,
-      title: `${selectedNode.title} (2)`,
-      x: selectedNode.x + 35,
-      y: selectedNode.y + 35,
-    };
-    onUpdateNodes([...nodes, duplicated]);
-    onSelectNode(dupId);
-  };
-
-  const handleDeleteEdge = (edgeId: string) => {
-    onUpdateEdges(edges.filter((e) => e.id !== edgeId));
-  };
-
-  const renderShapeIcon = (shape: ArchitectureShape, size = 28) => {
-    switch (shape) {
-      case "cylinder":
-        return (
-          <svg width={size} height={size} viewBox="0 0 32 32" fill="none" className="flex-shrink-0">
-            <ellipse cx="16" cy="7" rx="12" ry="4.5" fill="#E0F2FE" stroke="#1265DD" strokeWidth="1.8" />
-            <path d="M4 7v7c0 2.5 5.4 4.5 12 4.5s12-2 12-4.5V7" fill="#BAE6FD" stroke="#1265DD" strokeWidth="1.8" />
-            <path d="M4 14v8c0 2.5 5.4 4.5 12 4.5s12-2 12-4.5v-8" fill="#7DD3FC" stroke="#1265DD" strokeWidth="1.8" />
-          </svg>
-        );
-      case "user":
-        return (
-          <svg width={size} height={size} viewBox="0 0 32 32" fill="none" className="flex-shrink-0">
-            <circle cx="16" cy="8.5" r="5" fill="#E0F2FE" stroke="#0284C7" strokeWidth="1.8" />
-            <path
-              d="M6.5 26.5c0-5.2 4.3-9.5 9.5-9.5s9.5 4.3 9.5 9.5"
-              fill="#BAE6FD"
-              stroke="#0284C7"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-            />
-          </svg>
-        );
-      case "gateway":
-        return (
-          <div className="w-7 h-7 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-[#1265DD] flex-shrink-0">
-            <ShareNetwork size={16} weight="bold" />
-          </div>
-        );
-      case "service":
-        return (
-          <div className="w-7 h-7 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800 flex-shrink-0">
-            <Cpu size={16} weight="bold" />
-          </div>
-        );
-      case "queue":
-        return (
-          <svg width={size} height={size} viewBox="0 0 32 32" fill="none" className="flex-shrink-0">
-            <rect x="3" y="10" width="26" height="12" rx="4" fill="#FEF3C7" stroke="#D97706" strokeWidth="1.8" />
-            <line x1="11" y1="10" x2="11" y2="22" stroke="#D97706" strokeWidth="1.5" strokeDasharray="2 2" />
-            <line x1="19" y1="10" x2="19" y2="22" stroke="#D97706" strokeWidth="1.5" strokeDasharray="2 2" />
-            <circle cx="7" cy="16" r="2" fill="#D97706" />
-            <circle cx="15" cy="16" r="2" fill="#D97706" />
-            <circle cx="23" cy="16" r="2" fill="#D97706" />
-          </svg>
-        );
-      case "cache":
-        return (
-          <div className="w-7 h-7 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-emerald-600 flex-shrink-0">
-            <Lightning size={16} weight="fill" />
-          </div>
-        );
-      case "security":
-        return (
-          <div className="w-7 h-7 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800 flex-shrink-0">
-            <ShieldCheck size={16} weight="fill" />
-          </div>
-        );
-      case "ai":
-        return (
-          <div className="w-7 h-7 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-[#1265DD] flex-shrink-0">
-            <Sparkle size={16} weight="fill" />
-          </div>
-        );
-      case "generic":
-      default:
-        return (
-          <div className="w-7 h-7 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 flex-shrink-0">
-            <Cube size={16} weight="bold" />
-          </div>
-        );
+    if (drag.kind === "connect") {
+      if (!drag.moved && Math.hypot(event.clientX - drag.start.x, event.clientY - drag.start.y) > 4) drag.moved = true;
+      const world = screenToWorld(event.clientX, event.clientY);
+      const target = nodeAt(world, drag.fromId);
+      live.current.target = target;
+      setPreview({ fromId: drag.fromId, side: drag.side, to: world, targetId: target });
     }
   };
+
+  const endPointer = (event: React.PointerEvent<HTMLDivElement>, cancelled: boolean) => {
+    pointers.current.delete(event.pointerId);
+    if (pointers.current.size < 2) pinchRef.current = null;
+    if (containerRef.current?.hasPointerCapture(event.pointerId)) containerRef.current.releasePointerCapture(event.pointerId);
+
+    const drag = dragRef.current;
+    dragRef.current = null;
+    if (!drag) return;
+
+    if (drag.kind === "nodes") {
+      const latest = live.current.draft;
+      live.current.draft = null;
+      if (drag.moved && latest && !cancelled) {
+        commit(
+          nodes.map((node) => {
+            const origin = drag.origin.get(node.id);
+            return origin ? { ...node, x: Math.round(origin.x + latest.dx), y: Math.round(origin.y + latest.dy) } : node;
+          }),
+          null,
+        );
+      } else if (!drag.moved && drag.toggleOnRelease) {
+        select(selection.filter((id) => id !== drag.toggleOnRelease));
+      }
+      setDraft(null);
+      return;
+    }
+
+    if (drag.kind === "marquee") {
+      setMarquee(null);
+      const last = drag.additive ? drag.hits[drag.hits.length - 1] : drag.hits[drag.hits.length - 1];
+      if (last) onSelectNode(last);
+      return;
+    }
+
+    if (drag.kind === "connect") {
+      const target = live.current.target;
+      live.current.target = null;
+      setPreview(null);
+      if (cancelled) return;
+      if (target) {
+        createEdge(drag.fromId, target);
+      } else if (!drag.moved) {
+        // Simple clic sur un point d'ancrage : la liaison s'arme, un clic sur la cible la termine.
+        setTool("connect");
+        setArmedSourceId(drag.fromId);
+      }
+    }
+  };
+
+  const handleDoubleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    // La capture du pointeur redirige l'événement vers le conteneur : on cherche l'élément sous le curseur.
+    const under = document.elementFromPoint(event.clientX, event.clientY);
+    const nodeEl = under?.closest<HTMLElement>("[data-node-id]");
+    if (nodeEl?.dataset.nodeId && !under?.closest("[data-anchor]")) {
+      setEditingId(nodeEl.dataset.nodeId);
+    }
+  };
+
+  /* ----------------------------- Glisser-déposer ----------------------------- */
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    if (Array.from(event.dataTransfer.types).includes(STENCIL_DRAG_TYPE)) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+    }
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    const label = event.dataTransfer.getData(STENCIL_DRAG_TYPE);
+    const item = STENCIL_ITEMS.find((candidate) => candidate.label === label);
+    if (!item) return;
+    event.preventDefault();
+    addNode(item, screenToWorld(event.clientX, event.clientY));
+  };
+
+  /* ----------------------------------- Clavier ----------------------------------- */
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if ((event.target as Element).closest("input, textarea, select")) return;
+    const mod = event.metaKey || event.ctrlKey;
+    const key = event.key.toLowerCase();
+
+    if (event.key === " ") {
+      event.preventDefault();
+      if (!spaceRef.current) {
+        spaceRef.current = true;
+        setSpaceHeld(true);
+      }
+      return;
+    }
+    if (mod && key === "z") {
+      event.preventDefault();
+      if (event.shiftKey) redo();
+      else undo();
+      return;
+    }
+    if (mod && key === "y") {
+      event.preventDefault();
+      redo();
+      return;
+    }
+    if (mod && key === "a") {
+      event.preventDefault();
+      select(nodes.map((node) => node.id));
+      return;
+    }
+    if (mod && key === "d") {
+      event.preventDefault();
+      duplicateSelection();
+      return;
+    }
+    if (mod && key === "c") {
+      copySelection();
+      return;
+    }
+    if (mod && key === "v") {
+      event.preventDefault();
+      pasteClipboard();
+      return;
+    }
+    if (mod && event.shiftKey && key === "h") {
+      event.preventDefault();
+      fitContent();
+      return;
+    }
+    if (mod && event.code === "Digit0") {
+      event.preventDefault();
+      zoomTo(1);
+      return;
+    }
+    if (mod) return;
+
+    if (event.shiftKey && event.code === "Digit1") {
+      event.preventDefault();
+      fitContent();
+      return;
+    }
+    switch (event.key) {
+      case "Delete":
+      case "Backspace":
+        event.preventDefault();
+        deleteSelection();
+        return;
+      case "Escape":
+        setSelection([]);
+        setSelectedEdgeId(null);
+        setArmedSourceId(null);
+        setPreview(null);
+        setEditingId(null);
+        if (tool === "connect") setTool("select");
+        return;
+      case "ArrowLeft":
+        event.preventDefault();
+        nudge(event.shiftKey ? -1 : -GRID, 0);
+        return;
+      case "ArrowRight":
+        event.preventDefault();
+        nudge(event.shiftKey ? 1 : GRID, 0);
+        return;
+      case "ArrowUp":
+        event.preventDefault();
+        nudge(0, event.shiftKey ? -1 : -GRID);
+        return;
+      case "ArrowDown":
+        event.preventDefault();
+        nudge(0, event.shiftKey ? 1 : GRID);
+        return;
+      case "+":
+      case "=":
+        zoomStep(1);
+        return;
+      case "-":
+        zoomStep(-1);
+        return;
+      case "Enter":
+        if (selection.length === 1 && selection[0]) setEditingId(selection[0]);
+        return;
+    }
+    if (key === "v") setTool("select");
+    else if (key === "h") setTool("hand");
+    else if (key === "c") {
+      setTool("connect");
+      setArmedSourceId(null);
+    }
+  };
+
+  const handleKeyUp = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === " ") {
+      spaceRef.current = false;
+      setSpaceHeld(false);
+    }
+  };
+
+  /* ------------------------------------ Rendu ------------------------------------ */
+
+  const previewLine: ConnectPreview | null = useMemo(() => {
+    if (!preview) return null;
+    const rect = rects.get(preview.fromId);
+    if (!rect) return null;
+    const side = preview.side ?? sideToward(rect, preview.to);
+    return { from: anchorPoint(rect, side), to: preview.to };
+  }, [preview, rects]);
+
+  const rectList = useMemo(() => Array.from(rects.values()), [rects]);
+  const { canUndo, canRedo } = historyState;
+  const panCursor = tool === "hand" || spaceHeld;
+  const hasSelection = selection.length > 0 || selectedEdgeId !== null;
 
   return (
-    <div className="w-full h-full min-h-[600px] bg-white rounded-xl border border-slate-200 flex flex-col overflow-hidden relative select-none">
-      {/* BARRE D'OUTILS DU CANEVAS */}
-      <div className="px-3 py-2 border-b border-slate-200 bg-white flex flex-wrap items-center justify-between gap-2 z-20 flex-shrink-0">
-        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTool("select");
-              setConnectSourceId(null);
-            }}
-            className={`px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
-              activeTool === "select"
-                ? "bg-white text-slate-950 shadow-2xs"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <Cursor size={13} weight="bold" />
-            <span>Sélection</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTool("connect");
-              setConnectSourceId(null);
-            }}
-            className={`px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
-              activeTool === "connect"
-                ? "bg-[#1265DD] text-white"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <ShareNetwork size={13} weight="bold" />
-            <span>{connectSourceId ? "Choisir la cible..." : "Relier"}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTool("pan");
-              setConnectSourceId(null);
-            }}
-            className={`px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
-              activeTool === "pan"
-                ? "bg-white text-slate-950 shadow-2xs"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <ArrowsOutSimple size={13} />
-            <span className="hidden sm:inline">Main</span>
-          </button>
+    <div className="relative flex h-full min-h-[28rem] w-full flex-col overflow-hidden rounded-xl border border-edge bg-board">
+      {/* Barre d'outils : une seule ligne, défilement horizontal si l'écran est étroit */}
+      <div className="z-20 flex flex-shrink-0 items-center gap-3 overflow-x-auto border-b border-edge bg-surface px-2.5 py-2">
+        <div role="group" aria-label="Outils" className="flex items-center gap-0.5 rounded-lg bg-subtle p-0.5">
+          <ToolbarButton label="Sélection" shortcut="V" active={tool === "select"} onClick={() => { setTool("select"); setArmedSourceId(null); setPreview(null); }} showLabel>
+            <Cursor size={15} weight="bold" />
+          </ToolbarButton>
+          <ToolbarButton label="Main" shortcut="H, ou Espace" active={tool === "hand"} onClick={() => { setTool("hand"); setArmedSourceId(null); setPreview(null); }} showLabel>
+            <Hand size={15} weight="bold" />
+          </ToolbarButton>
+          <ToolbarButton label="Relier" shortcut="C" active={tool === "connect"} onClick={() => { setTool("connect"); setArmedSourceId(null); }} showLabel>
+            <ShareNetwork size={15} weight="bold" />
+          </ToolbarButton>
         </div>
 
-        {/* Contrôles Zoom & Grille */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-0.5 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs font-mono">
+        <div role="group" aria-label="Historique" className="flex items-center gap-0.5">
+          <ToolbarButton label="Annuler" shortcut="Ctrl+Z" disabled={!canUndo} onClick={undo}>
+            <ArrowCounterClockwise size={16} />
+          </ToolbarButton>
+          <ToolbarButton label="Rétablir" shortcut="Ctrl+Y" disabled={!canRedo} onClick={redo}>
+            <ArrowClockwise size={16} />
+          </ToolbarButton>
+        </div>
+
+        <div role="group" aria-label="Sélection" className="flex items-center gap-1">
+          {selectedEdge ? (
+            <label className="flex items-center gap-2 text-sm text-ink-2">
+              <span className="hidden sm:inline">Protocole</span>
+              <select
+                value={selectedEdge.protocol}
+                onChange={(event) => setProtocol(event.target.value as ArchitectureEdge["protocol"])}
+                className="h-8 rounded-md border border-edge bg-sunken px-2 font-mono text-xs text-ink outline-none focus:border-accent"
+              >
+                {PROTOCOLS.map((protocol) => (
+                  <option key={protocol} value={protocol}>
+                    {protocol}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <ToolbarButton label="Dupliquer" shortcut="Ctrl+D" disabled={selection.length === 0} onClick={duplicateSelection} showLabel>
+              <Copy size={15} />
+            </ToolbarButton>
+          )}
+          <ToolbarButton
+            label="Supprimer"
+            shortcut="Suppr"
+            disabled={!hasSelection}
+            onClick={deleteSelection}
+            showLabel
+            className="hover:text-danger"
+          >
+            <Trash size={15} />
+          </ToolbarButton>
+          {selection.length > 1 && <span className="px-1 font-mono text-xs text-ink-3">{selection.length} blocs</span>}
+        </div>
+
+        <div className="ml-auto flex flex-shrink-0 items-center gap-2">
+          <div role="group" aria-label="Zoom" className="flex items-center gap-0.5 rounded-lg bg-subtle p-0.5">
+            <ToolbarButton label="Dézoomer" shortcut="-" onClick={() => zoomStep(-1)}>
+              <Minus size={14} weight="bold" />
+            </ToolbarButton>
             <button
               type="button"
-              onClick={() => setZoom((z) => Math.max(0.4, Number((z - 0.1).toFixed(1))))}
-              className="w-6 h-6 rounded text-slate-700 hover:bg-white flex items-center justify-center font-bold cursor-pointer"
-              title="Dézoomer"
+              onClick={() => zoomTo(1)}
+              title="Revenir à 100 % (Ctrl+0)"
+              className="h-8 min-w-[3.25rem] rounded-md px-1.5 font-mono text-xs font-medium text-ink-2 transition-colors hover:bg-surface hover:text-ink"
             >
-              -
+              {Math.round(view.zoom * 100)} %
             </button>
-            <span className="px-2 font-medium text-slate-800 text-[11px]">
-              {Math.round(zoom * 100)}%
-            </span>
-            <button
-              type="button"
-              onClick={() => setZoom((z) => Math.min(2.2, Number((z + 0.1).toFixed(1))))}
-              className="w-6 h-6 rounded text-slate-700 hover:bg-white flex items-center justify-center font-bold cursor-pointer"
-              title="Zoomer"
-            >
-              +
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setZoom(1);
-                setPan({ x: 20, y: 20 });
-              }}
-              className="px-2 py-0.5 text-[11px] text-slate-600 hover:text-slate-950 hover:bg-white rounded cursor-pointer ml-0.5"
-            >
-              100%
-            </button>
+            <ToolbarButton label="Zoomer" shortcut="+" onClick={() => zoomStep(1)}>
+              <Plus size={14} weight="bold" />
+            </ToolbarButton>
+            <ToolbarButton label="Ajuster à l'écran" shortcut="Maj+1" onClick={fitContent}>
+              <CornersOut size={15} />
+            </ToolbarButton>
           </div>
 
-          <button
-            type="button"
-            onClick={() =>
-              setGridType((g) => (g === "dots" ? "lines" : g === "lines" ? "blank" : "dots"))
-            }
-            className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-xs text-slate-700 font-medium hover:bg-slate-50 cursor-pointer"
-          >
-            {gridType === "dots" ? "Points" : gridType === "lines" ? "Grille" : "Uni"}
-          </button>
+          <div role="group" aria-label="Affichage" className="flex items-center gap-0.5 rounded-lg bg-subtle p-0.5">
+            <ToolbarButton label={magnet ? "Aimantation activée" : "Aimantation désactivée"} active={magnet} onClick={() => setMagnet((v) => !v)}>
+              <Magnet size={15} />
+            </ToolbarButton>
+            <ToolbarButton
+              label={`Fond : ${GRID_LABEL[gridType]}`}
+              onClick={() => setGridType((g) => (g === "dots" ? "lines" : g === "lines" ? "blank" : "dots"))}
+            >
+              {gridType === "dots" ? <DotsNine size={15} /> : gridType === "lines" ? <GridFour size={15} /> : <Square size={15} />}
+            </ToolbarButton>
+            <ToolbarButton label="Vue d'ensemble" active={showMinimap} onClick={() => setShowMinimap((v) => !v)} className="hidden md:flex">
+              <MapTrifold size={15} />
+            </ToolbarButton>
+          </div>
         </div>
       </div>
 
-      {/* SURFACE DU CANEVAS (Navigable au trackpad 2 doigts, pinch-to-zoom et glisser) */}
+      {/* Surface du canevas */}
       <div
         ref={containerRef}
-        onMouseDown={handleCanvasMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        className={`flex-1 relative overflow-hidden touch-none ${
-          activeTool === "pan" ? "cursor-grab active:cursor-grabbing" : "cursor-default"
-        }`}
-        style={{
-          backgroundColor: "#FFFFFF",
-          backgroundImage:
-            gridType === "dots"
-              ? "radial-gradient(#CBD5E1 1.2px, transparent 1.2px)"
-              : gridType === "lines"
-              ? "linear-gradient(to right, #F1F5F9 1px, transparent 1px), linear-gradient(to bottom, #F1F5F9 1px, transparent 1px)"
-              : "none",
-          backgroundSize: gridType === "lines" ? "24px 24px" : "20px 20px",
-          backgroundPosition: `${pan.x}px ${pan.y}px`,
+        tabIndex={0}
+        role="application"
+        aria-label="Tableau blanc d'architecture"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={(event) => endPointer(event, false)}
+        onPointerCancel={(event) => endPointer(event, true)}
+        onDoubleClick={handleDoubleClick}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+        onKeyDown={handleKeyDown}
+        onKeyUp={handleKeyUp}
+        onBlur={() => {
+          spaceRef.current = false;
+          setSpaceHeld(false);
         }}
+        className={cn(
+          "relative min-h-0 flex-1 touch-none select-none overflow-hidden outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent",
+          panCursor ? "cursor-grab active:cursor-grabbing" : tool === "connect" ? "cursor-crosshair" : "cursor-default",
+        )}
+        style={{ backgroundImage: GRID_IMAGE[gridType] }}
       >
-        {/* Liaisons SVG */}
-        <svg
-          className="absolute inset-0 w-full h-full pointer-events-none"
-          style={{
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-            transformOrigin: "0 0",
-          }}
-        >
-          <defs>
-            <marker
-              id="whiteboard-arrow"
-              viewBox="0 0 10 10"
-              refX="8"
-              refY="5"
-              markerWidth="6"
-              markerHeight="6"
-              orient="auto-start-reverse"
-            >
-              <path d="M 0 1 L 10 5 L 0 9 z" fill="#475569" />
-            </marker>
-          </defs>
+        <div ref={layerRef} className="absolute left-0 top-0 h-0 w-0 origin-top-left will-change-transform">
+          <EdgesLayer edges={edges} rects={rects} selectedEdgeId={selectedEdgeId} guides={draft?.guides ?? NO_GUIDES} preview={previewLine} />
 
-          {edges.map((edge) => {
-            const fromNode = nodes.find((n) => n.id === edge.from);
-            const toNode = nodes.find((n) => n.id === edge.to);
-            if (!fromNode || !toNode) return null;
-
-            const x1 = fromNode.x + 196;
-            const y1 = fromNode.y + 38;
-            const x2 = toNode.x;
-            const y2 = toNode.y + 38;
-
-            const dx = Math.max(40, Math.abs(x2 - x1) * 0.45);
-            const pathD = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
-            const midX = (x1 + x2) / 2;
-            const midY = (y1 + y2) / 2;
-
-            return (
-              <g
-                key={edge.id}
-                onClick={() => handleDeleteEdge(edge.id)}
-                className="cursor-pointer pointer-events-auto group"
-              >
-                <title>Cliquer pour supprimer la liaison</title>
-                <path
-                  d={pathD}
-                  fill="none"
-                  stroke="#64748B"
-                  strokeWidth="1.8"
-                  markerEnd="url(#whiteboard-arrow)"
-                  className="group-hover:stroke-red-500 transition-colors"
-                />
-                <rect
-                  x={midX - 34}
-                  y={midY - 10}
-                  width={68}
-                  height={20}
-                  rx={4}
-                  fill="#FFFFFF"
-                  stroke="#E2E8F0"
-                  strokeWidth="1"
-                />
-                <text
-                  x={midX}
-                  y={midY + 3}
-                  textAnchor="middle"
-                  fill="#475569"
-                  fontSize="9"
-                  fontFamily="monospace"
-                  fontWeight="600"
-                >
-                  {edge.protocol.split("/")[0]}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
-
-        {/* Blocs sur le canevas */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-            transformOrigin: "0 0",
-          }}
-        >
           {nodes.map((node) => {
-            const isSelected = selectedNode?.id === node.id;
-            const isConnectSource = connectSourceId === node.id;
-            const hasStack = Boolean(node.tech && node.tech.trim().length > 0);
-
+            const rect = rects.get(node.id);
+            const selected = selection.includes(node.id);
             return (
-              <div
+              <NodeView
                 key={node.id}
-                onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
-                style={{
-                  position: "absolute",
-                  left: `${node.x}px`,
-                  top: `${node.y}px`,
-                  width: "196px",
-                }}
-                className={`group pointer-events-auto rounded-xl bg-white p-3 transition-shadow cursor-move flex flex-col justify-between select-none ${
-                  isSelected
-                    ? "border-2 border-[#1265DD] shadow-md"
-                    : isConnectSource
-                    ? "border-2 border-dashed border-[#1265DD]"
-                    : "border border-slate-200 shadow-2xs hover:border-slate-300"
-                }`}
-              >
-                {/* Points d'ancrage cardinaux (Haut, Droite, Bas, Gauche) */}
-                <button
-                  type="button"
-                  onClick={(e) => handleAnchorClick(e, node.id)}
-                  title="Relier"
-                  className="absolute -top-2 left-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-white border border-[#1265DD] text-[#1265DD] flex items-center justify-center opacity-0 group-hover:opacity-100 hover:scale-125 transition-all cursor-crosshair z-20"
-                >
-                  <Plus size={8} weight="bold" />
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => handleAnchorClick(e, node.id)}
-                  title="Relier"
-                  className="absolute top-1/2 -right-2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-white border border-[#1265DD] text-[#1265DD] flex items-center justify-center opacity-0 group-hover:opacity-100 hover:scale-125 transition-all cursor-crosshair z-20"
-                >
-                  <Plus size={8} weight="bold" />
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => handleAnchorClick(e, node.id)}
-                  title="Relier"
-                  className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-white border border-[#1265DD] text-[#1265DD] flex items-center justify-center opacity-0 group-hover:opacity-100 hover:scale-125 transition-all cursor-crosshair z-20"
-                >
-                  <Plus size={8} weight="bold" />
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => handleAnchorClick(e, node.id)}
-                  title="Relier"
-                  className="absolute top-1/2 -left-2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-white border border-[#1265DD] text-[#1265DD] flex items-center justify-center opacity-0 group-hover:opacity-100 hover:scale-125 transition-all cursor-crosshair z-20"
-                >
-                  <Plus size={8} weight="bold" />
-                </button>
-
-                {/* Poignées de sélection */}
-                {isSelected && (
-                  <>
-                    <div className="absolute -top-1 -left-1 w-2 h-2 bg-[#1265DD] pointer-events-none" />
-                    <div className="absolute -top-1 -right-1 w-2 h-2 bg-[#1265DD] pointer-events-none" />
-                    <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-[#1265DD] pointer-events-none" />
-                    <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-[#1265DD] pointer-events-none" />
-                  </>
-                )}
-
-                <div className="flex items-center gap-2.5">
-                  {renderShapeIcon(node.shape, 28)}
-                  <div className="min-w-0 flex-1">
-                    <h4 className="text-xs font-semibold text-slate-950 leading-snug truncate">
-                      {node.title}
-                    </h4>
-                    <div className="text-[10px] text-slate-400 truncate">
-                      {node.moduleGroup}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Stack technique affichée uniquement si définie */}
-                {hasStack && (
-                  <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between gap-1 text-[10px] font-mono">
-                    <span className="font-medium text-slate-700 truncate">
-                      {node.tech}
-                    </span>
-                    {node.version && (
-                      <span className="text-slate-500 px-1.5 py-0.2 rounded bg-slate-100 text-[9px] flex-shrink-0">
-                        {node.version}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
+                node={node}
+                x={rect?.x ?? node.x}
+                y={rect?.y ?? node.y}
+                selected={selected}
+                solo={selected && solo && !draft}
+                dropTarget={preview?.targetId === node.id}
+                armed={armedSourceId === node.id}
+                editing={editingId === node.id}
+                onRename={renameNode}
+                onStopEditing={stopEditing}
+              />
             );
           })}
         </div>
-      </div>
 
-      {/* DOCK D'OUTILS EN BAS (Responsive Medium & Desktop, Solide, Sans Méta-Texte) */}
-      <div
-        className={`absolute bottom-3 left-1/2 -translate-x-1/2 z-30 w-[calc(100%-1.5rem)] max-w-4xl bg-white rounded-xl border border-slate-200 shadow-lg transition-all duration-200 overflow-hidden ${
-          isToolboxMinimized ? "p-2" : "p-3"
-        }`}
-      >
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg text-xs">
-            <button
-              type="button"
-              onClick={() => {
-                setToolboxTab("components");
-                setIsToolboxMinimized(false);
-              }}
-              className={`px-3 py-1 rounded-md font-medium transition-colors cursor-pointer ${
-                toolboxTab === "components" && !isToolboxMinimized
-                  ? "bg-white text-slate-950 shadow-2xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Composants
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setToolboxTab("techstack");
-                setIsToolboxMinimized(false);
-              }}
-              className={`px-3 py-1 rounded-md font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${
-                toolboxTab === "techstack" && !isToolboxMinimized
-                  ? "bg-white text-slate-950 shadow-2xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <span>Stack technique</span>
-              {selectedNode && (
-                <span className="hidden sm:inline text-[10px] font-mono text-slate-400 truncate max-w-[120px]">
-                  · {selectedNode.title}
-                </span>
-              )}
-            </button>
-          </div>
+        {marquee && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute border border-dashed border-accent"
+            style={{
+              left: Math.min(marquee.x1, marquee.x2),
+              top: Math.min(marquee.y1, marquee.y2),
+              width: Math.abs(marquee.x2 - marquee.x1),
+              height: Math.abs(marquee.y2 - marquee.y1),
+            }}
+          />
+        )}
 
-          <div className="flex items-center gap-1.5">
-            {selectedNode && !isToolboxMinimized && (
-              <>
-                <button
-                  type="button"
-                  onClick={handleDuplicateSelected}
-                  title="Dupliquer le bloc"
-                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium flex items-center gap-1 cursor-pointer transition-colors"
-                >
-                  <Copy size={13} />
-                  <span className="hidden sm:inline">Dupliquer</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDeleteSelected}
-                  title="Supprimer le bloc"
-                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-600 text-xs font-medium flex items-center gap-1 cursor-pointer transition-colors"
-                >
-                  <Trash size={13} />
-                  <span className="hidden sm:inline">Supprimer</span>
-                </button>
-              </>
-            )}
-
-            <button
-              type="button"
-              onClick={() => setIsToolboxMinimized(!isToolboxMinimized)}
-              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-slate-950 hover:bg-slate-50 transition-colors cursor-pointer"
-              title={isToolboxMinimized ? "Déplier" : "Réduire"}
-            >
-              {isToolboxMinimized ? <CaretUp size={14} /> : <CaretDown size={14} />}
-            </button>
-          </div>
-        </div>
-
-        {!isToolboxMinimized && (
-          <div className="pt-2.5 mt-2 border-t border-slate-100">
-            {/* ONGLET 1 : COMPOSANTS (Ajout de bloc sans imposer de stack) */}
-            {toolboxTab === "components" && (
-              <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                {STENCIL_ITEMS.map((item) => (
-                  <button
-                    key={item.label}
-                    type="button"
-                    onClick={() => handleAddStencil(item)}
-                    className="min-w-[104px] flex-1 p-2 rounded-lg border border-slate-200 hover:border-[#1265DD] hover:bg-slate-50 transition-colors cursor-pointer flex flex-col items-center text-center bg-white flex-shrink-0"
-                  >
-                    <div className="w-8 h-8 rounded-md bg-slate-50 border border-slate-200 flex items-center justify-center mb-1">
-                      {renderShapeIcon(item.shape, 20)}
-                    </div>
-                    <div className="text-[11px] font-medium text-slate-900 truncate w-full">
-                      {item.label}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* ONGLET 2 : STACK TECHNIQUE (Optionnelle pour chaque bloc) */}
-            {toolboxTab === "techstack" && (
-              <div>
-                {!selectedNode ? (
-                  <div className="py-3 text-center text-xs text-slate-500">
-                    Sélectionnez un bloc sur le canevas pour modifier ses propriétés ou lui associer une stack.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start max-h-48 overflow-y-auto">
-                    {/* Propriétés du bloc */}
-                    <div className="md:col-span-4 p-2.5 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="col-span-2">
-                          <label className="text-[10px] text-slate-500 block mb-0.5">
-                            Nom du bloc
-                          </label>
-                          <input
-                            type="text"
-                            value={selectedNode.title}
-                            onChange={(e) =>
-                              onUpdateNodes(
-                                nodes.map((n) =>
-                                  n.id === selectedNode.id ? { ...n, title: e.target.value } : n
-                                )
-                              )
-                            }
-                            className="w-full px-2 py-1 rounded bg-white border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:border-[#1265DD]"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-slate-500 block mb-0.5">
-                            Stack libre
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="Aucune (optionnel)"
-                            value={selectedNode.tech}
-                            onChange={(e) =>
-                              onUpdateNodes(
-                                nodes.map((n) =>
-                                  n.id === selectedNode.id ? { ...n, tech: e.target.value } : n
-                                )
-                              )
-                            }
-                            className="w-full px-2 py-1 rounded bg-white border border-slate-200 text-xs font-mono text-slate-900 focus:outline-none focus:border-[#1265DD]"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-slate-500 block mb-0.5">
-                            Port / Répliques
-                          </label>
-                          <div className="flex items-center gap-1">
-                            <input
-                              type="number"
-                              value={selectedNode.port || ""}
-                              placeholder="Port"
-                              onChange={(e) =>
-                                onUpdateNodes(
-                                  nodes.map((n) =>
-                                    n.id === selectedNode.id
-                                      ? { ...n, port: Number(e.target.value) || 0 }
-                                      : n
-                                  )
-                                )
-                              }
-                              className="w-full px-2 py-1 rounded bg-white border border-slate-200 text-xs font-mono text-slate-900"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Sélection rapide ou Sans stack */}
-                    <div className="md:col-span-8">
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                        <button
-                          type="button"
-                          onClick={handleClearStack}
-                          className={`text-left p-2 rounded-lg border text-xs transition-colors cursor-pointer flex items-center gap-2 ${
-                            !selectedNode.tech
-                              ? "bg-slate-900 border-slate-900 text-white font-medium"
-                              : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700"
-                          }`}
-                        >
-                          <Prohibit size={14} className="flex-shrink-0" />
-                          <div className="truncate">
-                            <div className="font-medium truncate">Aucune stack</div>
-                            <div className="text-[10px] opacity-75 truncate">Bloc neutre</div>
-                          </div>
-                        </button>
-
-                        {(STACK_PRESETS_BY_SHAPE[selectedNode.shape] ?? []).map((preset) => {
-                          const isCurrent = selectedNode.tech === preset.name;
-                          return (
-                            <button
-                              key={preset.name}
-                              type="button"
-                              onClick={() => handleApplyPreset(preset)}
-                              className={`text-left p-2 rounded-lg border text-xs transition-colors cursor-pointer ${
-                                isCurrent
-                                  ? "bg-[#1265DD] border-[#1265DD] text-white font-medium"
-                                  : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-800"
-                              }`}
-                            >
-                              <div className="flex items-center justify-between gap-1">
-                                <span className="font-semibold truncate">{preset.name}</span>
-                                <span
-                                  className={`text-[9px] font-mono px-1 rounded ${
-                                    isCurrent
-                                      ? "bg-white/20 text-white"
-                                      : "bg-slate-100 text-slate-600"
-                                  }`}
-                                >
-                                  {preset.version}
-                                </span>
-                              </div>
-                              <div
-                                className={`text-[10px] truncate mt-0.5 ${
-                                  isCurrent ? "text-blue-100" : "text-slate-400"
-                                }`}
-                              >
-                                Port :{preset.port}
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+        {nodes.length === 0 && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 pb-40">
+            <div className="max-w-sm rounded-xl border border-dashed border-edge-strong bg-surface p-6 text-center">
+              <h3 className="text-base font-semibold text-ink">Le canevas est vide</h3>
+              <p className="mt-1 text-sm text-ink-3">
+                Ajoutez un composant depuis la boîte à outils, en cliquant ou en le glissant ici.
+              </p>
+            </div>
           </div>
         )}
+
+        {showMinimap && nodes.length > 0 && (
+          <div className="absolute right-3 top-3 z-10 hidden md:block" onPointerDown={(event) => event.stopPropagation()}>
+            <Minimap
+              rects={rectList}
+              view={view}
+              size={size}
+              onNavigate={(center) =>
+                animateTo({ zoom: view.zoom, x: size.w / 2 - center.x * view.zoom, y: size.h / 2 - center.y * view.zoom }, 160)
+              }
+            />
+          </div>
+        )}
+
+        <span className="sr-only" aria-live="polite">
+          {selection.length === 0 ? "Aucun bloc sélectionné" : `${selection.length} bloc${selection.length > 1 ? "s" : ""} sélectionné${selection.length > 1 ? "s" : ""}`}
+        </span>
       </div>
+
+      <Dock
+        selectedNode={selectedNode}
+        onAdd={(item) => addNode(item)}
+        onUpdateNode={updateNode}
+        onClearStack={clearStack}
+        onApplyPreset={applyPreset}
+      />
     </div>
   );
 }

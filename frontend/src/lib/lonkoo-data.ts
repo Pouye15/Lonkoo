@@ -7,7 +7,10 @@ export type NodeRole =
   | "cache"
   | "queue"
   | "ai"
-  | "user";
+  | "user"
+  | "payment"
+  | "messaging"
+  | "billing";
 
 export type ArchitectureShape =
   | "generic"  // Bloc libre / Conteneur logique sans convention imposée
@@ -18,7 +21,10 @@ export type ArchitectureShape =
   | "queue"    // Bus d'événements / File de messages
   | "cache"    // Cache mémoire
   | "security" // Sécurité / IAM
-  | "ai";      // Module IA / Inférence
+  | "ai"       // Module IA / Inférence
+  | "mobile-payment" // Paiement mobile (bloc générique, sans marque)
+  | "messaging"      // SMS, USSD, WhatsApp, courriel (bloc générique, sans marque)
+  | "billing";       // Facturation
 
 export type GitHubRole = "Owner" | "Maintainer" | "Write" | "Triage" | "Read";
 
