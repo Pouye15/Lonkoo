@@ -1,183 +1,164 @@
-# CLAUDE.md — Contexte Complet & Directives du Projet LONKOO
+# CLAUDE.md — Contexte et directives du front LONKOO
 
-Ce fichier centralise l'ensemble du contexte produit, fonctionnel, architectural et des règles de design du projet **LONKOO**. Il sert de référence unique pour tout développeur ou agent IA intervenant sur le dépôt.
+Ce fichier est la référence unique du **front** pour tout développeur ou agent IA. Il décrit le produit tel qu'il est implémenté, l'architecture du dossier `frontend/` et les règles de design à respecter.
 
----
-
-## Ce que tu dois faire (ceci est seulement pour le front)
-d'abord coté front il y'a des incoherence et beaucoup de problemes d'abord la landing page tu peux  plus l'adapter a ce showcase :https://dribbble.com/shots/26366091-Landing-page-design-for-a-social-media-management-platform
-revoie aussi l'ux et fais que l'experinece utilisateur soit fluide simple et intuitifs
-professionalise le ui et rends le tous tres moderne et professionnel
-implementer aussi un theme sombre pour les pages
-implemente des pages de connexions apres le landings page pour acceder au studio
-pour le studio la navigation doit etre fluide sur le tableau blanc avec un modele de draw.io
-travaille la side bar et la navigation aussi pour les projets
-les petits labels type v2.1 etc enleve ca
-
-
-
-
-## 1. Identité & Contexte du Projet
-
-- **Nom de la plateforme** : **LONKOO**
-- **Cadre** : Projet développé pour le hackathon organisé par Systalink.
-- **Règle de marque importante** : LONKOO est une plateforme indépendante d'échange et de collaboration architecturale, et **non** une plateforme interne de Systalink. Toute mention la présentant comme « la plateforme de Systalink » est proscrite. La seule référence autorisée concerne le pont d'implémentation vers le constructeur de site **Orion** (aux côtés du serveur MCP).
-- **Proposition de valeur** : Appliquer le modèle collaboratif et versionné de Git ainsi que la dynamique d'un réseau d'échange communautaire à la **modélisation d'architecture logicielle** et au choix des **stacks techniques**, assistés par l'IA.
+Le front vit dans le monorepo (voir le `README.md` racine). Les documents partagés sont dans `../docs/` : contrat du canvas (`schema-canvas.md`, `canvas.schema.json`), architecture (`architecture.md`) et feuille de route du backend (`ROADMAP-BACKEND.md`, avec la correspondance écrans et API au § 8).
 
 ---
 
-## 2. Cahier des Charges Fonctionnel & Écrans
+## 1. Identité et contexte
 
-### 2.1. Landing Page (`/`)
-- **Animation Canvas & Séquence vidéo par frames** :
-  - Utilise les 120 frames extraites dans `public/frames-bg/frame_0001.jpg` à `frame_0120.jpg` pilotées au scroll via `src/components/FrameBackgroundCanvas.tsx`.
-  - Le haut de page (Hero + Démonstration interactive) repose sur l'animation en arrière-plan avec un voile bleu profond maîtrisé et l'animation vectorielle interactive au premier plan (`src/components/HeroArchitectureCanvas.tsx`).
-  - **Transition de thème au scroll** : À partir de la section *« Un cycle ingénieur complet »*, la page passe en **fond blanc clair** avec adaptation complète des contrastes typographiques.
-
-### 2.2. Navigation Post-Connexion (`src/components/layout/AppSidebar.tsx`)
-- **Sidebar gauche** : Navigation principale regroupée en *Espace de travail* (`Projets`, `Studio`, `Revues & Équipe`), *Réseau* (`Communauté & Profils`) et *Ingénierie* (`Déploiement & MCP`, `Configuration initiale`, `Paramètres`), avec rappel du dépôt actif (`payment-mesh-core · main · v2.4.0`) et sélecteur de thème (Clair actif, Sombre à venir).
-- **Navbar réductible en bulle** :
-  - En mode standard : affiche le fil d'Ariane du projet (`lonkoo-org / payment-mesh-core`), la page courante et les actions rapides.
-  - En mode réduit (**bouton « Réduire »**) : se replie en une petite bulle flottante compacte contenant uniquement le logo **LONKOO**, le fil d'Ariane du fichier (`lonkoo-org / payment-mesh-core · v2.4.0`) et le bouton d'agrandissement.
-
-### 2.3. Bibliothèque de Projets (`/dashboard`)
-- Vue d'ensemble des dépôts d'architecture de l'utilisateur.
-- Gestion de la visibilité **Public / Privé** (modèle Git) en un clic.
-- Filtrage par visibilité (*Tous*, *Publics*, *Privés*, *Forks*) et recherche par nom ou technologie.
-- Affichage de l'origine des forks, de la branche active, du tag Git associé et des membres de l'équipe avec accès direct au Studio (`/studio?project=...`) et à la gestion d'équipe (`/studio?project=...&tab=team`).
-
-### 2.4. Studio de Modélisation & Ingénierie (`/studio`)
-Organisé autour de 6 onglets compacts et responsives :
-1. **Architecture (`src/components/studio/ArchitectureWhiteboard.tsx`)** :
-   - **Canevas navigable type Draw.io** occupant tout l'espace central.
-   - **Navigation au Trackpad & Souris** :
-     - Glissement à deux doigts sur le trackpad (`wheel` sans modificateur) pour déplacer le canevas (*pan* 2D fluide).
-     - Pincement sur le trackpad (*pinch-to-zoom* ou `Ctrl/Cmd + molette`) pour zoomer/dézoomer autour du curseur.
-     - Glisser direct sur le fond du canevas ou outil *Main* pour naviguer.
-   - **Conventions visuelles** :
-     - `cylinder` : Base de données représentée par une pile de cylindres 3D.
-     - `user` : Utilisateur / Client représenté par une silhouette (« bonhomme »).
-     - `queue` : Bus d'événements représenté par un tuyau horizontal segmenté.
-     - `gateway`, `service`, `cache`, `security`, `ai` : Passerelle, boîtier de service, cache mémoire, bouclier IAM, module IA.
-     - `generic` : **Bloc libre** neutre.
-   - **Indépendance entre bloc et stack technique** :
-     - Tout composant déposé depuis la boîte à outils est créé **sans imposer de stack technique par défaut** (`tech: ""`).
-     - L'utilisateur peut laisser un bloc purement logique/architectural (« Aucune stack / Bloc neutre ») ou lui attribuer une stack technique via les presets 1-clic (`STACK_PRESETS_BY_SHAPE`) ou en saisie libre.
-   - **Liaisons directionnelles** : 4 points d'ancrage cardinaux (Haut, Droite, Bas, Gauche) sur chaque bloc permettant de relier les composants avec affichage du protocole (`REST`, `gRPC`, `Kafka`, etc.).
-   - **Dock inférieur (Tool Box)** : Positionné en bas au centre du canevas, réductible, regroupant l'onglet **Composants** et l'onglet **Stack technique**.
-2. **Analyse IA (`scanner`)** :
-   - Analyse de la topologie, détection des points uniques de défaillance (SPOF) et vérification de cohérence des versions de stack.
-   - Application des correctifs suggérés en 1 clic directement sur le graphe.
-3. **Simulateur (`simulator`)** :
-   - Curseur d'injection de trafic (1 000 à 20 000 req/s) calculant en temps réel le taux de charge, la saturation et la latence de chaque bloc, avec ajout rapide de répliques.
-4. **Documentation (`docs`)** :
-   - Génération et mise à jour automatique de la documentation d'architecture, des *Architecture Decision Records* (ADR) et des contrats d'interface à partir de l'état du graphe.
-5. **Versions (`versions`)** :
-   - Historique des snapshots d'architecture liés aux commits et aux tags/releases GitHub (`v2.4.0`, `v2.3.1`, etc.) et création de nouvelles releases.
-6. **Équipe (`team`)** :
-   - Constitution d'équipe projet sur le modèle GitHub : recherche de profils de la communauté par `@handle`, invitation de collaborateurs, attribution des rôles (`Owner`, `Maintainer`, `Write`, `Triage`, `Read`), gestion des sous-équipes (`@lonkoo-org/core-architecture`, `@lonkoo-org/security-reviewers`, `@lonkoo-org/backend-squad`) et règles de protection de branche.
-
-### 2.5. Communauté, Templates & Réseau d'Architectes (`/palabre` & `/palabre/[slug]`)
-- **Trois vues complémentaires** :
-  1. `Architectures` : Catalogue des architectures et templates publiés par la communauté.
-  2. `Profils & Architectes` : Annuaire des utilisateurs avec recherche par nom, `@handle`, entreprise ou compétence technique.
-  3. `Abonnements` : Flux filtré sur les architectes suivis par l'utilisateur.
-- **Fonctionnalités sociales & d'échange** :
-  - Compteurs d'**abonnés** (*followers*), d'**abonnements** (*following*), de modèles publiés et de forks reçus.
-  - Bouton interactif **Suivre / Abonné** sur chaque carte et dans la fiche profil modale.
-  - Invitation directe d'un profil communautaire dans une équipe projet.
-- **Fork modulaire & Évaluations (`/palabre/[slug]`)** :
-  - **Fork complet** de toute l'architecture ou **Fork partiel** en sélectionnant uniquement certains sous-graphes à greffer dans un projet existant ou nouveau (public ou privé).
-  - Système de **notation (1 à 5 étoiles)** et de **commentaires** horodatés avec mention de la version testée.
-
-### 2.6. Revues d'Architecture & Discussions (`/reviews`)
-- **Modèle Pull Request appliqué à l'architecture** :
-  - Examen des propositions de modification (`#42`, `#39`, `#35`), visualisation du différentiel d'architecture et de stack (`Ajout`, `Modification`), pré-vérification de cohérence, approbation par les pairs, demande de modifications et fusion avec tag Git.
-- **Canal d'échange collaboratif** :
-  - Messagerie d'équipe organisée par salons (`#architecture-core`, `#revue-stack`, `#releases-git`) avec référence directe aux composants et versions.
-
-### 2.7. Déploiement : Serveur MCP, Orion & GitHub (`/deploy`)
-- **Serveur MCP (Model Context Protocol)** : Génère la configuration SSE/JSON permettant aux agents IA (*Claude Code*, *Antigravity / Gemini*, *Cursor*) de lire la topologie, les versions de stack et les ADR pour implémenter le code dans le modèle choisi.
-- **Constructeur Orion** : Synchronisation des briques architecturales vers le site builder Orion.
-- **Liaison GitHub Releases** : Association de chaque version de l'architecture à une release ou un tag Git du dépôt.
+- **Nom de la plateforme** : **LONKOO**.
+- **Cadre** : projet développé pour le hackathon organisé par Systalink.
+- **Règle de marque importante** : LONKOO est une plateforme indépendante d'échange et de collaboration architecturale, et **non** une plateforme interne de Systalink. Toute mention la présentant comme « la plateforme de Systalink » est proscrite. La seule référence autorisée concerne le pont d'implémentation vers le constructeur de site **Orion** (aux côtés du serveur MCP). Le déploiement s'écrit donc « serveur cloud à Dakar » dans l'interface.
+- **Proposition de valeur** : le studio où une équipe conçoit l'architecture de son application en temps réel, avec un copilote IA à la demande, puis la génère, la pousse sur GitHub et la déploie ; appliquer le modèle collaboratif et versionné de Git à la modélisation d'architecture et au choix des stacks.
 
 ---
 
-## 3. Architecture Technique & Structure du Dépôt
+## 2. État d'avancement
 
-### Stack Technique
-- **Framework** : Next.js `16.4.2` (App Router, Turbopack)
-- **UI & Rendu** : React `19.2.4`, TypeScript `5.9.3`
-- **Styles** : Tailwind CSS `v4` (`src/styles/globals.css`)
-- **Icônes** : `@phosphor-icons/react`
-- **Animations Landing Page** : `gsap` + HTML5 `<canvas>` 2D haute densité
+Les tâches de finition du 20/10 sont faites : landing page refaite dans l'esprit d'une landing SaaS moderne (la maquette Dribbble citée n'est pas consultable automatiquement : la direction s'inspire des conventions du genre), thème sombre, pages de connexion, navigation et barre latérale par projet, tableau blanc façon draw.io, suppression des étiquettes décoratives de version.
 
-### Arborescence Principale
+Reste à faire côté front (voir `../docs/ROADMAP-BACKEND.md`) :
+
+- **Brancher l'API** : `src/lib/session.tsx` (adaptateur simulé, bascule avec `NEXT_PUBLIC_API_MODE=live`), `src/lib/workspace.tsx` et `src/lib/project-graph.ts` (données locales, à remplacer par l'API et le document Yjs).
+- **Aligner le modèle de blocs sur le contrat du canvas** (8 types : `webapp`, `service`, `database`, `auth`, `queue`, `mobile-payment`, `messaging`, `billing`). Les formes actuelles (`generic`, `gateway`, `cache`, `ai`, `user`…) n'ont pas toutes d'équivalent : décision D2 du roadmap.
+- Écrans sans backend prévu (communauté, revues, MCP, Orion) : données fictives, à garder en démonstration ou à masquer avant la soumission.
+
+---
+
+## 3. Cahier des charges fonctionnel et écrans
+
+### 3.1. Landing page (`/`)
+- Navigation fixe opaque (Parcours, Fonctionnalités, Questions, thème, connexion). Tous les appels à l'action mènent à `/login`.
+- Accroche, puis **section épinglée au défilement** (`src/components/landing/StudioDemo.tsx`) qui joue la démo du studio en quatre étapes : *Concevoir*, *Auditer*, *Générer*, *Déployer*. L'animation est un rendu canvas procédural (`sequence/render-frame.ts`, une fonction pure de l'index d'image), sans vidéo ni image à télécharger. `prefers-reduced-motion` : schéma complet, sans animation liée au défilement.
+- Grille de fonctionnalités, questions fréquentes, bandeau d'appel à l'action, pied de page. Clair ou sombre selon le thème.
+- Aucun chiffre ni témoignage inventé : ne pas en ajouter.
+
+### 3.2. Connexion (`/login`)
+- **Continuer avec GitHub** ou **Essayer sans compte** (espace de démonstration, invité de 24 h). Pas de mot de passe : c'est la décision d'architecture (session serveur, OAuth GitHub).
+- `?next=` est validé (chemin interne uniquement). Un compte GitHub qui se connecte pour la première fois passe par `/onboarding` ; l'invité va directement aux projets.
+- `src/lib/session.tsx` : contrat `GET /me`, `POST /auth/guest`, `GET /auth/github/login`, `POST /auth/logout`. Tant que `NEXT_PUBLIC_API_MODE` n'est pas `live`, une session simulée (localStorage) tient lieu de backend et la page l'indique.
+
+### 3.3. Espace connecté (groupe de routes `src/app/(app)/`)
+- **Shell persistant** (`components/layout/AppShell.tsx`) : monté une fois pour toutes les pages, il redirige vers `/login` sans session. Chaque page y dépose son titre et ses actions avec `<PageHeader title actions fullBleed />`.
+- **Barre latérale** : sélecteur de projet (recherche, création), *Espace de travail* (Projets, Studio, Revues), *Réseau* (Communauté), *Ingénierie* (Déploiement, Paramètres). Studio et Déploiement conservent le projet actif (`?project=`). Repliable (icônes seules), tiroir sur petit écran, sélecteur de thème, menu du profil (configuration initiale, paramètres, connexion GitHub pour un invité, déconnexion).
+- **En-tête réductible en bulle** (bouton « Réduire ») : fil d'Ariane `propriétaire / projet / page` en mode standard ; en mode réduit, une bulle flottante avec le logo, le fil d'Ariane et le bouton d'agrandissement. Les états replié et bulle sont mémorisés.
+- Projet actif : `src/lib/workspace.tsx` (`useWorkspace`). Titre d'onglet : mis à jour par `PageHeader`.
+
+### 3.4. Projets (`/dashboard`)
+- Indicateurs calculés depuis les données (aucune valeur codée en dur), filtres *Tous / Publics / Privés / Forks*, recherche par nom ou technologie, état vide.
+- Visibilité Public / Privé en un clic. Origine des forks, dépôt, branche, tag Git s'il existe, équipe, accès au Studio (`/studio?project=…`) et à l'équipe (`&tab=team`).
+- Création de projet dans un dialogue accessible (`components/ui/Modal.tsx`) ; `?new=1` l'ouvre.
+
+### 3.5. Studio (`/studio`)
+Six onglets compacts (une seule ligne, défilement horizontal si l'écran est étroit), pilotés par l'URL (`?tab=canvas|scanner|simulator|docs|versions|team`) :
+
+1. **Architecture** (`components/studio/ArchitectureWhiteboard.tsx` et `whiteboard/`) : canevas façon draw.io occupant toute la zone.
+   - **Navigation** : glissement à deux doigts ou molette = déplacement 2D ; pincement du trackpad ou `Ctrl/Cmd + molette` = zoom autour du curseur ; `Maj + molette` = déplacement horizontal ; outil *Main*, `Espace` maintenu ou bouton du milieu + glisser = déplacer la vue ; deux doigts sur écran tactile (déplacement et pincement). Pendant un geste le DOM est mis à jour directement (`whiteboard/use-viewport.ts`), sans re-rendu des blocs.
+   - **Sélection** : clic, `Maj`/`Ctrl` + clic pour ajouter, **cadre de sélection** en glissant sur le fond, `Ctrl+A`. Déplacement du groupe avec aimantation à la grille et guides d'alignement (bouton aimant).
+   - **Liaisons** : quatre points d'ancrage par bloc (apparaissent au survol) ; glisser d'un point vers un autre bloc crée la liaison, ou outil *Relier* (clic source puis clic cible). Routage orthogonal à coins arrondis, étiquette du protocole, clic pour sélectionner (le protocole se change dans la barre d'outils).
+   - **Raccourcis** : `V` sélection, `H` main, `C` relier, `Suppr`, `Ctrl+Z` / `Ctrl+Y` (annuler / rétablir), `Ctrl+D` dupliquer, `Ctrl+C` / `Ctrl+V`, flèches (pas de la grille, `Maj` = 1), `Entrée` ou double-clic = renommer, `+` / `-` zoom, `Ctrl+0` = 100 %, `Maj+1` ou `Ctrl+Maj+H` = ajuster à l'écran, `Échap`.
+   - **Vue d'ensemble** (mini-carte, cliquable), fond points / grille / uni.
+   - **Conventions visuelles** : `cylinder` = base de données en pile de cylindres ; `user` = silhouette ; `queue` = tuyau horizontal segmenté ; `gateway`, `service`, `cache`, `security`, `ai` = boîtes à icône ; `mobile-payment`, `messaging`, `billing` = blocs locaux génériques, sans marque (contrat du canvas) ; `generic` = **bloc libre** neutre.
+   - **Indépendance entre bloc et stack** : un composant posé n'a **aucune stack imposée** (`tech: ""`). L'utilisateur le laisse neutre (« Aucune stack ») ou lui attribue un préréglage en un clic (`whiteboard/stencils.ts`) ou une saisie libre.
+   - **Boîte à outils** (dock, en bas au centre, réductible) : onglets *Composants* (cliquer ou **glisser** sur le canevas) et *Stack technique* (propriétés du bloc sélectionné).
+2. **Analyse IA** : topologie, points uniques de défaillance, cohérence de stack ; correctifs applicables en un clic. *Maquette : l'IA réelle est un autre chantier.*
+3. **Simulateur** : trafic de 1 000 à 20 000 req/s, charge et latence par bloc, ajout de répliques.
+4. **Documentation** : synthèse, ADR et contrats générés à partir du graphe.
+5. **Versions** : historique des versions et création d'une release (tag Git).
+6. **Équipe** : collaborateurs, rôles (`Owner`, `Maintainer`, `Write`, `Triage`, `Read`), sous-équipes, règles de protection.
+
+Le graphe est conservé par projet dans le navigateur (`src/lib/project-graph.ts`) en attendant le document Yjs partagé.
+
+### 3.6. Communauté (`/palabre`, `/palabre/[slug]`)
+Architectures publiées, profils d'architectes, abonnements ; suivre / se désabonner ; fork complet ou partiel d'un modèle ; notes et commentaires. Données fictives.
+
+### 3.7. Revues (`/reviews`)
+Propositions de modification d'architecture (différentiel, vérification de cohérence, approbations, fusion) et salons de discussion d'équipe. Données fictives.
+
+### 3.8. Déploiement (`/deploy`)
+Onglet *Déploiement* : **Générer le projet**, **Pousser sur GitHub**, **Déployer** (état *En attente → En cours → Déployé*), simulé tant que l'API n'existe pas (la page l'indique). Onglet *MCP et Orion* : configuration du serveur MCP pour les agents, envoi vers Orion. Onglet *Releases* : association d'un tag Git.
+
+### 3.9. Configuration initiale (`/onboarding`) et paramètres (`/settings`)
+Organisation, visibilité par défaut, stacks favorites, intégrations ; membres, clés, apparence (thème clair, sombre ou système).
+
+---
+
+## 4. Architecture technique
+
+### Stack
+- **Next.js 16.4** (App Router, Turbopack), **React 19.3**, **TypeScript 6.0** (7 n'est pas supporté par typescript-eslint), **Tailwind CSS v4**.
+- **Icônes** : `@phosphor-icons/react` (`/ssr` dans les composants serveur). **Polices** : Geist et Geist Mono (`next/font`).
+- Aucune bibliothèque d'animation : CSS et canvas 2D. **Sharp n'est pas installé** (libvips est LGPL, interdit par le règlement) : `stubs/sharp` est un workspace npm factice et `images.unoptimized` est activé. Voir `../docs/LICENCES-TIERCES.md`.
+- Avant d'ajouter une dépendance : licence permissive (MIT, Apache 2.0, BSD), et l'ajouter à `../docs/LICENCES-TIERCES.md`.
+
+### Arborescence
 ```text
-Lonkoo-front/
-├── public/
-│   └── frames-bg/                         # 120 frames JPG pour l'animation scroll de la landing page
+frontend/
 ├── src/
 │   ├── app/
-│   │   ├── layout.tsx                     # Root layout (polices Space Grotesk, Plus Jakarta Sans, JetBrains Mono)
-│   │   ├── page.tsx                       # Landing page animée (sombre en haut -> blanc dès le cycle ingénieur)
-│   │   ├── dashboard/page.tsx             # Bibliothèque de projets (Public/Privé, Forks, accès Équipe & Studio)
-│   │   ├── studio/page.tsx                # Studio (Architecture, Analyse IA, Simulateur, Docs, Versions, Équipe)
-│   │   ├── palabre/
-│   │   │   ├── page.tsx                   # Communauté (Architectures, Profils & Architectes, Abonnements)
-│   │   │   └── [slug]/page.tsx            # Route dynamique SSG d'un template communautaire
-│   │   ├── reviews/page.tsx               # Revues d'architecture (Pull Requests) & Canal de discussion d'équipe
-│   │   ├── deploy/page.tsx                # Pont d'implémentation MCP, Orion Site Builder & Releases GitHub
-│   │   ├── onboarding/page.tsx            # Configuration initiale de l'organisation et des stacks favorites
-│   │   └── settings/page.tsx              # Paramètres d'organisation, membres, clés MCP et webhooks
+│   │   ├── layout.tsx            # Polices, métadonnées, ThemeProvider, SessionProvider
+│   │   ├── globals.css           # Jetons de design (clair / sombre) et base Tailwind
+│   │   ├── page.tsx              # Landing
+│   │   ├── login/page.tsx        # Connexion
+│   │   ├── not-found.tsx
+│   │   └── (app)/                # Espace connecté : layout.tsx monte le shell
+│   │       ├── dashboard/  studio/  reviews/  deploy/
+│   │       ├── palabre/ (+ [slug])  settings/  onboarding/
 │   ├── components/
-│   │   ├── FrameBackgroundCanvas.tsx      # Rendu canvas interpolé des frames au scroll sur la landing page
-│   │   ├── HeroArchitectureCanvas.tsx     # Animation vectorielle interactive au premier plan du Hero
-│   │   ├── layout/
-│   │   │   └── AppSidebar.tsx             # Shell applicatif : Sidebar gauche + Navbar réductible en bulle
-│   │   ├── studio/
-│   │   │   └── ArchitectureWhiteboard.tsx # Tableau blanc navigable (Trackpad pan/zoom, formes, dock inférieur)
-│   │   └── palabre/
-│   │       └── BlueprintDetailClient.tsx  # Vue détaillée d'un modèle, fork complet/partiel, notes et avis
-│   ├── lib/
-│   │   └── lonkoo-data.ts                 # Modèles de données typés et état initial (nœuds, projets, profils, PR)
-│   └── styles/
-│       └── globals.css                    # Configuration Tailwind v4 et variables CSS
-├── package.json
-└── tsconfig.json
+│   │   ├── ui/                   # Button, Logo, Modal, Field, hooks (fermeture, préférences)
+│   │   ├── theme/                # ThemeProvider (anti-flash), ThemeSegmented, ThemeIconButton
+│   │   ├── layout/               # AppShell, PageHeader, ProjectSwitcher, UserMenu
+│   │   ├── landing/              # Nav, StudioDemo (+ sequence/render-frame.ts), Features, Faq, bas de page
+│   │   ├── studio/               # ArchitectureWhiteboard + whiteboard/ (geometry, use-viewport, NodeView, EdgesLayer, Dock, Minimap, stencils)
+│   │   └── palabre/              # BlueprintDetailClient
+│   └── lib/
+│       ├── session.tsx           # Session (adaptateur simulé ou API)
+│       ├── workspace.tsx         # Projets et projet actif
+│       ├── project-graph.ts      # Graphe d'architecture par projet
+│       ├── lonkoo-data.ts        # Types et données d'exemple
+│       └── cn.ts
+├── stubs/sharp/                  # Remplace sharp (licence)
+├── eslint.config.mjs  next.config.ts  package.json
 ```
 
----
-
-## 4. Directives Strictes de Design & Standards Frontend
-
-Ces règles doivent être respectées sans exception lors de toute modification :
-
-1. **Zéro esthétique « générée par IA » (Pas de bulles pastel ni de transparence diluée)** :
-   - **Interdit** : Les pilules/bulles à fond teinté et bordure colorée du type `rounded-full bg-sky-50 border border-sky-200 text-sky-700`, `bg-emerald-50 border-emerald-200`, ainsi que les modificateurs d'opacité diluée (`bg-white/90`, `bg-sky-50/80`, `border-slate-200/80`, `backdrop-blur`).
-   - **Standard requis** : Utiliser des surfaces **100 % opaques, franches et nettes** (`bg-white`, `bg-slate-50`, `bg-slate-100`, `border-slate-200`, `bg-[#1265DD]`, `bg-slate-900`) dans l'esprit des standards industriels modernes (Linear, GitHub, Vercel).
-2. **Zéro méta-texte ou répétition du prompt dans l'interface** :
-   - Ne jamais afficher de libellés auto-descriptifs tels que *« Tableau blanc navigable Draw.io »*, *« Modèle Git »*, *« Modèle Pull Request »*, *« Boîte à Outils (Tool Box) »*, *« Conventions : BD = cylindre... »* ou des codes `[ECR-XX]`.
-   - Les intitulés doivent être courts, directs et orientés action (*Architecture*, *Composants*, *Stack technique*, *Équipe*, *Fusionner*, *Suivre*).
-3. **Responsivité prioritaire sur écrans moyens (`md: 768px–1024px` et `lg: 1024px–1280px`)** :
-   - Les barres d'outils et d'onglets doivent rester compactes sur une seule ligne avec défilement horizontal fluide (`overflow-x-auto`) sans écraser le contenu ni provoquer de retours à la ligne disgracieux sur tablette et portable 13".
-4. **Thème post-connexion** :
-   - Thème clair (`#F8FAFC` / `#FFFFFF`) avec accent bleu (`#1265DD`).
+### Thème
+Les composants utilisent **uniquement des jetons sémantiques** définis dans `globals.css` et redéfinis sous `.dark` : surfaces `bg-canvas`, `bg-surface`, `bg-sunken`, `bg-subtle`, `bg-strong` ; texte `text-ink`, `text-ink-2`, `text-ink-3`, `text-ink-4` ; traits `border-edge`, `border-edge-soft`, `border-edge-strong` ; marque `bg-brand` (fonds pleins), `text-accent` (texte, liens) ; états `text-danger`, `text-warn`, `text-ok` ; boutons inversés `bg-inverse` + `text-inverse-ink`. **Ne pas écrire de couleur Tailwind en dur** (`bg-white`, `text-slate-900`, `#1265DD`…) : le thème sombre cesserait de fonctionner. Le choix (clair, sombre, système) est mémorisé ; un script dans `<head>` évite le flash.
 
 ---
 
-## 5. Commandes Utiles
+## 5. Directives strictes de design et standards frontend
+
+1. **Zéro esthétique « générée par IA »** (pas de bulles pastel ni de transparence diluée) :
+   - **Interdit** : pastilles à fond teinté et bordure colorée (`rounded-full bg-sky-50 border border-sky-200 text-sky-700`), modificateurs d'opacité sur les surfaces (`bg-white/90`, `border-slate-200/80`), `backdrop-blur`.
+   - **Requis** : surfaces **100 % opaques et nettes** via les jetons, dans l'esprit de Linear, GitHub, Vercel.
+2. **Zéro méta-texte ni répétition du prompt dans l'interface** : jamais de libellé auto-descriptif (« Tableau blanc navigable Draw.io », « Modèle Git », « Boîte à outils (Tool Box) », « Conventions : BD = cylindre… », codes `[ECR-XX]`). Intitulés courts, orientés action (*Architecture*, *Composants*, *Stack technique*, *Équipe*, *Fusionner*, *Suivre*).
+3. **Pas d'étiquettes décoratives** de version, de moteur ou de statut (« v2.4.0 », « Engine v4.2 », « MCP v1.0 », compteur d'images). Un tag Git n'apparaît que comme **donnée** (carte de projet, version, release).
+4. **Pas de donnée inventée présentée comme réelle** (chiffres, témoignages, latences, clés d'API). Les valeurs d'exemple ne doivent pas ressembler à des secrets.
+5. **Responsivité prioritaire sur écrans moyens** (`md` 768–1024 px et `lg` 1024–1280 px) : barres d'outils et d'onglets compactes, sur une seule ligne, avec `overflow-x-auto`, sans écraser le contenu.
+6. **Thèmes** : clair (`#F8FAFC` / `#FFFFFF`) et sombre, accent bleu `#1265DD`. Contrastes AA, `focus-visible` partout, `prefers-reduced-motion` respecté.
+7. **Hooks et rendu** : les règles « React Compiler » d'ESLint sont des erreurs (pas d'écriture de ref ni de `Date.now()` pendant le rendu, pas de `setState` synchrone dans un effet).
+
+---
+
+## 6. Commandes
 
 ```bash
-# Vérification stricte du typage TypeScript
+# Vérification des types
 npm run typecheck
 
-# Lancement du serveur de développement (port 3001)
+# Lint (ESLint 9, doit passer sans erreur)
+npm run lint
+
+# Serveur de développement (port 3000 ; relaie /api vers BACKEND_INTERNAL_URL, localhost:8080 par défaut)
 npm run dev
 
-# Compilation de production (arrêter le serveur actif avant de lancer le build sous Windows)
+# Build de production
 npm run build
 
-# Démarrage du serveur de production (port 3001)
+# Serveur de production (port 3000)
 npm run start
 ```
+
+`next dev` génère un `AGENTS.md` (consignes pour les agents IA, version Next.js) ; il est versionné pour garder l'arbre propre.
