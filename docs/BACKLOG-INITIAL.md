@@ -2,6 +2,8 @@
 
 À copier dans GitHub Projects (une ligne = un élément du tableau). Chaque élément a une priorité, un responsable et une date cible.
 
+Le détail du backend (lots, ordre de travail, contrats, risques, ordre de coupe) est dans [ROADMAP-BACKEND.md](ROADMAP-BACKEND.md).
+
 **Priorités :** Indispensable, Important, À couper.
 
 **Responsables (proposition du 2026-10-16, à valider en équipe) :** Diagne = qualité, sécurité, démo ; Fall = interface et canvas ; Gaye = génération et déploiement ; Ngom = IA ; Pouye = backend et temps réel. Un élément « en binôme » nomme les deux personnes : la seconde relit et peut reprendre.

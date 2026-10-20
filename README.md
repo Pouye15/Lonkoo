@@ -19,7 +19,7 @@ Lonkoo est un studio collaboratif où une équipe de développeurs conçoit l'ar
 
 ## Architecture
 
-Voir [docs/architecture.md](docs/architecture.md). Format du canvas : [docs/schema-canvas.md](docs/schema-canvas.md). Mise en ligne : [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md).
+Voir [docs/architecture.md](docs/architecture.md). Format du canvas : [docs/schema-canvas.md](docs/schema-canvas.md). Mise en ligne : [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md). Feuille de route du backend : [docs/ROADMAP-BACKEND.md](docs/ROADMAP-BACKEND.md).
 
 ## Structure du dépôt
 
