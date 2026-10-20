@@ -4,6 +4,19 @@ Ce fichier centralise l'ensemble du contexte produit, fonctionnel, architectural
 
 ---
 
+## Ce cue tu dois faire (ceci est seulement pour le front)
+d'abord coté front il y'a des incoherence et beaucoup de problemes d'abord la landing page tu peux  plus l'adapter a ce showcase :https://dribbble.com/shots/26366091-Landing-page-design-for-a-social-media-management-platform
+revoie aussi l'ux et fais que l'experinece utilisateur soit fluide simple et intuitifs
+professionalise le ui et rends le tous tres moderne et professionnel
+implementer aussi un theme sombre pour les pages
+implemente des pages de connexions apres le landings page pour acceder au studio
+pour le studio la navigation doit etre fluide sur le tableau blanc avec un modele de draw.io
+travaille la side bar et la navigation aussi pour les projets
+les petits labels type v2.1 etc enleve ca
+
+
+
+
 ## 1. Identité & Contexte du Projet
 
 - **Nom de la plateforme** : **LONKOO**
