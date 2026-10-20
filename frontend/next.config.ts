@@ -41,11 +41,21 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
+  // sharp (libvips, LGPL) n'est pas installé : le règlement CADev interdit les licences LGPL.
+  // Voir stubs/sharp et docs/LICENCES-TIERCES.md.
+  images: { unoptimized: true },
   experimental: {
     optimizePackageImports: ["@phosphor-icons/react"],
   },
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
+  },
+  // En local, le frontend relaie /api vers le backend (origine unique, pas de CORS).
+  // En production, Caddy sert déjà /api (voir infra/Caddyfile).
+  async rewrites() {
+    if (!isDev) return [];
+    const backend = process.env.BACKEND_INTERNAL_URL ?? "http://localhost:8080";
+    return [{ source: "/api/:path*", destination: `${backend}/api/:path*` }];
   },
 };
 
