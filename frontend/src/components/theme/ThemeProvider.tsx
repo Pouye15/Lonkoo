@@ -14,16 +14,20 @@ const MEDIA = "(prefers-color-scheme: dark)";
  */
 export const themeInitScript = `(function(){try{var p=localStorage.getItem('${STORAGE_KEY}');var d=p==='dark'||((p===null||p==='system')&&window.matchMedia('${MEDIA}').matches);var r=document.documentElement;if(d){r.classList.add('dark')}r.style.colorScheme=d?'dark':'light'}catch(e){}})();`;
 
+/** Choix de la session quand le stockage du navigateur est indisponible (navigation privée). */
+let memoryPreference: ThemePreference | null = null;
+
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((listener) => listener());
 
 function readPreference(): ThemePreference {
   try {
     const value = window.localStorage.getItem(STORAGE_KEY);
-    return value === "light" || value === "dark" || value === "system" ? value : "system";
+    if (value === "light" || value === "dark" || value === "system") return value;
   } catch {
-    return "system";
+    // Stockage bloqué : on retombe sur la mémoire de la session.
   }
+  return memoryPreference ?? "system";
 }
 
 function subscribePreference(onChange: () => void) {
@@ -72,6 +76,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [resolved]);
 
   const setPreference = useCallback((next: ThemePreference) => {
+    memoryPreference = next;
     try {
       window.localStorage.setItem(STORAGE_KEY, next);
     } catch {

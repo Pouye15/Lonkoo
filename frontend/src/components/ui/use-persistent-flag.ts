@@ -3,6 +3,8 @@
 import { useCallback, useSyncExternalStore } from "react";
 
 const listeners = new Map<string, Set<() => void>>();
+/** Valeurs de la session quand le stockage du navigateur est indisponible (navigation privée). */
+const memory = new Map<string, boolean>();
 
 function notify(key: string) {
   listeners.get(key)?.forEach((listener) => listener());
@@ -36,16 +38,18 @@ export function usePersistentFlag(key: string, initial: boolean): [boolean, (val
   const getSnapshot = useCallback(() => {
     try {
       const value = window.localStorage.getItem(key);
-      return value === null ? initial : value === "1";
+      if (value !== null) return value === "1";
     } catch {
-      return initial;
+      // Stockage bloqué : on retombe sur la mémoire de la session.
     }
+    return memory.get(key) ?? initial;
   }, [key, initial]);
 
   const value = useSyncExternalStore(subscribe, getSnapshot, () => initial);
 
   const setValue = useCallback(
     (next: boolean) => {
+      memory.set(key, next);
       try {
         window.localStorage.setItem(key, next ? "1" : "0");
       } catch {

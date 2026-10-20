@@ -35,22 +35,46 @@ let state: WorkspaceState = SEED_STATE;
 let hydrated = false;
 const listeners = new Set<() => void>();
 
+/** Un projet lu dans le navigateur peut venir d'une ancienne version ou avoir été modifié à la main. */
+function isValidProject(value: unknown): value is WorkspaceProject {
+  if (!value || typeof value !== "object") return false;
+  const p = value as Partial<WorkspaceProject>;
+  return (
+    typeof p.id === "string" &&
+    typeof p.slug === "string" &&
+    typeof p.name === "string" &&
+    typeof p.description === "string" &&
+    (p.visibility === "public" || p.visibility === "private") &&
+    typeof p.githubRepo === "string" &&
+    typeof p.branch === "string" &&
+    typeof p.gitTag === "string" &&
+    Array.isArray(p.stack) &&
+    Array.isArray(p.collaborators) &&
+    typeof p.nodesCount === "number"
+  );
+}
+
+function readStored(): WorkspaceState | null {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<WorkspaceState>;
+    if (!Array.isArray(parsed.projects)) return null;
+    const projects = parsed.projects.filter(isValidProject);
+    if (projects.length === 0) return null;
+    const activeSlug = projects.some((p) => p.slug === parsed.activeSlug)
+      ? (parsed.activeSlug as string)
+      : (projects[0]?.slug ?? "");
+    return { projects, activeSlug };
+  } catch {
+    return null;
+  }
+}
+
 function hydrate() {
   if (hydrated || typeof window === "undefined") return;
   hydrated = true;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const parsed = JSON.parse(raw) as Partial<WorkspaceState>;
-    if (Array.isArray(parsed.projects) && parsed.projects.length > 0) {
-      const activeSlug = parsed.projects.some((p) => p.slug === parsed.activeSlug)
-        ? (parsed.activeSlug as string)
-        : (parsed.projects[0]?.slug ?? "");
-      state = { projects: parsed.projects, activeSlug };
-    }
-  } catch {
-    // Données illisibles : on repart des projets d'exemple.
-  }
+  state = readStored() ?? SEED_STATE;
 }
 
 function commit(next: WorkspaceState) {
@@ -63,10 +87,30 @@ function commit(next: WorkspaceState) {
   listeners.forEach((listener) => listener());
 }
 
+/** Remet les projets d'exemple et efface les données gardées dans le navigateur (déconnexion). */
+export function resetWorkspace() {
+  state = SEED_STATE;
+  hydrated = true;
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Stockage indisponible : rien à effacer.
+  }
+  listeners.forEach((listener) => listener());
+}
+
 function subscribe(listener: () => void) {
   listeners.add(listener);
+  // Une autre fenêtre a modifié les projets : on repart de son état plutôt que de l'écraser.
+  const onStorage = (event: StorageEvent) => {
+    if (event.key !== STORAGE_KEY) return;
+    state = readStored() ?? SEED_STATE;
+    listener();
+  };
+  window.addEventListener("storage", onStorage);
   return () => {
     listeners.delete(listener);
+    window.removeEventListener("storage", onStorage);
   };
 }
 
@@ -102,6 +146,7 @@ export function useWorkspace() {
     let slug = base;
     for (let n = 2; state.projects.some((project) => project.slug === slug); n++) slug = `${base}-${n}`;
 
+    // Comme un dépôt, un projet est désigné par son identifiant (minuscules et tirets).
     const created: WorkspaceProject = {
       id: `proj-${slug}`,
       slug,

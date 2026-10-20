@@ -1,6 +1,8 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { clearStoredGraphs } from "@/lib/project-graph";
+import { resetWorkspace } from "@/lib/workspace";
 
 /**
  * Session de l'utilisateur.
@@ -54,6 +56,12 @@ function randomSuffix(length: number): string {
   return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("");
 }
 
+/** Les projets et graphes simulés vivent dans le navigateur : ils ne doivent pas passer d'un compte au suivant. */
+function clearLocalData() {
+  resetWorkspace();
+  clearStoredGraphs();
+}
+
 function writeMock(session: StoredSession | null) {
   try {
     if (session) window.localStorage.setItem(MOCK_KEY, JSON.stringify(session));
@@ -71,6 +79,7 @@ const mockAdapter: SessionAdapter = {
       const stored = JSON.parse(raw) as StoredSession;
       if (stored.expiresAt && stored.expiresAt < Date.now()) {
         writeMock(null);
+        clearLocalData();
         return null;
       }
       return stored.user;
@@ -199,6 +208,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     await adapter.logout().catch(() => undefined);
+    clearLocalData();
     setState({ status: "anonymous", user: null });
   }, []);
 
@@ -218,10 +228,19 @@ export function useSession(): SessionContextValue {
 
 /**
  * N'accepte qu'un chemin interne (évite les redirections vers un site tiers après la connexion).
+ * Les caractères de contrôle et les barres obliques inverses sont refusés : les navigateurs les
+ * normalisent (« /<tabulation>/site.example » devient « //site.example »).
  */
 export function safeNextPath(next: string | null | undefined, fallback = "/dashboard"): string {
-  if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) return fallback;
-  return next;
+  if (!next || !next.startsWith("/") || next.startsWith("//")) return fallback;
+  if (/[\u0000-\u001f\u007f\\]/.test(next)) return fallback;
+  try {
+    const base = "http://lonkoo.invalid";
+    const url = new URL(next, base);
+    return url.origin === base ? url.pathname + url.search + url.hash : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 /** Initiales pour les avatars (« Aminata S. » → « AS »). */

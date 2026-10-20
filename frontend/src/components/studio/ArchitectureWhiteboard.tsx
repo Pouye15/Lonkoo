@@ -93,6 +93,15 @@ const GRID_IMAGE: Record<GridType, string> = {
 const GRID_LABEL: Record<GridType, string> = { dots: "Points", lines: "Grille", blank: "Uni" };
 
 const HISTORY_LIMIT = 80;
+
+interface HistoryState {
+  past: Graph[];
+  future: Graph[];
+  /** Dernier graphe produit par le tableau : s'il diffère des props, la modification vient d'ailleurs. */
+  emitted: Graph | null;
+  lastKey: { key: string; at: number } | null;
+}
+const EMPTY_HISTORY: HistoryState = { past: [], future: [], emitted: null, lastKey: null };
 /** Hauteur approximative de la boîte à outils posée en bas : le cadrage lui réserve cette place. */
 const DOCK_INSET = 176;
 const NO_GUIDES: Guide[] = [];
@@ -103,8 +112,6 @@ function newId(prefix: string): string {
   idCounter += 1;
   return `${prefix}-${Math.random().toString(36).slice(2, 7)}${idCounter.toString(36)}`;
 }
-
-let clipboard: { nodes: ArchitectureNode[]; edges: ArchitectureEdge[]; pastes: number } | null = null;
 
 function guessProtocol(from: ArchitectureNode, to: ArchitectureNode): ArchitectureEdge["protocol"] {
   if (to.shape === "cylinder") return "TCP / TLS";
@@ -268,64 +275,65 @@ export function ArchitectureWhiteboard({
   const pointers = useRef(new Map<number, Point>());
   const pinchRef = useRef<{ distance: number; center: Point } | null>(null);
   const fittedRef = useRef(false);
+  // Presse-papiers propre à ce tableau : il ne passe pas d'un projet à l'autre.
+  const clipboardRef = useRef<{ nodes: ArchitectureNode[]; edges: ArchitectureEdge[]; pastes: number } | null>(null);
 
   /* -------------------------------- Historique -------------------------------- */
 
-  const history = useRef<{ past: Graph[]; future: Graph[]; lastKey: { key: string; at: number } | null }>({
-    past: [],
-    future: [],
-    lastKey: null,
-  });
-  const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
-  const refreshHistory = useCallback(() => {
-    const h = history.current;
-    setHistoryState({ canUndo: h.past.length > 0, canRedo: h.future.length > 0 });
-  }, []);
+  const [history, setHistory] = useState<HistoryState>(EMPTY_HISTORY);
+
+  // Le parent a modifié le graphe sans passer par le tableau (ex. correctif de l'analyse IA appliqué
+  // depuis un autre onglet) : annuler reviendrait aussi sur ce changement, l'historique repart donc de zéro.
+  if (history.emitted && (history.emitted.nodes !== nodes || history.emitted.edges !== edges)) {
+    setHistory(EMPTY_HISTORY);
+  }
 
   /** Applique une modification et l'enregistre pour annuler/rétablir ; `mergeKey` regroupe les frappes. */
   const commit = useCallback(
     (nextNodes: ArchitectureNode[] | null, nextEdges: ArchitectureEdge[] | null, mergeKey?: string) => {
-      const h = history.current;
       const now = performance.now();
-      const merge = Boolean(mergeKey && h.lastKey?.key === mergeKey && now - h.lastKey.at < 1000);
-      if (!merge) {
-        h.past.push({ nodes, edges });
-        if (h.past.length > HISTORY_LIMIT) h.past.shift();
-      }
-      h.future = [];
-      h.lastKey = mergeKey ? { key: mergeKey, at: now } : null;
+      const merge = Boolean(mergeKey && history.lastKey?.key === mergeKey && now - history.lastKey.at < 1000);
+      setHistory({
+        past: merge ? history.past : [...history.past, { nodes, edges }].slice(-HISTORY_LIMIT),
+        future: [],
+        emitted: { nodes: nextNodes ?? nodes, edges: nextEdges ?? edges },
+        lastKey: mergeKey ? { key: mergeKey, at: now } : null,
+      });
       if (nextNodes) onUpdateNodes(nextNodes);
       if (nextEdges) onUpdateEdges(nextEdges);
-      refreshHistory();
     },
-    [nodes, edges, onUpdateNodes, onUpdateEdges, refreshHistory],
+    [history, nodes, edges, onUpdateNodes, onUpdateEdges],
   );
 
   const undo = useCallback(() => {
-    const h = history.current;
-    const previous = h.past.pop();
+    const previous = history.past[history.past.length - 1];
     if (!previous) return;
-    h.future.push({ nodes, edges });
-    h.lastKey = null;
+    setHistory({
+      past: history.past.slice(0, -1),
+      future: [...history.future, { nodes, edges }],
+      emitted: previous,
+      lastKey: null,
+    });
     onUpdateNodes(previous.nodes);
     onUpdateEdges(previous.edges);
     setSelection((current) => current.filter((id) => previous.nodes.some((n) => n.id === id)));
     setSelectedEdgeId(null);
-    refreshHistory();
-  }, [nodes, edges, onUpdateNodes, onUpdateEdges, refreshHistory]);
+  }, [history, nodes, edges, onUpdateNodes, onUpdateEdges]);
 
   const redo = useCallback(() => {
-    const h = history.current;
-    const next = h.future.pop();
+    const next = history.future[history.future.length - 1];
     if (!next) return;
-    h.past.push({ nodes, edges });
-    h.lastKey = null;
+    setHistory({
+      past: [...history.past, { nodes, edges }],
+      future: history.future.slice(0, -1),
+      emitted: next,
+      lastKey: null,
+    });
     onUpdateNodes(next.nodes);
     onUpdateEdges(next.edges);
     setSelection((current) => current.filter((id) => next.nodes.some((n) => n.id === id)));
     setSelectedEdgeId(null);
-    refreshHistory();
-  }, [nodes, edges, onUpdateNodes, onUpdateEdges, refreshHistory]);
+  }, [history, nodes, edges, onUpdateNodes, onUpdateEdges]);
 
   /* ------------------------------- Géométrie dérivée ------------------------------- */
 
@@ -429,10 +437,14 @@ export function ArchitectureWhiteboard({
   const cloneNodes = useCallback(
     (source: ArchitectureNode[], sourceEdges: ArchitectureEdge[], offset: number) => {
       const ids = new Map<string, string>();
+      source.forEach((node) => ids.set(node.id, newId(node.shape)));
       const clones = source.map((node) => {
-        const id = newId(node.shape);
-        ids.set(node.id, id);
-        return { ...node, id, x: node.x + offset, y: node.y + offset };
+        const id = ids.get(node.id) ?? newId(node.shape);
+        // Les dépendances qui sortent de la sélection n'ont plus de sens dans la copie.
+        const dependencies = node.dependencies
+          .filter((dep) => ids.has(dep))
+          .map((dep) => ids.get(dep) ?? dep);
+        return { ...node, id, x: node.x + offset, y: node.y + offset, dependencies };
       });
       const cloneEdges = sourceEdges
         .filter((edge) => ids.has(edge.from) && ids.has(edge.to))
@@ -452,13 +464,20 @@ export function ArchitectureWhiteboard({
 
   const copySelection = useCallback(() => {
     const chosen = selectedNodes();
-    if (chosen.length) clipboard = { nodes: chosen, edges: edges.filter((e) => chosen.some((n) => n.id === e.from) && chosen.some((n) => n.id === e.to)), pastes: 0 };
+    if (chosen.length) {
+      clipboardRef.current = {
+        nodes: chosen,
+        edges: edges.filter((e) => chosen.some((n) => n.id === e.from) && chosen.some((n) => n.id === e.to)),
+        pastes: 0,
+      };
+    }
   }, [selectedNodes, edges]);
 
   const pasteClipboard = useCallback(() => {
-    if (!clipboard) return;
-    clipboard.pastes += 1;
-    cloneNodes(clipboard.nodes, clipboard.edges, 30 * clipboard.pastes);
+    const copied = clipboardRef.current;
+    if (!copied) return;
+    copied.pastes += 1;
+    cloneNodes(copied.nodes, copied.edges, 30 * copied.pastes);
   }, [cloneNodes]);
 
   const updateNode = useCallback(
@@ -586,6 +605,8 @@ export function ArchitectureWhiteboard({
     cancelAnimation();
 
     pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    // Capturé dès le début : le relâchement ou l'annulation arrive toujours ici, même hors du conteneur.
+    containerRef.current?.setPointerCapture(event.pointerId);
     if (pointers.current.size === 2) {
       beginPinch();
       return;
@@ -984,7 +1005,8 @@ export function ArchitectureWhiteboard({
   }, [preview, rects]);
 
   const rectList = useMemo(() => Array.from(rects.values()), [rects]);
-  const { canUndo, canRedo } = historyState;
+  const canUndo = history.past.length > 0;
+  const canRedo = history.future.length > 0;
   const panCursor = tool === "hand" || spaceHeld;
   const hasSelection = selection.length > 0 || selectedEdgeId !== null;
 
@@ -1095,6 +1117,10 @@ export function ArchitectureWhiteboard({
         onPointerMove={handlePointerMove}
         onPointerUp={(event) => endPointer(event, false)}
         onPointerCancel={(event) => endPointer(event, true)}
+        onLostPointerCapture={(event) => {
+          pointers.current.delete(event.pointerId);
+          if (pointers.current.size < 2) pinchRef.current = null;
+        }}
         onDoubleClick={handleDoubleClick}
         onDragOver={handleDragOver}
         onDrop={handleDrop}

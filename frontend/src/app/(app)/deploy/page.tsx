@@ -97,7 +97,7 @@ const STATUS_STEPS: ReadonlyArray<{ id: DeployStatus; label: string }> = [
 function PipelineTab() {
   const { user } = useSession();
   const { activeProject } = useWorkspace();
-  const { nodes } = useProjectGraph(activeProject?.slug ?? "none");
+  const { nodes } = useProjectGraph(activeProject?.slug ?? "none", { persist: false });
   const later = useSimulatedTimers();
 
   const [target, setTarget] = useState<(typeof TARGETS)[number]["id"]>("full");
@@ -311,7 +311,7 @@ function IntegrationsTab() {
   const [copied, setCopied] = useState(false);
   const [orion, setOrion] = useState<"idle" | "syncing" | "done">("idle");
   const later = useSimulatedTimers();
-  const { nodes } = useProjectGraph(activeProject?.slug ?? "none");
+  const { nodes } = useProjectGraph(activeProject?.slug ?? "none", { persist: false });
 
   if (!activeProject) return null;
 
@@ -452,7 +452,7 @@ function ReleasesTab() {
   const [versions, setVersions] = useState<ArchitectureVersion[]>(ARCHITECTURE_VERSIONS);
   const [tag, setTag] = useState("");
   const [notes, setNotes] = useState("");
-  const { nodes } = useProjectGraph(activeProject?.slug ?? "none");
+  const { nodes } = useProjectGraph(activeProject?.slug ?? "none", { persist: false });
 
   if (!activeProject) return null;
 

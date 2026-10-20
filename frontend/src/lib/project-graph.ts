@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CORE_STUDIO_NODES,
   STUDIO_EDGES,
@@ -21,7 +21,15 @@ interface Graph {
   edges: ArchitectureEdge[];
 }
 
-const storageKey = (slug: string) => `lonkoo.graph.v1.${slug}`;
+/** Un graphe et le projet auquel il appartient : on n'écrit jamais sous une autre clé que la sienne. */
+interface Loaded {
+  slug: string;
+  graph: Graph;
+}
+
+export const GRAPH_KEY_PREFIX = "lonkoo.graph.v1.";
+const storageKey = (slug: string) => `${GRAPH_KEY_PREFIX}${slug}`;
+const NO_PROJECT = "none";
 
 /** Les projets d'exemple partent du graphe de démonstration, les nouveaux projets d'un canvas vide. */
 function initialGraph(slug: string): Graph {
@@ -44,38 +52,80 @@ function loadGraph(slug: string): Graph {
   return initialGraph(slug);
 }
 
+function saveGraph({ slug, graph }: Loaded) {
+  if (slug === NO_PROJECT) return;
+  try {
+    window.localStorage.setItem(storageKey(slug), JSON.stringify(graph));
+  } catch {
+    // Stockage indisponible : les modifications durent le temps de la session.
+  }
+}
+
+/** Efface les graphes gardés dans le navigateur (déconnexion). */
+export function clearStoredGraphs() {
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i);
+      if (key?.startsWith(GRAPH_KEY_PREFIX)) keys.push(key);
+    }
+    keys.forEach((key) => window.localStorage.removeItem(key));
+  } catch {
+    // Stockage indisponible : rien à effacer.
+  }
+}
+
 type Updater<T> = T | ((previous: T) => T);
 
-export function useProjectGraph(slug: string) {
-  const [graph, setGraph] = useState<Graph>(() => loadGraph(slug));
+/**
+ * @param persist `false` pour une simple lecture (aucune écriture dans le navigateur).
+ */
+export function useProjectGraph(slug: string, { persist = true }: { persist?: boolean } = {}) {
+  const [loaded, setLoaded] = useState<Loaded>(() => ({ slug, graph: loadGraph(slug) }));
+
+  // Le projet change sans démontage : on charge le graphe du nouveau projet.
+  if (loaded.slug !== slug) {
+    setLoaded({ slug, graph: loadGraph(slug) });
+  }
 
   const setNodes = useCallback((next: Updater<ArchitectureNode[]>) => {
-    setGraph((current) => ({
+    setLoaded((current) => ({
       ...current,
-      nodes: typeof next === "function" ? next(current.nodes) : next,
+      graph: { ...current.graph, nodes: typeof next === "function" ? next(current.graph.nodes) : next },
     }));
   }, []);
 
   const setEdges = useCallback((next: Updater<ArchitectureEdge[]>) => {
-    setGraph((current) => ({
+    setLoaded((current) => ({
       ...current,
-      edges: typeof next === "function" ? next(current.edges) : next,
+      graph: { ...current.graph, edges: typeof next === "function" ? next(current.graph.edges) : next },
     }));
   }, []);
 
-  const reset = useCallback(() => setGraph(initialGraph(slug)), [slug]);
+  const reset = useCallback(() => setLoaded((current) => ({ ...current, graph: initialGraph(current.slug) })), []);
+
+  // Dernière valeur connue, pour vider la sauvegarde différée au démontage ou à la fermeture de la page.
+  const latest = useRef(loaded);
+  useEffect(() => {
+    latest.current = loaded;
+  }, [loaded]);
+
+  useEffect(() => {
+    if (!persist) return;
+    const flush = () => saveGraph(latest.current);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      flush();
+    };
+  }, [persist]);
 
   // Sauvegarde différée pour ne pas écrire à chaque déplacement de souris.
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      try {
-        window.localStorage.setItem(storageKey(slug), JSON.stringify(graph));
-      } catch {
-        // Stockage indisponible : les modifications durent le temps de la session.
-      }
-    }, 400);
+    if (!persist) return;
+    const timer = window.setTimeout(() => saveGraph(loaded), 400);
     return () => window.clearTimeout(timer);
-  }, [slug, graph]);
+  }, [loaded, persist]);
 
-  return { nodes: graph.nodes, edges: graph.edges, setNodes, setEdges, reset };
+  return { nodes: loaded.graph.nodes, edges: loaded.graph.edges, setNodes, setEdges, reset };
 }

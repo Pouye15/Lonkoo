@@ -19,7 +19,7 @@ import {
 import { ARCHITECTURE_REVIEWS } from "@/lib/lonkoo-data";
 import { cn } from "@/lib/cn";
 import { initialsOf, useSession } from "@/lib/session";
-import { useWorkspace } from "@/lib/workspace";
+import { slugify, useWorkspace } from "@/lib/workspace";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
@@ -65,7 +65,11 @@ function NewProjectModal({ open, onClose }: { open: boolean; onClose: () => void
   return (
     <Modal open={open} onClose={onClose} title="Nouveau projet">
       <form onSubmit={handleSubmit} className="space-y-5">
-        <Field label="Nom du projet" htmlFor="project-name">
+        <Field
+          label="Nom du projet"
+          htmlFor="project-name"
+          hint={name.trim() ? `Identifiant du projet : ${slugify(name) || "projet"}` : "Comme un dépôt : minuscules et tirets."}
+        >
           <input
             id="project-name"
             type="text"
