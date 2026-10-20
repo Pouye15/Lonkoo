@@ -45,7 +45,7 @@ export default function CommunityTemplatesPage() {
   const [pubSector, setPubSector] = useState<BlueprintItem["sector"]>("Microservices");
   const [pubSummary, setPubSummary] = useState("");
   const [pubStack, setPubStack] = useState("Go 1.23, Redpanda, PostgreSQL 16, Valkey");
-  const [pubTag, setPubTag] = useState("v1.0.0");
+  const [pubTag, setPubTag] = useState("");
 
   // Suivre / Ne plus suivre un utilisateur
   const toggleFollow = (id: string) => {
@@ -692,6 +692,7 @@ export default function CommunityTemplatesPage() {
                 type="text"
                 value={pubTag}
                 onChange={(e) => setPubTag(e.target.value)}
+                placeholder="v1.0.0"
                 className={`${inputClass} font-mono`}
               />
             </Field>

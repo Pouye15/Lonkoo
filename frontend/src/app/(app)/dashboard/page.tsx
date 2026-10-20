@@ -345,10 +345,12 @@ export default function DashboardPage() {
                           <GitBranch size={13} className="text-ink-3" />
                           {project.branch}
                         </span>
-                        <span className="flex items-center gap-1">
-                          <Tag size={13} className="text-ink-3" />
-                          {project.gitTag}
-                        </span>
+                        {project.gitTag && (
+                          <span className="flex items-center gap-1">
+                            <Tag size={13} className="text-ink-3" />
+                            {project.gitTag}
+                          </span>
+                        )}
                       </span>
                     </div>
                   </div>

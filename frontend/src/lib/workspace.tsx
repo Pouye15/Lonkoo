@@ -110,7 +110,7 @@ export function useWorkspace() {
         input.description?.trim() || "Architecture collaborative avec gestion de versions et d'équipe.",
       visibility: input.visibility,
       branch: "main",
-      gitTag: "v0.1.0",
+      gitTag: "", // aucune release tant qu'une version n'est pas publiée
       githubRepo: input.githubRepo?.includes("/") ? input.githubRepo : `${input.owner.login}/${slug}`,
       stack: input.stack,
       aiScore: 0,
