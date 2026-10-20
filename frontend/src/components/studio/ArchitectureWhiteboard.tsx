@@ -800,7 +800,7 @@ export function ArchitectureWhiteboard({
 
     if (drag.kind === "marquee") {
       setMarquee(null);
-      const last = drag.additive ? drag.hits[drag.hits.length - 1] : drag.hits[drag.hits.length - 1];
+      const last = drag.hits[drag.hits.length - 1];
       if (last) onSelectNode(last);
       return;
     }
@@ -915,6 +915,15 @@ export function ArchitectureWhiteboard({
         deleteSelection();
         return;
       case "Escape":
+        // Un geste en cours est abandonné (le bloc revient où il était) ; sinon on désélectionne.
+        if (dragRef.current) {
+          dragRef.current = null;
+          live.current = { draft: null, target: null };
+          setDraft(null);
+          setMarquee(null);
+          setPreview(null);
+          return;
+        }
         setSelection([]);
         setSelectedEdgeId(null);
         setArmedSourceId(null);
