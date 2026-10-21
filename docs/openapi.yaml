@@ -617,11 +617,17 @@ paths:
   /canvases/{canvasId}/generate:
     post:
       tags: [Génération]
-      summary: Génère un projet depuis un instantané validé
-      x-implemented: false
+      summary: Génère un projet Spring Boot depuis un instantané validé
+      description: |
+        Fige l'instantané (la version `versionId`, ou à défaut l'état courant demandé au serveur temps réel),
+        le valide contre le contrat, puis rend la main : le projet est produit sur un exécuteur borné et son
+        état se lit par `GET /generations/{generationId}` jusqu'à `DONE` ou `FAILED`. Rôle d'écriture requis.
+        Une seule génération à la fois par canvas (409), au plus 20 conservées par canvas (409 « Limite
+        atteinte » : en supprimer une libère une place).
       parameters:
         - $ref: "#/components/parameters/CanvasId"
       requestBody:
+        required: false
         content:
           application/json:
             schema:
@@ -630,9 +636,15 @@ paths:
                 versionId:
                   type: string
                   format: uuid
+                  description: Version nommée à générer ; absente, l'état courant du canvas
                 target:
                   type: string
-                  enum: [spring-boot, nextjs]
+                  enum: [spring-boot]
+                  description: Seule cible produite pour l'instant (valeur par défaut)
+                projectName:
+                  type: string
+                  maxLength: 80
+                  description: Nom du projet généré ; absent, le nom du projet du canvas
       responses:
         "202":
           description: Génération lancée
@@ -645,22 +657,142 @@ paths:
                   generationId:
                     type: string
                     format: uuid
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Une génération de ce canvas est déjà en cours, ou plafond atteint (titre « Limite atteinte »)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
+
+  /canvases/{canvasId}/generations:
+    get:
+      tags: [Génération]
+      summary: Les 20 dernières générations du canvas (sans la liste des fichiers)
+      parameters:
+        - $ref: "#/components/parameters/CanvasId"
+      responses:
+        "200":
+          description: Générations, la plus récente d'abord
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Generation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /generations/{generationId}:
     get:
       tags: [Génération]
       summary: État d'une génération et liste de fichiers
-      x-implemented: false
+      description: |
+        `status` : `PENDING` (en attente d'un exécuteur), `RUNNING`, `DONE` ou `FAILED` (`error` en dit la
+        raison). `files` n'est présent que pour une génération terminée. `push.status` vaut `null` tant qu'aucun
+        envoi sur GitHub n'a été demandé. Lisible par tout membre du canvas.
       parameters:
-        - name: generationId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: "#/components/parameters/GenerationId"
       responses:
         "200":
           description: État de la génération
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Generation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Génération]
+      summary: Supprime une génération (rôle d'écriture)
+      parameters:
+        - $ref: "#/components/parameters/GenerationId"
+      responses:
+        "204":
+          description: Supprimée ; la place est libérée dans le plafond du canvas
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Génération ou envoi en cours
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /generations/{generationId}/files:
+    get:
+      tags: [Génération]
+      summary: Contenu d'un fichier du projet généré
+      parameters:
+        - $ref: "#/components/parameters/GenerationId"
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Chemin relatif tel que listé dans `files` (par exemple `README.md`)
+      responses:
+        "200":
+          description: Le fichier, en `text/plain; charset=UTF-8` (jamais interprété par le navigateur)
+          content:
+            text/plain:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Génération non visible ou non terminée, ou chemin inconnu
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /generations/{generationId}/download:
+    get:
+      tags: [Génération]
+      summary: Le projet généré en archive ZIP
+      description: "Horodatage fixe dans l'archive : la même génération donne toujours les mêmes octets."
+      parameters:
+        - $ref: "#/components/parameters/GenerationId"
+      responses:
+        "200":
+          description: Archive `<slug>.zip`, dossier racine `<slug>/`
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Génération non visible ou non terminée
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
 
   /generations/{generationId}/push-github:
     post:
@@ -785,7 +917,8 @@ components:
         Plafond d'usage atteint (titre « Limite atteinte », `detail` en français). Réessayer ne change rien :
         il faut libérer de la place ou, pour un invité, se connecter avec GitHub. Plafonds par défaut :
         20 projets par invité, 100 par compte GitHub, 10 canvas par projet, 50 versions par canvas,
-        20 liens de partage actifs par canvas, 1 Mio par instantané enregistré (réglables par variables d'environnement).
+        20 liens de partage actifs par canvas, 1 Mio par instantané enregistré, 20 générations conservées par
+        canvas et 8 Mio par projet généré (réglables par variables d'environnement).
       content:
         application/problem+json:
           schema:
@@ -825,6 +958,13 @@ components:
         format: uuid
     CanvasId:
       name: canvasId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    GenerationId:
+      name: generationId
       in: path
       required: true
       schema:
@@ -990,3 +1130,100 @@ components:
               type: array
               items:
                 type: string
+
+    Generation:
+      type: object
+      required: [id, canvasId, target, status, projectName, createdAt, push]
+      properties:
+        id:
+          type: string
+          format: uuid
+        canvasId:
+          type: string
+          format: uuid
+        versionId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Version générée ; `null` pour l'état courant du canvas au moment de la demande
+        target:
+          type: string
+          enum: [spring-boot]
+        status:
+          type: string
+          enum: [PENDING, RUNNING, DONE, FAILED]
+        projectName:
+          type: string
+        slug:
+          type: string
+          nullable: true
+          description: Nom du dossier racine et de l'archive, connu une fois la génération terminée
+        fileCount:
+          type: integer
+          nullable: true
+        totalBytes:
+          type: integer
+          format: int64
+          nullable: true
+        warnings:
+          type: array
+          items:
+            type: string
+          description: Éléments du canvas que le générateur n'a pu traduire qu'en partie (stubs, avertissements)
+        error:
+          type: string
+          nullable: true
+          description: Raison de l'échec, en français
+        createdAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        push:
+          $ref: "#/components/schemas/GenerationPush"
+        files:
+          type: array
+          nullable: true
+          description: Fichiers du projet (chemin et taille) ; seulement au détail d'une génération terminée
+          items:
+            type: object
+            required: [path, bytes]
+            properties:
+              path:
+                type: string
+              bytes:
+                type: integer
+
+    GenerationPush:
+      type: object
+      description: L'envoi sur GitHub qui a suivi la génération ; `status` vaut `null` tant qu'aucun envoi n'a été demandé
+      required: [status, workflowSent, warnings]
+      properties:
+        status:
+          type: string
+          nullable: true
+          enum: [PENDING, RUNNING, DONE, FAILED]
+        repoFullName:
+          type: string
+          nullable: true
+        repoUrl:
+          type: string
+          nullable: true
+        commitSha:
+          type: string
+          nullable: true
+        workflowSent:
+          type: boolean
+        warnings:
+          type: array
+          items:
+            type: string
+        error:
+          type: string
+          nullable: true
+        pushedAt:
+          type: string
+          format: date-time
+          nullable: true

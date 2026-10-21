@@ -12,8 +12,16 @@ import org.springframework.web.ErrorResponseException;
  */
 public class InvalidCanvasException extends ErrorResponseException {
 
+    private final List<String> errors;
+
     public InvalidCanvasException(List<String> errors) {
         super(HttpStatus.UNPROCESSABLE_ENTITY, problem(errors), null);
+        this.errors = List.copyOf(errors);
+    }
+
+    /** Les erreurs détaillées du validateur, pour un traitement qui n'est pas une réponse HTTP (travail asynchrone). */
+    public List<String> getErrors() {
+        return errors;
     }
 
     private static ProblemDetail problem(List<String> errors) {

@@ -48,6 +48,10 @@ class UsageLimitsDefaultsIntegrationTest extends AbstractPostgresIntegrationTest
     private int shareLinksPerCanvas;
     @Value("${lonkoo.limits.snapshot-max-bytes}")
     private int snapshotMaxBytes;
+    @Value("${lonkoo.limits.generations-per-canvas}")
+    private int generationsPerCanvas;
+    @Value("${lonkoo.limits.generated-max-bytes}")
+    private int generatedMaxBytes;
 
     @BeforeEach
     void resetRealtime() throws IOException {
@@ -63,6 +67,8 @@ class UsageLimitsDefaultsIntegrationTest extends AbstractPostgresIntegrationTest
         assertThat(versionsPerCanvas).isEqualTo(50);
         assertThat(shareLinksPerCanvas).isEqualTo(20);
         assertThat(snapshotMaxBytes).isEqualTo(1024 * 1024);
+        assertThat(generationsPerCanvas).isEqualTo(20);
+        assertThat(generatedMaxBytes).isEqualTo(8 * 1024 * 1024);
     }
 
     @Test

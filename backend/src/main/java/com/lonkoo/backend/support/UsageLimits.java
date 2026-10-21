@@ -28,6 +28,8 @@ public class UsageLimits {
     private final int versionsPerCanvas;
     private final int shareLinksPerCanvas;
     private final int snapshotMaxBytes;
+    private final int generationsPerCanvas;
+    private final long generatedMaxBytes;
 
     public UsageLimits(
             JdbcClient jdbcClient,
@@ -36,7 +38,9 @@ public class UsageLimits {
             @Value("${lonkoo.limits.canvases-per-project:10}") int canvasesPerProject,
             @Value("${lonkoo.limits.versions-per-canvas:50}") int versionsPerCanvas,
             @Value("${lonkoo.limits.share-links-per-canvas:20}") int shareLinksPerCanvas,
-            @Value("${lonkoo.limits.snapshot-max-bytes:1048576}") int snapshotMaxBytes) {
+            @Value("${lonkoo.limits.snapshot-max-bytes:1048576}") int snapshotMaxBytes,
+            @Value("${lonkoo.limits.generations-per-canvas:20}") int generationsPerCanvas,
+            @Value("${lonkoo.limits.generated-max-bytes:8388608}") long generatedMaxBytes) {
         this.jdbcClient = jdbcClient;
         this.guestProjects = guestProjects;
         this.accountProjects = accountProjects;
@@ -44,6 +48,8 @@ public class UsageLimits {
         this.versionsPerCanvas = versionsPerCanvas;
         this.shareLinksPerCanvas = shareLinksPerCanvas;
         this.snapshotMaxBytes = snapshotMaxBytes;
+        this.generationsPerCanvas = generationsPerCanvas;
+        this.generatedMaxBytes = generatedMaxBytes;
     }
 
     /** Projets dont l'utilisateur est le créateur (ceux où il a seulement été invité ne comptent pas). */
@@ -78,6 +84,20 @@ public class UsageLimits {
             throw new LimitExceededException("Limite atteinte : " + shareLinksPerCanvas
                     + " liens de partage actifs au maximum par canvas. Attendez l'expiration d'un lien.");
         }
+    }
+
+    /** Les générations déjà faites (réussies ou non) comptent : le projet généré est stocké dans la base. */
+    public void requireRoomForGeneration(UUID canvasId) {
+        lock("canvases", canvasId);
+        if (count("select count(*) from generations where canvas_id = ?", canvasId) >= generationsPerCanvas) {
+            throw new LimitExceededException("Limite atteinte : " + generationsPerCanvas
+                    + " générations au maximum par canvas. Supprimez-en une pour en lancer une nouvelle.");
+        }
+    }
+
+    /** Taille cumulée maximale des fichiers d'un projet généré, en octets. */
+    public long generatedMaxBytes() {
+        return generatedMaxBytes;
     }
 
     public void requireSnapshotSize(int bytes) {
