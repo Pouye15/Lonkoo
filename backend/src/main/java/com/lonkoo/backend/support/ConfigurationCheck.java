@@ -31,6 +31,9 @@ public class ConfigurationCheck {
     private final String ticketSecret;
     private final String serviceToken;
     private final String publicUrl;
+    private final String githubClientId;
+    private final String githubClientSecret;
+    private final String githubRedirectUri;
 
     @Autowired
     public ConfigurationCheck(
@@ -38,17 +41,31 @@ public class ConfigurationCheck {
             @Value("${spring.datasource.password:}") String databasePassword,
             @Value("${realtime.ticket-secret}") String ticketSecret,
             @Value("${realtime.service-token}") String serviceToken,
-            @Value("${app.public-url}") String publicUrl) {
-        this(environment.acceptsProfiles(Profiles.of("prod")), databasePassword, ticketSecret, serviceToken, publicUrl);
+            @Value("${app.public-url}") String publicUrl,
+            @Value("${github.oauth.client-id}") String githubClientId,
+            @Value("${github.oauth.client-secret}") String githubClientSecret,
+            @Value("${github.oauth.redirect-uri}") String githubRedirectUri) {
+        this(environment.acceptsProfiles(Profiles.of("prod")), databasePassword, ticketSecret, serviceToken, publicUrl,
+                githubClientId, githubClientSecret, githubRedirectUri);
+    }
+
+    /** Constructeur de test : des valeurs GitHub neutres empêchent les contrôles OAuth d'interférer. */
+    public ConfigurationCheck(boolean production, String databasePassword, String ticketSecret, String serviceToken,
+            String publicUrl) {
+        this(production, databasePassword, ticketSecret, serviceToken, publicUrl,
+                "test-client-id", "test-client-secret", "https://lonkoo.example.org/api/auth/github/callback");
     }
 
     public ConfigurationCheck(boolean production, String databasePassword, String ticketSecret, String serviceToken,
-            String publicUrl) {
+            String publicUrl, String githubClientId, String githubClientSecret, String githubRedirectUri) {
         this.production = production;
         this.databasePassword = databasePassword;
         this.ticketSecret = ticketSecret;
         this.serviceToken = serviceToken;
         this.publicUrl = publicUrl;
+        this.githubClientId = githubClientId;
+        this.githubClientSecret = githubClientSecret;
+        this.githubRedirectUri = githubRedirectUri;
     }
 
     @PostConstruct
@@ -91,6 +108,15 @@ public class ConfigurationCheck {
                 problems.add("APP_PUBLIC_URL doit commencer par https:// en production");
             } else if (publicUrl.contains("localhost") || publicUrl.contains("127.0.0.1")) {
                 problems.add("APP_PUBLIC_URL ne doit pas désigner la machine locale en production");
+            }
+            if (isPlaceholder(githubClientId)) {
+                problems.add("GITHUB_OAUTH_CLIENT_ID porte une valeur d'exemple");
+            }
+            if (isPlaceholder(githubClientSecret)) {
+                problems.add("GITHUB_OAUTH_CLIENT_SECRET porte une valeur d'exemple");
+            }
+            if (isPlaceholder(githubRedirectUri) || (githubRedirectUri != null && !githubRedirectUri.startsWith("https://"))) {
+                problems.add("GITHUB_OAUTH_REDIRECT_URI doit être une adresse https et sans valeur d'exemple");
             }
         }
         return problems;

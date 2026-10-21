@@ -86,6 +86,32 @@ class ConfigurationCheckTest {
     }
 
     @Test
+    void githubApplicationValuesAreCheckedInProduction() {
+        var good = new ConfigurationCheck(true, "un-mot-de-passe-solide", SECRET, TOKEN, "https://lonkoo.example.org",
+                "Iv1.identifiant", "valeur-secrete-de-l-application", "https://lonkoo.example.org/api/auth/github/callback");
+        assertThat(good.problems()).isEmpty();
+
+        var examples = new ConfigurationCheck(true, "un-mot-de-passe-solide", SECRET, TOKEN, "https://lonkoo.example.org",
+                "change-me", "change-me", "http://localhost:3000/api/auth/github/callback");
+        assertThat(examples.problems()).containsExactlyInAnyOrder(
+                "GITHUB_OAUTH_CLIENT_ID porte une valeur d'exemple",
+                "GITHUB_OAUTH_CLIENT_SECRET porte une valeur d'exemple",
+                "GITHUB_OAUTH_REDIRECT_URI doit être une adresse https et sans valeur d'exemple");
+
+        var insecure = new ConfigurationCheck(true, "un-mot-de-passe-solide", SECRET, TOKEN, "https://lonkoo.example.org",
+                "Iv1.identifiant", "valeur-secrete-de-l-application", "http://lonkoo.example.org/api/auth/github/callback");
+        assertThat(insecure.problems()).containsExactly("GITHUB_OAUTH_REDIRECT_URI doit être une adresse https et sans valeur d'exemple");
+    }
+
+    @Test
+    void githubExampleValuesAreToleratedOutsideProduction() {
+        var check = new ConfigurationCheck(false, "", SECRET, TOKEN, "http://localhost:3000",
+                "change-me", "change-me", "http://localhost:3000/api/auth/github/callback");
+
+        assertThat(check.problems()).isEmpty();
+    }
+
+    @Test
     void theProductionProfileMakesTheSessionCookieSecure() throws IOException {
         Properties prod = new Properties();
         try (InputStream in = new ClassPathResource("application-prod.properties").getInputStream()) {
