@@ -249,7 +249,7 @@ Fondations fournies par le backend : instantané validé (WP7), jeton GitHub de 
 | # | Sujet | Recommandation | Qui | Avant |
 |---|---|---|---|---|
 | D11 | Représentation Yjs du canvas | suivre `schema-canvas.md` (`Y.Map` par `id`), adapter le codec ; coût faible tant que le front n'écrit rien | Pouye, Fall | tranchée et appliquée le 21/10 (à relire par Fall) |
-| D2 | Modèle de blocs du front (12 formes) contre le contrat (8 types) | toujours ouverte ; **bloque** le front et le générateur ; voir `ROADMAP-BACKEND.md` § 11 | Fall, Pouye, Gaye | aujourd'hui |
+| D2 | Modèle de blocs du front (12 formes) contre le contrat (8 types) | proposition rédigée le 21/10 dans [PROPOSITION-MODELE-DE-BLOCS.md](PROPOSITION-MODELE-DE-BLOCS.md) (deux couches : contrat et clé `ui`, type `generic`, champ `tech`) ; **bloque** le front et le générateur tant que Fall, Ngom et Gaye ne l'ont pas validée | Fall, Pouye, Gaye | aujourd'hui |
 | D12 | Chemin du WebSocket | `handle_path /ws*` dans Caddy ; le serveur accepte `/` et `/ws` | Pouye, Gaye | fait le 21/10 |
 | D13 | Authentification backend vers temps réel | même jeton de service dans les deux sens | Pouye | fait le 21/10 |
 | D14 | Plafonds d'usage | 50 versions par canvas, 20 projets par invité, 10 canvas par projet, 2 Mio par message WebSocket et par corps JSON (appliqué côté temps réel) | Pouye, Diagne | jeudi |

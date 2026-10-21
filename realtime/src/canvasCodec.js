@@ -11,6 +11,11 @@
  * plutôt que de les modifier en place. L'identifiant est la clé de la carte, jamais un champ de
  * l'entrée. `schemaVersion` n'est pas stocké dans Yjs : l'instantané porte la version courante.
  *
+ * Clé facultative `ui` d'une entrée (bloc ou lien) : données de présentation et de simulation propres
+ * au front (forme, réplicas, débit…). Elle est partagée entre les utilisateurs mais **jamais** reprise
+ * dans l'instantané, que le contrat valide champ par champ ; une restauration la conserve pour les
+ * identifiants qui survivent.
+ *
  * Des cartes (et non des tableaux) pour que deux personnes qui modifient des blocs différents ne
  * se gênent pas : c'est la raison donnée par le contrat.
  */
@@ -21,6 +26,9 @@ const EDGES = 'edges';
 const META = 'meta';
 /** Ancienne disposition (tableaux dans une carte « canvas »), lue seulement pour migrer. */
 const LEGACY_ROOT = 'canvas';
+
+/** Clé d'entrée réservée au front : absente de l'instantané. */
+const UI_KEY = 'ui';
 
 /** Version du contrat produite par ce serveur. */
 export const SCHEMA_VERSION = 1;
@@ -45,7 +53,7 @@ function readCollection(map) {
   const items = [];
   map.forEach((value, id) => {
     const plain = yjsToJson(value);
-    const { id: _ignored, ...fields } = isPlainObject(plain) ? plain : {};
+    const { id: _ignored, [UI_KEY]: _ui, ...fields } = isPlainObject(plain) ? plain : {};
     items.push({ id, ...fields });
   });
   return items.sort(byId);
@@ -61,15 +69,37 @@ function writeCollection(map, items) {
   }
 }
 
+/** Valeurs `ui` des entrées actuelles, par identifiant. */
+function collectUi(map) {
+  const ui = new Map();
+  map.forEach((value, id) => {
+    const plain = yjsToJson(value);
+    if (isPlainObject(plain) && plain[UI_KEY] !== undefined) ui.set(id, plain[UI_KEY]);
+  });
+  return ui;
+}
+
+/** Remet la clé `ui` sur les entrées qui existent encore après une réécriture. */
+function restoreUi(map, ui) {
+  ui.forEach((value, id) => {
+    const entry = map.get(id);
+    if (entry instanceof Y.Map) entry.set(UI_KEY, value);
+  });
+}
+
 function writeSnapshot(doc, snapshot) {
   const nodes = doc.getMap(NODES);
   const edges = doc.getMap(EDGES);
   const meta = doc.getMap(META);
+  const nodesUi = collectUi(nodes);
+  const edgesUi = collectUi(edges);
   nodes.clear();
   edges.clear();
   meta.clear();
   writeCollection(nodes, snapshot.nodes ?? []);
   writeCollection(edges, snapshot.edges ?? []);
+  restoreUi(nodes, nodesUi);
+  restoreUi(edges, edgesUi);
   for (const [key, value] of Object.entries(snapshot.meta ?? {})) {
     meta.set(key, value);
   }

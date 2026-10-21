@@ -38,11 +38,13 @@ function finish(code, message) {
   setTimeout(() => process.exit(code), 150);
 }
 
+// Comme le front : les champs du contrat, plus une clé « ui » de présentation que le serveur ignore.
 const entry = (type, position, data) =>
   new Y.Map([
     ['type', type],
     ['position', position],
     ['data', data],
+    ['ui', { shape: 'service', replicas: 2 }],
   ]);
 
 provider.on('authenticationFailed', ({ reason }) => finish(3, `AUTH_FAILED ${reason}`));

@@ -220,3 +220,27 @@ test("la migration ne touche pas un document déjà au format du contrat", () =>
   assert.equal(migrateLegacyCanvas(doc), false);
   assert.deepEqual(yjsToSnapshot(doc), seed);
 });
+
+test("la clé « ui » (présentation du front) est partagée mais jamais reprise dans l'instantané", () => {
+  const doc = new Y.Doc();
+  applySeed(doc, seed);
+  doc.getMap('nodes').get('n1').set('ui', { shape: 'gateway', replicas: 3 });
+  doc.getMap('edges').get('e1').set('ui', { throughput: '2 000 req/s' });
+
+  assert.deepEqual(yjsToSnapshot(doc), seed, "l'instantané reste conforme au contrat");
+  assert.deepEqual(doc.getMap('nodes').get('n1').get('ui'), { shape: 'gateway', replicas: 3 });
+});
+
+test("une restauration garde « ui » pour les identifiants qui survivent et l'oublie pour les autres", () => {
+  const doc = new Y.Doc();
+  applySeed(doc, seed);
+  doc.getMap('nodes').get('n1').set('ui', { replicas: 3 });
+  doc.getMap('nodes').get('n2').set('ui', { replicas: 5 });
+
+  const restored = { ...seed, nodes: [seed.nodes[0]], edges: [] };
+  replaceWithSnapshot(doc, restored);
+
+  assert.deepEqual(yjsToSnapshot(doc), restored);
+  assert.deepEqual(doc.getMap('nodes').get('n1').get('ui'), { replicas: 3 });
+  assert.equal(doc.getMap('nodes').has('n2'), false);
+});
