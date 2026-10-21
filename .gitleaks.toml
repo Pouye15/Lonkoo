@@ -1,0 +1,15 @@
+title = "Lonkoo : règles gitleaks"
+
+# Les règles par défaut de gitleaks restent actives.
+[extend]
+useDefault = true
+
+# Valeurs factices écrites dans les tests (jamais utilisées ailleurs). Elles ressemblent à des secrets
+# parce qu'un secret de test doit avoir la longueur d'un vrai (32 octets minimum pour les tickets).
+# Ne mettre ici que des valeurs exactes : un chemin entier ne doit pas être exclu de l'analyse.
+[allowlist]
+description = "Valeurs factices des tests"
+regexes = [
+  '''test-ticket-secret-0123456789abcdef0123456789abcdef''',
+  '''k3v9Qx7LmT2pWz8RnB5yHc1JdFa6SuEo''',
+]
