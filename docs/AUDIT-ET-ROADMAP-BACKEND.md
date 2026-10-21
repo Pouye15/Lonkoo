@@ -41,7 +41,7 @@ Les sondes sont jetables : le test de chaîne est à recréer en test permanent 
 | WP2 Squelette Spring | fait (licences Maven bloquantes en CI depuis R3) | l'image sera construite par la CI au premier push |
 | WP3 Base | fait (V1, V2, purge testée) | migration V3 d'index (Q-03) |
 | WP4a Invité et session | fait | rien : fixation de session, expiration, limite par adresse (testées) |
-| WP4b Connexion GitHub | codée et testée contre un faux GitHub (21/10) | essai réel avec l'application OAuth de développement ; message d'erreur côté front |
+| WP4b Connexion GitHub | codée et testée contre un faux GitHub (21/10) | essai réel avec l'application OAuth de développement |
 | WP5 Projets, canvas, partage | fait (T1 et suppression) | membres et rôles (T3) ; tests de rôles (Q-01) |
 | WP6 Temps réel | écrit ; chaîne réparée le 21/10 (R1) | R6 |
 | WP7 Versions | écrit ; utilisable depuis R1 | Q-02, Q-04 |
@@ -175,7 +175,7 @@ Pré-requis humain, seulement pour l'essai dans un vrai navigateur : l'applicati
 - [x] Audit `login.github` et `guest.merged` ; `ConfigurationCheck` refuse en profil `prod` les valeurs d'exemple des trois variables GitHub et une adresse de retour qui n'est pas en `https`.
 - [x] Contrat d'API (`openapi.yaml`) et `.env.example` à jour.
 - [ ] **Essai réel** : créer l'application OAuth de développement, remplir le `.env`, lancer le front en `NEXT_PUBLIC_API_MODE=live` et se connecter pour de vrai.
-- [ ] **Front (Fall)** : la page de connexion ne lit pas encore `?error=github` ; elle devrait afficher « connexion GitHub refusée » dans ce cas.
+- [x] **Front** : la page de connexion affiche un message quand le serveur la renvoie avec `?error=github` (valeur inconnue ignorée, message retiré à la prochaine tentative) ; vérifié dans un navigateur, lint et typecheck propres.
 
 **Preuve :** 14 tests contre un faux GitHub (`GithubOAuthIntegrationTest`), 8 tests du client (`GithubApiClientTest`), 2 sur l'application non configurée, 2 sur `ConfigurationCheck` ; le retrait de la fusion des comptes fait échouer 2 tests. L'essai avec le vrai GitHub reste à faire.
 

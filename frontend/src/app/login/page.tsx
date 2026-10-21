@@ -72,6 +72,17 @@ function BrandPanel() {
   );
 }
 
+/**
+ * Message pour un retour d'échec du serveur (`/login?error=github` après un refus ou un échec de la
+ * connexion GitHub). Seules les valeurs connues sont traduites : le paramètre n'est jamais affiché tel quel.
+ */
+function messageForReturnedError(code: string | null): string | null {
+  if (code === "github") {
+    return "La connexion avec GitHub a été refusée ou n'a pas abouti. Réessayez, ou ouvrez un espace de démonstration sans compte.";
+  }
+  return null;
+}
+
 function LoginContent() {
   const router = useRouter();
   const params = useSearchParams();
@@ -80,6 +91,10 @@ function LoginContent() {
   const [error, setError] = useState<string | null>(null);
 
   const next = safeNextPath(params.get("next"), "");
+  // Le serveur renvoie ici avec ?error=github quand l'autorisation est refusée : le message reste affiché
+  // jusqu'à la prochaine tentative.
+  const returnedError = messageForReturnedError(params.get("error"));
+  const shownError = error ?? (pending ? null : returnedError);
 
   const goAfterLogin = useCallback(
     (signedIn: SessionUser) => {
@@ -157,13 +172,13 @@ function LoginContent() {
             </p>
           </div>
 
-          {error && (
+          {shownError && (
             <div
               role="alert"
               className="mt-6 flex items-start gap-2.5 rounded-lg border border-danger bg-surface p-3 text-sm text-danger"
             >
               <WarningCircle size={18} weight="fill" className="mt-0.5 flex-shrink-0" />
-              <span>{error}</span>
+              <span>{shownError}</span>
             </div>
           )}
 
