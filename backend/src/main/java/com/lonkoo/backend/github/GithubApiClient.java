@@ -147,7 +147,13 @@ public class GithubApiClient {
             log.warn("GitHub : pas de réponse à temps");
             throw new GithubAuthException(HttpStatus.GATEWAY_TIMEOUT, "GitHub n'a pas répondu à temps");
         } catch (IOException e) {
-            log.warn("GitHub : échec de la requête : {}", e.getClass().getSimpleName());
+            // Cause racine dans le journal seulement (ex. SSLHandshakeException : certificat non reconnu par Java),
+            // jamais dans la réponse. Ces messages ne contiennent ni code, ni jeton, ni secret.
+            Throwable root = e;
+            while (root.getCause() != null) {
+                root = root.getCause();
+            }
+            log.warn("GitHub : échec de la requête : {} ({})", e.getClass().getSimpleName(), root);
             throw new GithubAuthException(HttpStatus.SERVICE_UNAVAILABLE, "GitHub est injoignable");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

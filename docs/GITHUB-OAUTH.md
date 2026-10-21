@@ -45,10 +45,25 @@ Les valeurs de production vont dans le `.env` **du serveur** (qui n'est pas dans
 ## 3. Vérifications
 
 - Le secret n'apparaît ni dans `git status` ni dans `.env.example` (celui-ci garde `change-me`).
-- En profil `prod`, le backend refuse de démarrer si une valeur `change-me` subsiste (`ConfigurationCheck`) ; une fois la connexion GitHub codée (lot R4), il contrôlera aussi ces trois variables.
+- En profil `prod`, le backend refuse de démarrer si une valeur `change-me` subsiste (`ConfigurationCheck`) , y compris pour les trois variables `GITHUB_OAUTH_*` (adresse de retour en `https`).
 - La page de consentement GitHub montrera aux utilisateurs l'accès aux dépôts publics (`public_repo`) : c'est voulu, le dépôt généré est public. L'interface doit le dire avant l'envoi.
 - En cas de fuite du secret : **Generate a new client secret** sur GitHub, mise à jour du `.env`, puis suppression de l'ancien secret.
 
-## 4. Ce que j'ai besoin de savoir ensuite
+## 4. « GitHub est injoignable » (503) sur un poste Windows
+
+Si, après avoir autorisé l'application, le navigateur affiche `{"detail":"GitHub est injoignable", … "status":503}`, le backend n'arrive pas à joindre `github.com` en HTTPS. Le journal du backend le dit : `SSLHandshakeException` (« unable to find valid certification path »). Cause fréquente : un antivirus ou un proxy d'entreprise qui inspecte le HTTPS avec son propre certificat, reconnu par Windows mais pas par Java.
+
+Remède en développement : démarrer le backend avec le magasin de certificats de Windows.
+
+```
+cd backend
+./mvnw spring-boot:run "-Dspring-boot.run.jvmArguments=-Djavax.net.ssl.trustStoreType=Windows-ROOT"
+```
+
+C'est un réglage de la machine, pas du code : il ne sert à rien sur le serveur Linux de production. Le même problème explique les avertissements « PKIX path building failed » de Maven ; la variable `MAVEN_OPTS=-Djavax.net.ssl.trustStoreType=Windows-ROOT` les supprime.
+
+Pour vérifier sans passer par le navigateur : ouvrir `/api/auth/github/login`, puis appeler `/api/auth/github/callback?code=faux&state=<état reçu>` avec le même cookie. La réponse `400 … invalide ou expiré` prouve que GitHub est joignable et reconnaît l'application ; `502` signale un identifiant ou un secret faux ; `503`, le problème de certificat ci-dessus.
+
+## 5. Ce que j'ai besoin de savoir ensuite
 
 Rien de secret : une fois l'application de développement créée et le `.env` rempli, on peut tester la connexion de bout en bout en local. Le code de la connexion (lot R4) et ses tests contre un faux GitHub n'en dépendent pas : ils peuvent commencer avant.
