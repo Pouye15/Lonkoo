@@ -44,7 +44,7 @@ Autorisés en version 1 (`schema-canvas.md`, section « Évolution » : un champ
 - Écrire dans Yjs selon `schema-canvas.md` : trois cartes de premier niveau, une `Y.Map` par entrée, valeurs simples remplacées en entier, suppression d'un bloc avec ses liens.
 - Ranger tout champ propre au front dans `ui`.
 - Ajouter le bloc « Application web ».
-- Un éditeur de propriétés qui modifie les `data` du contrat. **L'éditeur d'entités et de champs d'une base est le plus important** : sans lui le projet généré n'a aucun modèle de données, et c'est ce que le jury verra.
+- Un éditeur de propriétés qui modifie les `data` du contrat. **L'éditeur d'entités et de champs d'une base est le plus important** : sans lui le projet généré n'a aucun modèle de données, et c'est ce que le jury verra. *(Fait le 21/10 : panneau « Propriétés » du tableau blanc, avec les endpoints, pages, topics et choix simples.)*
 - Désactiver l'édition pour les rôles `READ` et `TRIAGE` (champ `role` du ticket).
 
 ## Pourquoi pas les alternatives

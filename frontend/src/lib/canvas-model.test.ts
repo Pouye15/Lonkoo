@@ -198,7 +198,60 @@ test("aller-retour : ce que le tableau écrit, il le relit à l'identique", () =
   applyNodes(doc, nodes);
 
   const sorted = [...nodes].sort((a, b) => a.id.localeCompare(b.id));
-  assert.deepEqual(readGraph(doc).nodes.map(canonNode), sorted.map(canonNode));
+  // Un bloc écrit sans « contract » est relu avec les valeurs par défaut de son type : on compare le reste.
+  const bare = (node: ArchitectureNode) => canonNode({ ...node, contract: undefined });
+  assert.deepEqual(readGraph(doc).nodes.map(bare), sorted.map(bare));
+});
+
+test("les champs du contrat propres au type (tables, endpoints) sont écrits, relus, et gardés quand le titre change", () => {
+  const doc = new Y.Doc();
+  const entities = [{ name: "produit", fields: [{ name: "nom", type: "string", required: true }, { name: "prix", type: "decimal" }] }];
+  const base = blank("cylinder", "db", "Base produits");
+  applyNodes(doc, [{ ...base, contract: { engine: "postgresql", entities } }]);
+
+  let data = (doc.getMap("nodes").toJSON() as Record<string, NodeEntry>).db?.data as Record<string, unknown>;
+  assert.deepEqual(data.entities, entities);
+  assertValid(snapshotOf(doc));
+
+  const read = readGraph(doc).nodes[0];
+  assert.deepEqual(read?.contract?.entities, entities);
+
+  // Renommer le bloc sans toucher à ses tables : elles survivent.
+  applyNodes(doc, [{ ...(read as ArchitectureNode), title: "Catalogue" }]);
+  data = (doc.getMap("nodes").toJSON() as Record<string, NodeEntry>).db?.data as Record<string, unknown>;
+  assert.deepEqual(data.entities, entities);
+  assert.equal(data.label, "Catalogue");
+  assert.equal(data.name, "base_produits", "identifiant inchangé");
+});
+
+test("les endpoints d'un service et la méthode d'un bloc d'authentification sont des champs du contrat", () => {
+  const doc = new Y.Doc();
+  const endpoints = [{ method: "GET", path: "/produits", summary: "Lister" }, { method: "POST", path: "/commandes/{id}" }];
+  applyNodes(doc, [
+    { ...blank("service", "api", "API"), contract: { endpoints } },
+    { ...blank("security", "auth", "Connexion"), contract: { method: "github" } },
+  ]);
+
+  const entries = doc.getMap("nodes").toJSON() as Record<string, NodeEntry>;
+  assert.deepEqual(entries.api?.data.endpoints, endpoints);
+  assert.equal(entries.auth?.data.method, "github");
+  assertValid(snapshotOf(doc));
+});
+
+test("un bloc copié emporte ses champs du contrat, et un changement de forme écarte ceux de l'ancien type", () => {
+  const doc = new Y.Doc();
+  const endpoints = [{ method: "GET", path: "/stock" }];
+  const service = { ...blank("service", "s1", "Stock"), contract: { endpoints } };
+  applyNodes(doc, [service, { ...service, id: "s2", x: 300 }]);
+  const entries = doc.getMap("nodes").toJSON() as Record<string, NodeEntry>;
+  assert.deepEqual(entries.s2?.data.endpoints, endpoints, "la copie a les endpoints");
+  assert.notEqual(entries.s1?.data.name, entries.s2?.data.name, "mais son propre identifiant");
+
+  applyNodes(doc, [{ ...service, shape: "cylinder" }, { ...service, id: "s2", x: 300 }]);
+  const changed = (doc.getMap("nodes").toJSON() as Record<string, NodeEntry>).s1?.data as Record<string, unknown>;
+  assert.ok(!("endpoints" in changed), "pas d'endpoints sur une base de données");
+  assert.deepEqual(changed.entities, []);
+  assertValid(snapshotOf(doc));
 });
 
 test("supprimer un bloc supprime ses liens ; un lien vers un bloc absent n'est jamais écrit", () => {

@@ -155,21 +155,28 @@ function stencilOf(shape: ArchitectureShape) {
 /* Blocs                                                                */
 /* ------------------------------------------------------------------ */
 
-/** Valeurs de départ des champs obligatoires du contrat pour un bloc que le front vient de créer. */
-function defaultData(type: ContractType, name: string): JsonObject {
+/** Les trois champs du contrat que le front possède : identifiant, titre, stack. Le reste est `contract`. */
+const CORE_KEYS = ["name", "label", "tech"];
+
+function contractOf(data: JsonObject): JsonObject {
+  return Object.fromEntries(Object.entries(data).filter(([key]) => !CORE_KEYS.includes(key)));
+}
+
+/** Valeurs de départ des champs obligatoires du contrat (hors identifiant, titre et stack) pour un bloc neuf. */
+export function defaultContract(type: ContractType): JsonObject {
   switch (type) {
     case "database":
-      return { name, engine: "postgresql", entities: [] };
+      return { engine: "postgresql", entities: [] };
     case "auth":
-      return { name, method: "password" };
+      return { method: "password" };
     case "mobile-payment":
-      return { name, currency: "XOF", flow: "collect" };
+      return { currency: "XOF", flow: "collect" };
     case "messaging":
-      return { name, channel: "sms" };
+      return { channel: "sms" };
     case "billing":
-      return { name, model: "subscription", currency: "XOF" };
+      return { model: "subscription", currency: "XOF" };
     default:
-      return { name };
+      return {};
   }
 }
 
@@ -205,12 +212,14 @@ export function nodeFromEntry(id: string, entry: NodeEntry): ArchitectureNode {
     y: finite(entry.position?.y) ?? 0,
     envVars: strings(ui.envVars) ?? [],
     dependencies: strings(ui.dependencies) ?? [],
+    contract: contractOf(data),
   };
 }
 
 /**
- * L'entrée du document pour un bloc du front. Les champs du contrat que le front ne sait pas encore modifier
- * (pages, endpoints, entités, méthode…) sont conservés tels quels depuis `existing`.
+ * L'entrée du document pour un bloc du front. `node.contract` porte les champs du contrat propres au type
+ * (tables, endpoints, pages…) ; absent, ceux de l'entrée existante sont conservés, sinon les valeurs par défaut
+ * du type. Changer de forme change de type : les champs de l'ancien type ne s'appliquent plus et sont écartés.
  *
  * @param usedNames identifiants techniques déjà pris par les autres blocs du canvas
  */
@@ -220,8 +229,13 @@ export function nodeToEntry(node: ArchitectureNode, existing: NodeEntry | undefi
   const keptName = existing && isIdent(existing.data?.name) ? existing.data.name : undefined;
   const name = keptName ?? uniqueIdent(label || node.id, usedNames);
 
-  const data: JsonObject =
-    existing && existing.type === type ? { ...existing.data, name } : defaultData(type, name);
+  const sameType = existing?.type === type;
+  const contract: JsonObject = existing
+    ? sameType
+      ? ((node.contract as JsonObject | undefined) ?? contractOf(existing.data))
+      : defaultContract(type)
+    : ((node.contract as JsonObject | undefined) ?? defaultContract(type));
+  const data: JsonObject = { ...contract, name };
   if (label) data.label = label;
   else delete data.label;
   const tech = clip(node.tech.trim(), 80);
@@ -251,12 +265,25 @@ export function nodeToEntry(node: ArchitectureNode, existing: NodeEntry | undefi
   };
 }
 
+/** JSON à clés triées : deux valeurs égales donnent le même texte, quel que soit l'ordre des clés. */
+export function stable(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stable(record[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value ?? null);
+}
+
 /** Forme canonique d'un bloc, pour savoir si deux blocs sont identiques (indépendante de l'ordre des clés). */
 export function canonNode(node: ArchitectureNode): string {
   return JSON.stringify([
     node.id, node.title, node.tech, node.version, node.shape, node.moduleGroup, node.description, node.status,
     node.metricLabel, node.metricValue, node.baseLatencyMs, node.maxRpsCapacity, node.replicas, node.port,
-    node.role, node.x, node.y, node.envVars, node.dependencies,
+    node.role, node.x, node.y, node.envVars, node.dependencies, stable(node.contract),
   ]);
 }
 

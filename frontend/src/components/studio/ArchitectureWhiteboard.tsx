@@ -17,12 +17,14 @@ import {
   Plus,
   ShareNetwork,
   Square,
+  Table,
   Trash,
 } from "@phosphor-icons/react";
 import type { ArchitectureEdge, ArchitectureNode } from "@/lib/lonkoo-data";
 import type { Peer } from "@/lib/canvas-session";
 import { initialsOf } from "@/lib/initials";
 import { cn } from "@/lib/cn";
+import { ContractInspector } from "./whiteboard/ContractInspector";
 import { Dock, STENCIL_DRAG_TYPE } from "./whiteboard/Dock";
 import { EdgesLayer, type ConnectPreview, type Guide } from "./whiteboard/EdgesLayer";
 import {
@@ -262,6 +264,8 @@ export function ArchitectureWhiteboard({
   const [gridType, setGridType] = useState<GridType>("dots");
   const [magnet, setMagnet] = useState(true);
   const [showMinimap, setShowMinimap] = useState(true);
+  // Propriétés du contrat du bloc sélectionné (tables, endpoints, pages…) : panneau latéral, fermé par défaut.
+  const [inspectorOpen, setInspectorOpen] = useState(false);
 
   // Sélection : le dernier identifiant est le bloc « principal » (celui que la boîte à outils édite).
   const [selection, setSelection] = useState<string[]>(selectedNodeId ? [selectedNodeId] : []);
@@ -1088,6 +1092,15 @@ export function ArchitectureWhiteboard({
             <Trash size={15} />
           </ToolbarButton>
           {selection.length > 1 && <span className="px-1 font-mono text-xs text-ink-3">{selection.length} blocs</span>}
+          <ToolbarButton
+            label="Propriétés"
+            shortcut="tables, endpoints, pages…"
+            active={inspectorOpen}
+            onClick={() => setInspectorOpen((open) => !open)}
+            showLabel
+          >
+            <Table size={15} />
+          </ToolbarButton>
         </div>
 
         <div className="ml-auto flex flex-shrink-0 items-center gap-2">
@@ -1156,135 +1169,149 @@ export function ArchitectureWhiteboard({
         </div>
       </div>
 
-      {/* Surface du canevas */}
-      <div
-        ref={containerRef}
-        tabIndex={0}
-        role="application"
-        aria-label="Tableau blanc d'architecture"
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={(event) => endPointer(event, false)}
-        onPointerCancel={(event) => endPointer(event, true)}
-        onPointerLeave={() => onCursorMove?.(null)}
-        onLostPointerCapture={(event) => {
-          pointers.current.delete(event.pointerId);
-          if (pointers.current.size < 2) pinchRef.current = null;
-        }}
-        onDoubleClick={handleDoubleClick}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-        onKeyDown={handleKeyDown}
-        onKeyUp={handleKeyUp}
-        onBlur={() => {
-          spaceRef.current = false;
-          setSpaceHeld(false);
-        }}
-        className={cn(
-          "relative min-h-0 flex-1 touch-none select-none overflow-hidden outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent",
-          panCursor ? "cursor-grab active:cursor-grabbing" : tool === "connect" ? "cursor-crosshair" : "cursor-default",
-        )}
-        style={{ backgroundImage: GRID_IMAGE[gridType] }}
-      >
-        <div ref={layerRef} className="absolute left-0 top-0 h-0 w-0 origin-top-left will-change-transform">
-          <EdgesLayer edges={edges} rects={rects} selectedEdgeId={selectedEdgeId} guides={draft?.guides ?? NO_GUIDES} preview={previewLine} />
+      {/* Tableau (et sa boîte à outils) à gauche, propriétés du bloc à droite : le panneau réduit le tableau, il ne le recouvre pas. */}
+      <div className="flex min-h-0 flex-1">
+        <div className="relative flex min-w-0 flex-1 flex-col">
+          {/* Surface du canevas */}
+          <div
+            ref={containerRef}
+            tabIndex={0}
+            role="application"
+            aria-label="Tableau blanc d'architecture"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={(event) => endPointer(event, false)}
+            onPointerCancel={(event) => endPointer(event, true)}
+            onPointerLeave={() => onCursorMove?.(null)}
+            onLostPointerCapture={(event) => {
+              pointers.current.delete(event.pointerId);
+              if (pointers.current.size < 2) pinchRef.current = null;
+            }}
+            onDoubleClick={handleDoubleClick}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            onKeyDown={handleKeyDown}
+            onKeyUp={handleKeyUp}
+            onBlur={() => {
+              spaceRef.current = false;
+              setSpaceHeld(false);
+            }}
+            className={cn(
+              "relative min-h-0 flex-1 touch-none select-none overflow-hidden outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent",
+              panCursor ? "cursor-grab active:cursor-grabbing" : tool === "connect" ? "cursor-crosshair" : "cursor-default",
+            )}
+            style={{ backgroundImage: GRID_IMAGE[gridType] }}
+          >
+            <div ref={layerRef} className="absolute left-0 top-0 h-0 w-0 origin-top-left will-change-transform">
+              <EdgesLayer edges={edges} rects={rects} selectedEdgeId={selectedEdgeId} guides={draft?.guides ?? NO_GUIDES} preview={previewLine} />
 
-          {nodes.map((node) => {
-            const rect = rects.get(node.id);
-            const selected = selection.includes(node.id);
-            return (
-              <NodeView
-                key={node.id}
-                node={node}
-                x={rect?.x ?? node.x}
-                y={rect?.y ?? node.y}
-                selected={selected}
-                solo={selected && solo && !draft}
-                dropTarget={preview?.targetId === node.id}
-                armed={armedSourceId === node.id}
-                editing={editingId === node.id}
-                readOnly={readOnly}
-                onRename={renameNode}
-                onStopEditing={stopEditing}
-              />
-            );
-          })}
+              {nodes.map((node) => {
+                const rect = rects.get(node.id);
+                const selected = selection.includes(node.id);
+                return (
+                  <NodeView
+                    key={node.id}
+                    node={node}
+                    x={rect?.x ?? node.x}
+                    y={rect?.y ?? node.y}
+                    selected={selected}
+                    solo={selected && solo && !draft}
+                    dropTarget={preview?.targetId === node.id}
+                    armed={armedSourceId === node.id}
+                    editing={editingId === node.id}
+                    readOnly={readOnly}
+                    onRename={renameNode}
+                    onStopEditing={stopEditing}
+                  />
+                );
+              })}
 
-          {peers.map((peer) =>
-            peer.cursor ? (
+              {peers.map((peer) =>
+                peer.cursor ? (
+                  <div
+                    key={peer.id}
+                    aria-hidden="true"
+                    className="pointer-events-none absolute left-0 top-0 z-30 transition-transform duration-75"
+                    style={{ transform: `translate(${peer.cursor.x}px, ${peer.cursor.y}px) scale(${1 / view.zoom})`, transformOrigin: "0 0" }}
+                  >
+                    <svg width="16" height="20" viewBox="0 0 16 20" fill={peer.color} stroke="var(--surface)" strokeWidth="1.2" strokeLinejoin="round">
+                      <path d="M1 1l13 7.2-5.6 1.6L6.2 15.8z" />
+                    </svg>
+                    <span
+                      style={{ backgroundColor: peer.color }}
+                      className="-mt-1 ml-3 block max-w-[10rem] truncate rounded-md px-1.5 py-0.5 text-[11px] font-medium text-white shadow-card"
+                    >
+                      {peer.name}
+                    </span>
+                  </div>
+                ) : null,
+              )}
+            </div>
+
+            {marquee && (
               <div
-                key={peer.id}
                 aria-hidden="true"
-                className="pointer-events-none absolute left-0 top-0 z-30 transition-transform duration-75"
-                style={{ transform: `translate(${peer.cursor.x}px, ${peer.cursor.y}px) scale(${1 / view.zoom})`, transformOrigin: "0 0" }}
-              >
-                <svg width="16" height="20" viewBox="0 0 16 20" fill={peer.color} stroke="var(--surface)" strokeWidth="1.2" strokeLinejoin="round">
-                  <path d="M1 1l13 7.2-5.6 1.6L6.2 15.8z" />
-                </svg>
-                <span
-                  style={{ backgroundColor: peer.color }}
-                  className="-mt-1 ml-3 block max-w-[10rem] truncate rounded-md px-1.5 py-0.5 text-[11px] font-medium text-white shadow-card"
-                >
-                  {peer.name}
-                </span>
+                className="pointer-events-none absolute border border-dashed border-accent"
+                style={{
+                  left: Math.min(marquee.x1, marquee.x2),
+                  top: Math.min(marquee.y1, marquee.y2),
+                  width: Math.abs(marquee.x2 - marquee.x1),
+                  height: Math.abs(marquee.y2 - marquee.y1),
+                }}
+              />
+            )}
+
+            {nodes.length === 0 && (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 pb-40">
+                <div className="max-w-sm rounded-xl border border-dashed border-edge-strong bg-surface p-6 text-center">
+                  <h3 className="text-base font-semibold text-ink">Le canevas est vide</h3>
+                  <p className="mt-1 text-sm text-ink-3">
+                    {readOnly
+                      ? "Personne n'a encore dessiné d'architecture ici."
+                      : "Ajoutez un composant depuis la boîte à outils, en cliquant ou en le glissant ici."}
+                  </p>
+                </div>
               </div>
-            ) : null,
+            )}
+
+            {showMinimap && nodes.length > 0 && (
+              <div className="absolute right-3 top-3 z-10 hidden md:block" onPointerDown={(event) => event.stopPropagation()}>
+                <Minimap
+                  rects={rectList}
+                  view={view}
+                  size={size}
+                  onNavigate={(center) =>
+                    animateTo({ zoom: view.zoom, x: size.w / 2 - center.x * view.zoom, y: size.h / 2 - center.y * view.zoom }, 160)
+                  }
+                />
+              </div>
+            )}
+
+            <span className="sr-only" aria-live="polite">
+              {selection.length === 0 ? "Aucun bloc sélectionné" : `${selection.length} bloc${selection.length > 1 ? "s" : ""} sélectionné${selection.length > 1 ? "s" : ""}`}
+            </span>
+          </div>
+
+          {!readOnly && (
+            <Dock
+              selectedNode={selectedNode}
+              onAdd={(item) => addNode(item)}
+              onUpdateNode={updateNode}
+              onClearStack={clearStack}
+              onApplyPreset={applyPreset}
+            />
           )}
         </div>
 
-        {marquee && (
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute border border-dashed border-accent"
-            style={{
-              left: Math.min(marquee.x1, marquee.x2),
-              top: Math.min(marquee.y1, marquee.y2),
-              width: Math.abs(marquee.x2 - marquee.x1),
-              height: Math.abs(marquee.y2 - marquee.y1),
-            }}
+        {inspectorOpen && (
+          <ContractInspector
+            node={solo ? selectedNode : null}
+            readOnly={readOnly}
+            onChange={(target, contract) => updateNode(target.id, { contract }, `contract:${target.id}`)}
+            onClose={() => setInspectorOpen(false)}
           />
         )}
-
-        {nodes.length === 0 && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 pb-40">
-            <div className="max-w-sm rounded-xl border border-dashed border-edge-strong bg-surface p-6 text-center">
-              <h3 className="text-base font-semibold text-ink">Le canevas est vide</h3>
-              <p className="mt-1 text-sm text-ink-3">
-                {readOnly
-                  ? "Personne n'a encore dessiné d'architecture ici."
-                  : "Ajoutez un composant depuis la boîte à outils, en cliquant ou en le glissant ici."}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {showMinimap && nodes.length > 0 && (
-          <div className="absolute right-3 top-3 z-10 hidden md:block" onPointerDown={(event) => event.stopPropagation()}>
-            <Minimap
-              rects={rectList}
-              view={view}
-              size={size}
-              onNavigate={(center) =>
-                animateTo({ zoom: view.zoom, x: size.w / 2 - center.x * view.zoom, y: size.h / 2 - center.y * view.zoom }, 160)
-              }
-            />
-          </div>
-        )}
-
-        <span className="sr-only" aria-live="polite">
-          {selection.length === 0 ? "Aucun bloc sélectionné" : `${selection.length} bloc${selection.length > 1 ? "s" : ""} sélectionné${selection.length > 1 ? "s" : ""}`}
-        </span>
       </div>
-
-      {!readOnly && (
-        <Dock
-          selectedNode={selectedNode}
-          onAdd={(item) => addNode(item)}
-          onUpdateNode={updateNode}
-          onClearStack={clearStack}
-          onApplyPreset={applyPreset}
-        />
-      )}
     </div>
   );
 }

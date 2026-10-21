@@ -18,6 +18,7 @@ import {
   edgeToEntry,
   nodeFromEntry,
   nodeToEntry,
+  stable,
   type EdgeEntry,
   type NodeEntry,
 } from "./canvas-model.ts";
@@ -31,19 +32,6 @@ export interface Graph {
 }
 
 const plain = (value: unknown): unknown => (value instanceof Y.AbstractType ? value.toJSON() : value);
-
-/** JSON à clés triées, pour comparer deux valeurs quel que soit l'ordre des clés. */
-function stable(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
-  if (value && typeof value === "object") {
-    const object = value as Record<string, unknown>;
-    return `{${Object.keys(object)
-      .sort()
-      .map((key) => `${JSON.stringify(key)}:${stable(object[key])}`)
-      .join(",")}}`;
-  }
-  return JSON.stringify(value ?? null);
-}
 
 function nodeEntries(doc: Y.Doc): Map<string, NodeEntry> {
   const entries = new Map<string, NodeEntry>();

@@ -23,7 +23,8 @@ Reste à faire côté front (voir `../docs/ROADMAP-BACKEND.md`) :
 
 - **API branchée (lot R9, 21/10)** : avec `NEXT_PUBLIC_API_MODE=live` (lu au build), `session.tsx`, `workspace.tsx` et `project-graph.ts` parlent à l'API et au document Yjs partagé ; sans, les données simulées du navigateur restent le comportement par défaut (la CI construit sans la variable). Voir § 3.5, § 3.10 et « Mode API » ci-dessous.
 - **Modèle de blocs aligné sur le contrat** (décision D2, `../docs/PROPOSITION-MODELE-DE-BLOCS.md`) : 9 types dont `generic` (passerelle, cache, IA, utilisateur, bloc libre) ; la forme dessinée et tout champ propre au front vont dans la clé `ui` du document, hors contrat. La proposition et l'ajout du type `generic` au schéma attendent la relecture de l'équipe (pull request).
-- **Reste à faire** : éditeur des entités et des champs d'une base (sans lui le projet généré n'a pas de modèle de données), propriétés propres à chaque type (pages, endpoints, méthode d'authentification…) ; liste réelle des membres (le serveur n'a pas encore de route) ; Dockerfile du front construit avec `NEXT_PUBLIC_API_MODE=live` et `NEXT_PUBLIC_REALTIME_URL=/ws` (lot de mise en ligne).
+- **Panneau « Propriétés »** (21/10) : tables et champs d'une base, endpoints d'un service, pages d'une application web, topics d'une file, méthode d'authentification, canal, devise, flux, modèle de facturation. Ces champs du contrat sont portés par `ArchitectureNode.contract` (voir `canvas-model.ts`) : ils passent par le même chemin que le reste (annuler/rétablir, lecture seule, mode simulé). Les saisies sont validées comme le fait le backend (`canvas-contract.ts`) avant d'être écrites : une saisie refusée n'arrive jamais dans le document partagé.
+- **Reste à faire** : modification des gabarits de message d'un bloc de messagerie (ils sont conservés tels quels) ; liste réelle des membres (le serveur n'a pas encore de route).
 - Écrans sans backend prévu (communauté, revues, MCP, Orion) : données fictives, à garder en démonstration ou à masquer avant la soumission.
 
 ---
@@ -64,6 +65,7 @@ Six onglets compacts (une seule ligne, défilement horizontal si l'écran est é
    - **Conventions visuelles** : `cylinder` = base de données en pile de cylindres ; `user` = silhouette ; `queue` = tuyau horizontal segmenté ; `gateway`, `service`, `cache`, `security`, `ai` = boîtes à icône ; `mobile-payment`, `messaging`, `billing` = blocs locaux génériques, sans marque (contrat du canvas) ; `generic` = **bloc libre** neutre.
    - **Indépendance entre bloc et stack** : un composant posé n'a **aucune stack imposée** (`tech: ""`). L'utilisateur le laisse neutre (« Aucune stack ») ou lui attribue un préréglage en un clic (`whiteboard/stencils.ts`) ou une saisie libre.
    - **Boîte à outils** (dock, en bas au centre, réductible) : onglets *Composants* (cliquer ou **glisser** sur le canevas) et *Stack technique* (propriétés du bloc sélectionné).
+   - **Propriétés** (bouton de la barre d'outils, panneau à droite qui réduit le tableau sans le recouvrir) : les champs du contrat propres au type du bloc sélectionné (tables et champs, endpoints, pages, topics…). C'est ce qui permet de générer les entités et les contrôleurs du projet.
 2. **Analyse IA** : topologie, points uniques de défaillance, cohérence de stack ; correctifs applicables en un clic. *Maquette : l'IA réelle est un autre chantier.*
 3. **Simulateur** : trafic de 1 000 à 20 000 req/s, charge et latence par bloc, ajout de répliques.
 4. **Documentation** : synthèse, ADR et contrats générés à partir du graphe.
@@ -113,7 +115,7 @@ frontend/
 │   │   ├── theme/                # ThemeProvider (anti-flash), ThemeSegmented, ThemeIconButton
 │   │   ├── layout/               # AppShell, PageHeader, ProjectSwitcher, UserMenu
 │   │   ├── landing/              # Nav, StudioDemo (+ sequence/render-frame.ts), Features, Faq, bas de page
-│   │   ├── studio/               # ArchitectureWhiteboard + whiteboard/ (geometry, use-viewport, NodeView, EdgesLayer, Dock, Minimap, stencils)
+│   │   ├── studio/               # ArchitectureWhiteboard + whiteboard/ (geometry, use-viewport, NodeView, EdgesLayer, Dock, ContractInspector, Minimap, stencils)
 │   │   │   └── live/             # Mode API : CanvasGate, ShareDialog, VersionsPanel, LiveTeamPanel
 │   │   └── palabre/              # BlueprintDetailClient
 │   └── lib/
@@ -124,6 +126,7 @@ frontend/
 │       ├── canvas-session.ts     # Connexion d'un canvas au temps réel (ticket, présence, lecture seule)
 │       ├── canvas-yjs.ts         # Lecture et écriture du document Yjs, par différences
 │       ├── canvas-model.ts       # Bloc du front ↔ entrée du contrat (champs propres au front dans `ui`)
+│       ├── canvas-contract.ts    # Champs du contrat par type (tables, endpoints…) : lecture tolérante, validation
 │       ├── reserved-words.ts     # Mots réservés Java, SQL, YAML (copie surveillée du backend)
 │       ├── *.test.ts             # Tests (lanceur de Node : `npm test`)
 │       ├── lonkoo-data.ts        # Types et données d'exemple
@@ -137,7 +140,7 @@ frontend/
 - **Projets** : `useWorkspace` lit `GET /api/projects` pour la personne connectée (la liste suit la session), crée avec `POST` (le dialogue affiche l'erreur : limite atteinte en 409, session expirée…) et bascule la visibilité avec `PATCH`. `?project=` accepte le nom court ou l'identifiant, et se souvient de la demande tant que la liste n'est pas arrivée.
 - **Canvas partagé** : `useProjectGraph` ouvre une connexion par canvas (ticket `POST …/realtime-ticket`, redemandé à chaque reconnexion), garde le tableau caché jusqu'au premier échange (jamais de tableau vide « en attendant »), montre un bandeau « Connexion perdue » sans retirer le tableau (les modifications partent au retour du réseau) et affiche la présence (avatars, curseurs).
 - **Lecture seule** (rôles Read et Triage, ou refus du serveur) : pas de boîte à outils, ni déplacement, ni liaison, ni suppression, ni annulation ; la barre d'outils l'indique. Le serveur ignore de toute façon leurs écritures.
-- **Document Yjs** : trois cartes (`nodes`, `edges`, `meta`), une `Y.Map` par entrée (`type`, `position`, `data`, `ui`). `data.name` est l'identifiant technique, déduit du titre à la création (sans accent, hors mots réservés, unique) puis **stable** ; `data.label` porte le titre, `data.tech` la stack (80 caractères au plus). Ouvrir un canvas sans le modifier n'écrit rien dans le document.
+- **Document Yjs** : trois cartes (`nodes`, `edges`, `meta`), une `Y.Map` par entrée (`type`, `position`, `data`, `ui`). `data.name` est l'identifiant technique, déduit du titre à la création (sans accent, hors mots réservés, unique) puis **stable** ; `data.label` porte le titre, `data.tech` la stack (80 caractères au plus), le reste de `data` (tables, endpoints…) est `node.contract`. Ouvrir un canvas sans le modifier n'écrit rien dans le document.
 - **Partage** : bouton *Partager* (rôles Owner et Maintainer) : rôle et durée au choix (72 h au plus). La page `/join/[token]` ouvre une session d'invité si besoin et rejoint le projet.
 - **Versions** : onglet *Versions* en mode API : enregistrer (le serveur valide : 422 avec la liste des erreurs), restaurer (vu en direct par tous), exporter en JSON.
 - **Erreurs** : `api.ts` lit les `problem+json` ; un 401 renvoie à la connexion en gardant la page demandée.

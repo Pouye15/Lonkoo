@@ -88,6 +88,11 @@ export interface ArchitectureNode {
   y: number;
   envVars: string[];
   dependencies: string[];
+  /**
+   * Champs du contrat du canvas propres au type du bloc : tables et champs d'une base, endpoints d'un service,
+   * pages, topics, méthode d'authentification… (voir canvas-model.ts). Absent : valeurs par défaut du type.
+   */
+  contract?: { [key: string]: unknown };
 }
 
 export interface ArchitectureEdge {
