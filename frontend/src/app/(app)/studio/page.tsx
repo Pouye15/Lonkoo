@@ -9,6 +9,7 @@ import { useWorkspace } from "@/lib/workspace";
 import { useProjectGraph } from "@/lib/project-graph";
 import { IS_LIVE_API, type ApiRole } from "@/lib/api";
 import { ArchitectureWhiteboard } from "@/components/studio/ArchitectureWhiteboard";
+import { ExportDialog } from "@/components/studio/ExportDialog";
 import { CanvasGate } from "@/components/studio/live/CanvasGate";
 import { LiveTeamPanel } from "@/components/studio/live/LiveTeamPanel";
 import { ShareDialog } from "@/components/studio/live/ShareDialog";
@@ -45,6 +46,7 @@ import {
   ShieldCheck,
   UserPlus,
   LinkSimple,
+  DownloadSimple,
 } from "@phosphor-icons/react";
 
 type StudioTab = "canvas" | "scanner" | "simulator" | "docs" | "versions" | "team";
@@ -109,6 +111,7 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
 
   const { nodes, edges, setNodes, setEdges, live } = useProjectGraph(currentProject.slug);
   const [shareOpen, setShareOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   // Le ticket temps réel donne le rôle exact ; avant, celui lu avec la liste des canvas du projet.
   const role: ApiRole | null = live?.role ?? (currentProject.role ? API_ROLE_BY_LABEL[currentProject.role] : null);
   const canWrite = role === "OWNER" || role === "MAINTAINER" || role === "WRITE";
@@ -341,6 +344,10 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
         fullBleed={activeTab === "canvas"}
         actions={
           <>
+            <Button variant="secondary" size="sm" onClick={() => setExportOpen(true)} disabled={live ? !live.synced : false}>
+              <DownloadSimple size={14} />
+              <span className="hidden md:inline">Exporter</span>
+            </Button>
             {live && canShare && (
               <Button variant="secondary" size="sm" onClick={() => setShareOpen(true)}>
                 <LinkSimple size={14} />
@@ -1105,6 +1112,14 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
         )}
       </div>
 
+      <ExportDialog
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        projectName={currentProject.name}
+        nodes={nodes}
+        edges={edges}
+        canvasId={live?.canvasId}
+      />
       {live?.canvasId && <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)} canvasId={live.canvasId} />}
     </>
   );
