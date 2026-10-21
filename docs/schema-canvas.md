@@ -53,6 +53,20 @@ Le document Yjs contient :
 
 Choix à respecter : des `Y.Map` indexées par identifiant et non des `Y.Array`, pour que deux personnes qui modifient des blocs différents ne se gênent pas. La présence et les curseurs passent par *awareness*, ils ne sont **jamais** enregistrés. L'instantané JSON est obtenu en lisant ces trois cartes.
 
+### Précisions pour le front et le serveur temps réel (21/10)
+
+Ces règles sont celles que le serveur temps réel (`realtime/src/canvasCodec.js`) applique pour écrire le modèle d'exemple, restaurer une version et produire l'instantané. Un client qui s'y tient est relu sans perte ; un test de chaîne du backend (`RealtimeChainIntegrationTest`) écrit selon ces règles.
+
+- **Trois cartes de premier niveau**, obtenues par `ydoc.getMap('nodes')`, `ydoc.getMap('edges')` et `ydoc.getMap('meta')`. Il n'y a pas d'autre racine.
+- **L'`id` est la clé de la carte, pas un champ de l'entrée.** Ajouter un bloc : `nodes.set(id, entree)` où `entree` est une `Y.Map` portant `type`, `position` et `data`. Le supprimer : `nodes.delete(id)`. Si une entrée contient quand même un champ `id`, la clé fait foi.
+- **Les valeurs d'une entrée sont du JSON simple** : `position` vaut `{ x, y }`, `data` est l'objet de données du bloc, `source` et `target` sont des textes. Pour modifier, **remplacer la valeur** (`entree.set('position', { x, y })`), jamais la modifier en place. Deux personnes qui déplacent un bloc et modifient ses données en même temps se fusionnent (clés différentes de l'entrée) ; deux modifications des `data` d'un même bloc se départagent par la dernière.
+- **Lecture** : `entree.toJSON()` ou `ydoc.getMap('nodes').toJSON()` rendent du JSON simple, quelle que soit la façon dont l'entrée a été écrite (le serveur lit aussi des types Yjs imbriqués ou un objet JSON complet comme entrée).
+- **Supprimer un bloc oblige à supprimer ses liens** (`edges` dont `source` ou `target` vaut son `id`) : un lien vers un bloc absent rend l'instantané invalide.
+- **`schemaVersion` n'est pas stocké dans Yjs** : l'instantané porte toujours la version courante du contrat.
+- **L'instantané est produit par le serveur temps réel** : `nodes` et `edges` sont des tableaux **triés par `id`** (ordre stable), `meta` n'apparaît que s'il n'est pas vide.
+- **Lecture seule** : un client connecté avec le rôle `READ` ou `TRIAGE` (champ `role` du ticket) ne doit pas proposer d'édition ; le serveur ignore ses modifications, mais son document local, lui, les afficherait.
+- Les documents enregistrés avant le 21/10 avec l'ancienne disposition (une carte `canvas` contenant des tableaux) sont convertis au chargement.
+
 ## Évolution
 
 - Ajouter un champ optionnel ou un nouveau type de bloc : autorisé en version 1 (mettre à jour le schéma, l'exemple et ce tableau dans la même pull request).

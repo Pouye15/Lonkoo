@@ -18,7 +18,9 @@
 		reverse_proxy backend:8080
 	}
 
-	handle /ws* {
+	# handle_path retire le préfixe : le navigateur ouvre wss://<domaine>/ws, le serveur temps réel reçoit « / ».
+	# (Il accepte aussi « /ws » tel quel, au cas où le préfixe ne serait pas retiré.)
+	handle_path /ws* {
 		reverse_proxy realtime:1234
 	}
 
