@@ -797,28 +797,66 @@ paths:
   /generations/{generationId}/push-github:
     post:
       tags: [Génération]
-      summary: Pousse le projet généré sur GitHub
-      x-implemented: false
+      summary: Envoie le projet généré sur le compte GitHub de l'utilisateur
+      description: |
+        Crée un dépôt sur le compte GitHub connecté puis y pousse tout le projet en un seul commit. Le travail est
+        asynchrone : la réponse est l'état de la génération, et `push.status` (`RUNNING`, puis `DONE` ou `FAILED`
+        avec `push.error`) se lit par `GET /generations/{generationId}`. Rôle d'écriture sur le canvas requis, et une
+        connexion GitHub (un invité reçoit 403 « Connexion GitHub requise »). Le jeton GitHub reste dans la session
+        du serveur : il n'est ni stocké ni renvoyé.
+
+        Le fichier de workflow `.github/workflows/…` n'est envoyé que si la connexion a l'autorisation `workflow`
+        (sinon `push.warnings` l'explique et `push.workflowSent` vaut `false`). Un dépôt privé demande l'autorisation
+        `repo`. Après un échec, un nouvel envoi est possible ; si le dépôt avait été créé par l'essai précédent, il est
+        repris. Un projet déjà envoyé ne peut pas l'être une seconde fois (409).
       parameters:
-        - name: generationId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: "#/components/parameters/GenerationId"
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
             schema:
               type: object
-              required: [repoName]
               properties:
                 repoName:
                   type: string
+                  pattern: "^[A-Za-z0-9._-]{1,100}$"
+                  description: Nom du dépôt (ni `.`, ni `..`, ni `.git` à la fin) ; absent, le nom de dossier du projet
+                visibility:
+                  type: string
+                  enum: [public, private]
+                  default: public
       responses:
         "202":
-          description: Envoi lancé
+          description: Envoi lancé ; état de la génération, `push.status` vaut `RUNNING`
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Generation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Rôle insuffisant, ou pas de connexion GitHub (titre « Connexion GitHub requise »)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Projet pas encore généré, envoi déjà en cours, ou projet déjà envoyé
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          description: Trop de travaux en cours (titre « Serveur occupé »)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
 
   /generations/{generationId}/deploy:
     post:

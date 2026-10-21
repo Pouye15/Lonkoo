@@ -24,4 +24,13 @@ public class GithubConfig {
         return new GithubApiClient(clientId, clientSecret, redirectUri, tokenUrl, userUrl,
                 Duration.ofSeconds(requestTimeoutSeconds));
     }
+
+    /** Envoi d'un projet sur GitHub (création du dépôt, commit). Adresse configurable pour les tests. */
+    @Bean
+    GithubRepoClient githubRepoClient(
+            @Value("${github.api.base-url:https://api.github.com}") String baseUrl,
+            @Value("${github.api.request-timeout-seconds:20}") int requestTimeoutSeconds,
+            @Value("${github.api.retry-delay-millis:700}") long retryDelayMillis) {
+        return new GithubRepoClient(baseUrl, Duration.ofSeconds(requestTimeoutSeconds), Duration.ofMillis(retryDelayMillis));
+    }
 }

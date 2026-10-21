@@ -164,6 +164,12 @@ class GenerationRepository {
                 """).param(id).update() == 1;
     }
 
+    /** Le dépôt vient d'être créé : on le retient tout de suite pour qu'un nouvel essai après un échec le reprenne. */
+    void pushRepoCreated(UUID id, String repoFullName, String repoUrl) {
+        jdbc.sql("update generations set repo_full_name = ?, repo_url = ? where id = ?")
+                .param(repoFullName).param(repoUrl).param(id).update();
+    }
+
     void pushDone(UUID id, String repoFullName, String repoUrl, String commitSha, boolean workflowSent, List<String> warnings) {
         jdbc.sql("""
                 update generations
