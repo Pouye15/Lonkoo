@@ -222,12 +222,14 @@ jobs:
             --env REALTIME_TICKET_SECRET="$(openssl rand -hex 32)" \
             lonkoo-realtime:ci
           for attempt in $(seq 1 20); do
-            code=$(curl -s -o /dev/null -w '%{http_code}' \
-              http://localhost:1234/internal/canvases/00000000-0000-0000-0000-000000000000/snapshot || true)
-            [ "$code" = "401" ] && exit 0
+            health=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:1234/health || true)
+            [ "$health" = "200" ] && break
             sleep 1
           done
-          echo "Réponse inattendue : $code (401 attendu)"
+          internal=$(curl -s -o /dev/null -w '%{http_code}' \
+            http://localhost:1234/internal/canvases/00000000-0000-0000-0000-000000000000/snapshot || true)
+          if [ "$health" = "200" ] && [ "$internal" = "401" ]; then exit 0; fi
+          echo "Réponses inattendues : /health $health (200 attendu), route interne $internal (401 attendu)"
           docker logs realtime
           exit 1
 

@@ -294,6 +294,8 @@ Réseau interne uniquement, jamais routée par Caddy, jeton de service `Authoriz
 | realtime → backend | `PUT /internal/canvases/{id}/state` | `{state: "<base64>"}` → `204` ; l'état Yjs est un binaire de quelques dizaines de Ko (JSON avec base64 : plus simple à déboguer que de l'`octet-stream`) |
 | backend → realtime | `GET {REALTIME_INTERNAL_URL}/internal/canvases/{id}/snapshot` | → instantané JSON du contrat, construit depuis le document Yjs |
 | backend → realtime | `POST {REALTIME_INTERNAL_URL}/internal/canvases/{id}/restore` | instantané JSON → remplace le contenu du document en transaction, `204` |
+| backend → realtime | `POST {REALTIME_INTERNAL_URL}/internal/canvases/{id}/close` | ferme les connexions ouvertes sur ce canvas (projet supprimé, droits retirés), `204` |
+| supervision → realtime | `GET /health` (sans jeton) | `200 {"status":"UP"}`, `503` pendant l'arrêt |
 
 `REALTIME_INTERNAL_URL` (par exemple `http://realtime:1234`) est à ajouter à `.env.example`.
 
