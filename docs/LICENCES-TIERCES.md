@@ -18,9 +18,20 @@ La colonne « Vérifié » se coche seulement après avoir lu la licence dans le
 | TypeScript | 6.0.3 | Apache 2.0 | Oui | Compilation et vérification des types (développement) | npm | [x] |
 | ESLint, eslint-config-next | 9.39.5, 16.4.2 | MIT | Oui | Lint (développement) | npm | [x] |
 | caniuse-lite (dépendance de next) | 1.0.30001816 | CC-BY-4.0 | Oui (données, attribution) | Table de compatibilité des navigateurs, livrée avec next | npm | [x] |
-| Yjs | [x] | MIT | Oui | Synchronisation temps réel | npm | [ ] |
-| y-websocket (client) / serveur à choisir (Hocuspocus, MIT) | [x] | MIT | Oui | Synchronisation et serveur temps réel | npm | [ ] |
-| Spring Boot | [x] | Apache 2.0 | Oui | Backend | Maven | [ ] |
+| Yjs | 13.6.33 | MIT | Oui | Document partagé du canvas (serveur temps réel) | npm | [x] |
+| Hocuspocus (`@hocuspocus/server`, `@hocuspocus/common` ; `@hocuspocus/provider` pour les tests seulement) | 4.7.1 | MIT | Oui | Serveur de synchronisation temps réel (remplace y-websocket, qui n'a plus de serveur) | npm | [x] |
+| jose | 6.2.13 | MIT | Oui | Vérification des tickets JWT du temps réel | npm | [x] |
+| ws | 8.22.0 | MIT | Oui | Serveur WebSocket (8.18.3 écarté : deux avis de sécurité) | npm | [x] |
+| Dépendances de Hocuspocus et Yjs : async-mutex 0.5.0, crossws 0.4.15, isomorphic.js 0.2.5, kleur 4.1.5, lib0 0.2.119, y-protocols 1.0.7 | voir `package-lock.json` | MIT | Oui | Serveur temps réel | npm | [x] |
+| tslib (dépendance de Hocuspocus) | 2.8.1 | 0BSD | Oui | Serveur temps réel | npm | [x] |
+| Spring Boot (starters, Spring Framework 7.0.9, Spring Security) | 4.1.1 | Apache 2.0 | Oui | Backend | Maven | [x] |
+| Apache Log4j2 (log4j-core, log4j-slf4j2-impl) | 2.25.5 | Apache 2.0 | Oui | Journaux (remplace Logback) | Maven | [x] |
+| Flyway (flyway-core, flyway-database-postgresql) | 12.4.0 | Apache 2.0 | Oui | Migrations SQL | Maven | [x] |
+| Pilote JDBC PostgreSQL | 42.7.13 | BSD-2-Clause | Oui | Accès à la base | Maven | [x] |
+| Hibernate Validator | 9.1.3.Final | Apache 2.0 | Oui | Validation des requêtes (pas d'ORM Hibernate) | Maven | [x] |
+| networknt json-schema-validator | 3.0.8 | Apache 2.0 | Oui | Validation des instantanés de canvas | Maven | [x] |
+| Nimbus JOSE + JWT | 10.9.1 | Apache 2.0 | Oui | Signature des tickets temps réel | Maven | [x] |
+| zonky embedded-postgres (et binaires PostgreSQL 14) | 2.2.2 | Apache 2.0 (binaires : licence PostgreSQL) | Oui | Tests du backend uniquement, jamais livré | Maven | [x] |
 | PostgreSQL | 16 | Licence PostgreSQL | Oui | Base de données | Docker | [ ] |
 | [Bibliothèque d'icônes] | [x] | [à vérifier] | [ ] | Icônes | [ ] | [ ] |
 | | | | | | | |
@@ -30,7 +41,7 @@ La colonne « Vérifié » se coche seulement après avoir lu la licence dans le
 | Composant | Problème | Action |
 |---|---|---|
 | Hibernate ORM (avant la version 7) | LGPL 2.1. La relicence Apache 2.0 ne s'applique qu'à partir de la 7.0 | Utiliser Hibernate 7 ou ne pas utiliser JPA. Vérifier avec `mvn dependency:tree` |
-| Logback (journaux par défaut de Spring Boot) | Double licence EPL 2.0 ou LGPL 2.1 (1.5.x) | Remplacer par Log4j2, ou obtenir la confirmation de l'organisateur |
+| Logback (journaux par défaut de Spring Boot) | Double licence EPL 2.0 ou LGPL 2.1 (1.5.x) | Fait : exclu de tout l'arbre (`spring-boot-starter-logging` exclu dans `backend/pom.xml`), Log4j2 à la place. Vérifié le 2026-10-21 sur les 97 dépendances d'exécution du backend (`dependency:list` + licences des POM) : aucune LGPL ni GPL seule ; seule `jakarta.annotation-api` est en EPL 2.0 / GPL 2 avec exception Classpath (ligne ci-dessous) ; HdrHistogram est en CC0 ou BSD-2-Clause |
 | OpenJDK | GPL 2 avec exception Classpath | Question posée à l'organisateur. Usage courant, à confirmer |
 | Next.js : sharp / @img/sharp-libvips-* | LGPL-3.0-or-later, installé en dépendance optionnelle de `next` ; fait échouer le contrôle de licences | Fait : `frontend/stubs/sharp` (paquet privé, version 0.35.5) déclaré comme **workspace npm** (`"workspaces": ["stubs/sharp"]`) : il satisfait la plage demandée par `next`, donc npm le lie au lieu de télécharger sharp et libvips ; `images: { unoptimized: true }` dans `next.config.ts`. Vérifié le 2026-10-20 : `npm ci` n'installe aucun `@img/*`. Ne pas utiliser `overrides` avec `file:` : le chemin est résolu depuis `node_modules/next` et `npm ci` échoue. Si `next` change la plage de `sharp`, relever la version du stub (la CI le signale) |
 | jakarta.annotation-api | EPL 2.0 ou GPL 2 avec exception Classpath, présent dans toute application Spring Boot | Question à l'organisateur (voir QUESTIONS-ORGANISATEUR.md) |
@@ -56,7 +67,7 @@ Le règlement permet d'intégrer du code appartenant à un membre de l'équipe e
 
 ## 5. Vérification automatique
 
-La CI (`.github/workflows/ci.yml`) contrôle les licences npm de façon bloquante et produit un rapport informatif pour Maven. Lancer aussi à la main avant la soumission :
+La CI (`.github/workflows/ci.yml`) contrôle de façon bloquante les licences npm et celles des dépendances d'exécution Maven (`scripts/check_licenses_maven.py` : refus d'une licence GPL, AGPL ou LGPL sans alternative permissive, exceptions documentées dans le script) ; le rapport complet du plugin Maven reste informatif. Lancer aussi à la main avant la soumission :
 
 ```bash
 # Java

@@ -2,6 +2,8 @@
 
 > Dernière mise à jour : 2026-10-20 (J-4 avant la soumission visée du samedi 24 octobre, midi).
 >
+> **État au 21/10 et reste à faire : voir [AUDIT-ET-ROADMAP-BACKEND.md](AUDIT-ET-ROADMAP-BACKEND.md).** Le « point de situation » du § 2 et les cases des lots ci-dessous datent du 20/10 ; ce document reste la référence des contrats (§ 7) et des décisions (§ 11).
+>
 > **Périmètre :** API Spring Boot, serveur temps réel (Hocuspocus), base PostgreSQL, Dockerfiles et déploiement de Lonkoo, branchement du front.
 > **Hors périmètre : l'agent IA** (Serine Fallou Ngom). Seuls ses points de raccordement sont prévus (§ 9).
 >
@@ -20,13 +22,13 @@
 
 | Élément | État dans le dépôt | Prévu au backlog | Écart |
 |---|---|---|---|
-| `backend/` | vide (`.gitkeep`) | squelette Spring Boot : 17/10 | 3 jours |
-| `realtime/` | vide (`.gitkeep`) | serveur Hocuspocus et tickets : 19/10 | 1 jour |
-| `docs/openapi.yaml` | absent | 17/10 (Pouye avec Fall) | 3 jours |
-| `infra/` | `Caddyfile` et `docker-compose.dev.yml` (base seule) ; ni Dockerfile ni compose de production | squelette en ligne en HTTPS : 18/10 | à confirmer avec Diagne et Gaye |
+| `backend/` | Spring Boot 4.1 : invités, session, projets, canvas, partage, ticket temps réel, versions, validateur ; 71 tests (21/10) | squelette Spring Boot : 17/10 | fait ; restent la connexion GitHub, la génération et le déploiement ([AUDIT-ET-ROADMAP-BACKEND.md](AUDIT-ET-ROADMAP-BACKEND.md)) |
+| `realtime/` | serveur Hocuspocus : tickets, persistance, instantané et restauration, lecture seule ; 31 tests (21/10) | serveur Hocuspocus et tickets : 19/10 | fait |
+| `docs/openapi.yaml` | écrit et validé en CI (21/10) ; les routes GitHub, IA, génération et déploiement restent à coder | 17/10 (Pouye avec Fall) | fait pour les routes codées |
+| `infra/` | `Caddyfile` et `docker-compose.dev.yml` (base seule) ; Dockerfiles du backend et du temps réel écrits (construits par la CI) ; pas de compose de production | squelette en ligne en HTTPS : 18/10 | à confirmer avec Diagne et Gaye |
 | `frontend/` | **importé** depuis `Gnatam/Lonkoo-frontend` avec son historique, puis finitions du 20/10 : connexion (GitHub ou invité, simulée), thème sombre, shell par projet, tableau blanc façon draw.io ; données gardées dans le navigateur, **aucun appel d'API** ; lint, build et licences passent | canvas React Flow et 8 types de blocs : 20/10 (Fall) | canevas maison (pas React Flow) et modèle de blocs différent du contrat (§ 11, D2) |
 | Contrat du canvas | fait (`schema-canvas.md`, `canvas.schema.json`, exemple validé par la CI) | 16/10 | aucun |
-| CI | active ; étapes Maven et temps réel ignorées tant que `pom.xml` / `package.json` n'existent pas | | le front passe maintenant lint, build et licences |
+| CI | active : lint, build et tests du front, du backend (avec test de chaîne) et du temps réel ; licences npm et Maven bloquantes ; construction des images Docker ; avis de sécurité (informatif) ; validation du contrat d'API | | à confirmer au premier push |
 | Poste de développement | JDK 25, Maven 3.9, Node 22, Python 3.12 ; **Docker absent, virtualisation inactive** | Java 21, Node 24, Docker | voir WP0 |
 
 ## 3. Périmètre
