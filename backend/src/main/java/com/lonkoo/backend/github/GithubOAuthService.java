@@ -32,6 +32,11 @@ import jakarta.servlet.http.HttpSession;
 public class GithubOAuthService {
 
     private static final String STATE_ATTRIBUTE = "lonkoo.githubState";
+    /** Présent (valeur {@code deploy}) quand la connexion en cours demande les autorisations de déploiement. */
+    private static final String ACCESS_ATTRIBUTE = "lonkoo.githubAccess";
+    static final String BASIC_SCOPES = "read:user public_repo";
+    /** Lancer un workflow depuis LONKOO demande « repo » ; en envoyer le fichier demande « workflow ». */
+    static final String DEPLOY_SCOPES = "read:user repo workflow";
 
     private final GithubApiClient githubApiClient;
     private final GithubAccountService accountService;
@@ -67,17 +72,28 @@ public class GithubOAuthService {
         }
     }
 
-    /** Adresse GitHub vers laquelle rediriger (le {@code state} est stocké en session). */
-    public String authorizeUrl(HttpServletRequest request) {
+    /**
+     * Adresse GitHub vers laquelle rediriger (le {@code state} est stocké en session).
+     *
+     * @param deploy vrai pour demander aussi « repo » et « workflow » : à n'offrir que sur un choix explicite de
+     *               l'utilisateur, car l'écran de consentement de GitHub est alors bien plus large
+     */
+    public String authorizeUrl(HttpServletRequest request, boolean deploy) {
         byte[] stateBytes = new byte[32];
         secureRandom.nextBytes(stateBytes);
         String state = Base64.getUrlEncoder().withoutPadding().encodeToString(stateBytes);
-        request.getSession(true).setAttribute(STATE_ATTRIBUTE, state);
+        HttpSession session = request.getSession(true);
+        session.setAttribute(STATE_ATTRIBUTE, state);
+        if (deploy) {
+            session.setAttribute(ACCESS_ATTRIBUTE, "deploy");
+        } else {
+            session.removeAttribute(ACCESS_ATTRIBUTE);
+        }
 
         return authorizeEndpoint
                 + "?client_id=" + encode(clientId)
                 + "&redirect_uri=" + encode(redirectUri)
-                + "&scope=" + encode("read:user public_repo")
+                + "&scope=" + encode(deploy ? DEPLOY_SCOPES : BASIC_SCOPES)
                 + "&state=" + state;
     }
 
@@ -86,11 +102,16 @@ public class GithubOAuthService {
         HttpSession session = request.getSession(false);
         if (session != null) {
             session.removeAttribute(STATE_ATTRIBUTE);
+            session.removeAttribute(ACCESS_ATTRIBUTE);
         }
     }
 
-    /** Vérifie le {@code state} stocké en session (à usage unique, comparaison à temps constant). */
-    public void verifyState(HttpServletRequest request, String state) {
+    /**
+     * Vérifie le {@code state} stocké en session (à usage unique, comparaison à temps constant).
+     *
+     * @return vrai si cette connexion demandait les autorisations de déploiement
+     */
+    public boolean verifyState(HttpServletRequest request, String state) {
         HttpSession session = request.getSession(false);
         String expected = session == null ? null : (String) session.getAttribute(STATE_ATTRIBUTE);
         if (expected == null || state == null
@@ -99,6 +120,9 @@ public class GithubOAuthService {
         }
         // Usage unique : l'état ne doit pas être rejoué.
         session.removeAttribute(STATE_ATTRIBUTE);
+        boolean deploy = "deploy".equals(session.getAttribute(ACCESS_ATTRIBUTE));
+        session.removeAttribute(ACCESS_ATTRIBUTE);
+        return deploy;
     }
 
     /** Réalise la fin du flux : échange, profil, compte local, session neuve, jeton en session. */

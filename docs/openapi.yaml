@@ -48,9 +48,23 @@ paths:
         Garde un `state` aléatoire (à usage unique) en session et redirige le navigateur vers GitHub
         avec les portées `read:user` et `public_repo`. L'adresse de retour vient de la configuration,
         jamais de la requête. À appeler par navigation (`window.location`), pas par `fetch`.
+
+        Avec `access=deploy`, les portées sont `read:user`, `repo` et `workflow` : c'est ce qu'il faut pour que
+        LONKOO lance le workflow de déploiement et pour créer un dépôt privé. L'écran de consentement de GitHub est
+        alors bien plus large : à ne proposer que sur un choix explicite de l'utilisateur. Au retour, le navigateur
+        est renvoyé sur la page de déploiement (`/deploy`) au lieu du tableau de bord.
+      parameters:
+        - name: access
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [deploy]
       responses:
         "302":
           description: Redirection vers la page d'autorisation de GitHub
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "503":
           description: L'application OAuth n'est pas configurée sur ce serveur
           content:
@@ -861,24 +875,96 @@ paths:
   /generations/{generationId}/deploy:
     post:
       tags: [Génération]
-      summary: Déploie le projet généré
-      x-implemented: false
+      summary: Déploie le projet généré depuis son dépôt GitHub
+      description: |
+        Le projet doit déjà être sur GitHub (409 sinon). En mode `auto` (défaut), LONKOO lance le workflow
+        `deploy-systalink.yml` du dépôt (`workflow_dispatch`) avec le jeton GitHub de la session et suit
+        l'exécution : `GET /deployments/{deploymentId}` donne `RUNNING` puis `DEPLOYED` ou `FAILED`.
+        Si LONKOO ne peut pas lancer le workflow (fichier absent du dépôt, autorisations `repo` et `workflow`
+        manquantes), le déploiement passe en `MANUAL` : `manual` donne les étapes à suivre soi-même (pages GitHub
+        du workflow et des secrets, secrets attendus, commandes). Le mode `manual` enregistre seulement la demande
+        et ne demande aucune connexion GitHub. Rôle d'écriture requis ; 403 « Connexion GitHub requise » en mode
+        `auto` sans jeton.
+
+        Le serveur ne se connecte jamais lui-même à une machine de déploiement et n'appelle pas `publicUrl` :
+        cette adresse (http ou https, 200 caractères au plus, sans identifiants) est seulement affichée.
+        Un seul déploiement actif à la fois (409), au plus 20 par projet généré (409 « Limite atteinte »).
       parameters:
-        - name: generationId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: "#/components/parameters/GenerationId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mode:
+                  type: string
+                  enum: [auto, manual]
+                  default: auto
+                publicUrl:
+                  type: string
+                  maxLength: 200
       responses:
         "202":
-          description: Déploiement lancé
+          description: Déploiement enregistré (lancement en cours, ou étapes manuelles)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Deployment"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Rôle insuffisant, ou pas de connexion GitHub (titre « Connexion GitHub requise »)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Projet pas encore envoyé sur GitHub, déploiement déjà en cours, ou plafond atteint
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          description: Trop de travaux en cours (titre « Serveur occupé »)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /generations/{generationId}/deployments:
+    get:
+      tags: [Génération]
+      summary: Les 10 derniers déploiements du projet généré (sans rafraîchissement)
+      parameters:
+        - $ref: "#/components/parameters/GenerationId"
+      responses:
+        "200":
+          description: Déploiements, le plus récent d'abord
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Deployment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /deployments/{deploymentId}:
     get:
       tags: [Génération]
       summary: État d'un déploiement
-      x-implemented: false
+      description: |
+        Tant que le déploiement est en cours, l'état est rafraîchi depuis GitHub avec le jeton de l'appelant (au plus
+        toutes les 3 secondes). Sans jeton, ou si GitHub ne répond pas, l'état enregistré est rendu tel quel.
+        Lisible par tout membre du canvas.
       parameters:
         - name: deploymentId
           in: path
@@ -889,6 +975,66 @@ paths:
       responses:
         "200":
           description: État du déploiement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Deployment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /github/status:
+    get:
+      tags: [Session]
+      summary: La connexion GitHub de la session et ce qu'elle permet
+      description: |
+        Pour que l'interface propose le bon bouton (se connecter, autoriser le déploiement). Interroge GitHub avec le
+        jeton de la session, sans jamais le renvoyer. Les booléens valent `null` quand GitHub n'annonce pas les
+        autorisations du jeton.
+      responses:
+        "200":
+          description: État de la connexion
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [connected, expired, scopes]
+                properties:
+                  connected:
+                    type: boolean
+                  expired:
+                    type: boolean
+                    description: Un jeton était présent mais GitHub ne le reconnaît plus
+                  login:
+                    type: string
+                    nullable: true
+                  scopes:
+                    type: array
+                    items:
+                      type: string
+                  canPublish:
+                    type: boolean
+                    nullable: true
+                    description: Peut envoyer un projet dans un dépôt public
+                  canPrivate:
+                    type: boolean
+                    nullable: true
+                    description: Peut créer un dépôt privé (autorisation `repo`)
+                  canDeploy:
+                    type: boolean
+                    nullable: true
+                    description: Peut lancer le workflow de déploiement (autorisations `repo` et `workflow`)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          description: GitHub est injoignable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
 
   # ---------------------------------------------------------------------
   # Santé
@@ -1265,3 +1411,60 @@ components:
           type: string
           format: date-time
           nullable: true
+
+    Deployment:
+      type: object
+      required: [id, generationId, method, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        generationId:
+          type: string
+          format: uuid
+        method:
+          type: string
+          enum: [WORKFLOW, MANUAL]
+          description: "`WORKFLOW` : lancé par LONKOO ; `MANUAL` : à faire soi-même (choisi, ou repli faute d'autorisation)"
+        status:
+          type: string
+          enum: [PENDING, RUNNING, DEPLOYED, FAILED, MANUAL]
+        publicUrl:
+          type: string
+          nullable: true
+          description: Adresse donnée par l'utilisateur, jamais appelée par le serveur ; à traiter comme non fiable côté interface
+        runUrl:
+          type: string
+          nullable: true
+          description: Page de l'exécution sur GitHub Actions
+        detail:
+          type: string
+          nullable: true
+          description: Ce qui se passe, ou la raison de l'échec, en français
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        manual:
+          type: object
+          nullable: true
+          description: Présent seulement pour la méthode `MANUAL`
+          required: [actionsUrl, secretsUrl, secrets, commands]
+          properties:
+            actionsUrl:
+              type: string
+              description: Page GitHub du workflow, pour le lancer à la main
+            secretsUrl:
+              type: string
+              description: Page GitHub où créer les secrets du dépôt
+            secrets:
+              type: array
+              items:
+                type: string
+            commands:
+              type: array
+              items:
+                type: string
+              description: Commandes à exécuter sur le serveur de déploiement

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.lonkoo.backend.security.GithubSession;
+import com.lonkoo.backend.web.BadRequestException;
 import com.lonkoo.backend.web.GithubAuthException;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,7 +20,7 @@ import jakarta.servlet.http.HttpServletRequest;
 /**
  * Connexion GitHub (WP4b) :
  * <ul>
- *   <li>{@code GET /api/auth/github/login} : redirige vers GitHub avec le {@code state}.</li>
+ *   <li>{@code GET /api/auth/github/login[?access=deploy]} : redirige vers GitHub avec le {@code state}.</li>
  *   <li>{@code GET /api/auth/github/callback} : vérifie le {@code state}, échange le code, lit le
  *       profil, ouvre une session neuve et redirige vers le tableau de bord.</li>
  * </ul>
@@ -45,10 +46,17 @@ public class GithubController {
         this.publicUrl = publicUrl.endsWith("/") ? publicUrl.substring(0, publicUrl.length() - 1) : publicUrl;
     }
 
+    /**
+     * @param access absent, connexion ordinaire ; {@code deploy}, demande aussi de quoi lancer le déploiement depuis
+     *               LONKOO (autorisations « repo » et « workflow »), puis retour sur la page de déploiement
+     */
     @GetMapping("/login")
-    ResponseEntity<Void> login(HttpServletRequest request) {
+    ResponseEntity<Void> login(HttpServletRequest request, @RequestParam(required = false) String access) {
+        if (access != null && !access.equals("deploy")) {
+            throw new BadRequestException("Paramètre access invalide (deploy attendu)");
+        }
         githubOAuthService.requireConfigured();
-        return redirect(githubOAuthService.authorizeUrl(request));
+        return redirect(githubOAuthService.authorizeUrl(request, access != null));
     }
 
     @GetMapping("/callback")
@@ -68,9 +76,9 @@ public class GithubController {
             throw new GithubAuthException(HttpStatus.BAD_REQUEST, "Code de connexion manquant");
         }
 
-        githubOAuthService.verifyState(request, state);
+        boolean deploy = githubOAuthService.verifyState(request, state);
         githubOAuthService.complete(request, code, githubSession);
-        return redirect(publicUrl + "/dashboard");
+        return redirect(publicUrl + (deploy ? "/deploy" : "/dashboard"));
     }
 
     private static ResponseEntity<Void> redirect(String location) {

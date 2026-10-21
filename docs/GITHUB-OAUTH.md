@@ -2,7 +2,9 @@
 
 À faire une fois, par la personne qui possède le dépôt (compte `Pouye15`). Il en faut **deux** : une application OAuth GitHub n'accepte qu'une seule adresse de retour, donc une pour le développement et une pour la production. Compter 10 minutes.
 
-Ce que le backend demandera aux utilisateurs : les portées `read:user` et `public_repo` seulement (voir `architecture.md`). **Les portées ne se règlent pas ici** : le code les envoie à chaque connexion. Aucun jeton GitHub n'est stocké.
+Ce que le backend demande aux utilisateurs : les portées `read:user` et `public_repo` à la connexion ordinaire (voir `architecture.md`). **Les portées ne se règlent pas ici** : le code les envoie à chaque connexion. Aucun jeton GitHub n'est stocké.
+
+Une seconde connexion, **sur choix explicite de l'utilisateur** (`GET /api/auth/github/login?access=deploy`, bouton « Autoriser le déploiement » de la page Déployer), demande `read:user`, `repo` et `workflow` : c'est ce qui permet à LONKOO de lancer le workflow de déploiement du dépôt généré, d'y envoyer ce fichier de workflow et de créer un dépôt privé. L'écran de consentement de GitHub est alors bien plus large (accès complet aux dépôts) : l'interface le dit avant d'y envoyer l'utilisateur, et sans cette autorisation le déploiement reste possible à la main (étapes affichées). Au retour, le navigateur est renvoyé sur `/deploy` (adresse fixe, aucune adresse de retour n'est lue dans la requête).
 
 ## 1. Application de développement
 
@@ -46,7 +48,8 @@ Les valeurs de production vont dans le `.env` **du serveur** (qui n'est pas dans
 
 - Le secret n'apparaît ni dans `git status` ni dans `.env.example` (celui-ci garde `change-me`).
 - En profil `prod`, le backend refuse de démarrer si une valeur `change-me` subsiste (`ConfigurationCheck`) , y compris pour les trois variables `GITHUB_OAUTH_*` (adresse de retour en `https`).
-- La page de consentement GitHub montrera aux utilisateurs l'accès aux dépôts publics (`public_repo`) : c'est voulu, le dépôt généré est public. L'interface doit le dire avant l'envoi.
+- La page de consentement GitHub montrera aux utilisateurs l'accès aux dépôts publics (`public_repo`) : c'est voulu, le dépôt généré est public par défaut. L'interface doit le dire avant l'envoi.
+- Avec `access=deploy`, elle montre l'accès à tous les dépôts (`repo`) et aux workflows (`workflow`) : l'interface ne l'offre que dans un encadré qui l'explique, jamais à la première connexion.
 - En cas de fuite du secret : **Generate a new client secret** sur GitHub, mise à jour du `.env`, puis suppression de l'ancien secret.
 
 ## 4. « GitHub est injoignable » (503) sur un poste Windows

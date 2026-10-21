@@ -46,6 +46,7 @@ public class GithubRepoClient {
     private static final int TREE_BATCH_ENTRIES = 100;
     private static final int TREE_BATCH_BYTES = 4 * 1024 * 1024;
     private static final int REF_ATTEMPTS = 6;
+    private static final Pattern WORKFLOW_FILE = Pattern.compile("[A-Za-z0-9._-]{1,100}\\.ya?ml");
 
     /** Le compte du jeton et ses autorisations ; {@code scopes} est vide quand GitHub n'en annonce pas. */
     public record Account(String login, Set<String> scopes, boolean scopesKnown) {
@@ -56,6 +57,10 @@ public class GithubRepoClient {
 
     /** Un dépôt GitHub : nom complet {@code compte/nom}, adresse de la page et branche par défaut. */
     public record Repo(String fullName, String htmlUrl, String defaultBranch) {
+    }
+
+    /** Une exécution d'un workflow (GitHub Actions) : {@code conclusion} n'est connue qu'une fois {@code completed}. */
+    public record Run(long id, String status, String conclusion, String htmlUrl, java.time.Instant createdAt) {
     }
 
     private record Response(int status, String body, java.net.http.HttpHeaders headers) {
@@ -166,7 +171,85 @@ public class GithubRepoClient {
         return sha;
     }
 
+    /**
+     * Lance un workflow {@code workflow_dispatch} sur la branche donnée. GitHub répond 204 (sans rien dire de
+     * l'exécution) ou 200 avec son identifiant ; dans le premier cas il faut la chercher avec {@link #latestRun}.
+     */
+    public java.util.OptionalLong dispatchWorkflow(String token, String fullName, String workflowFile, String branch) {
+        checkFullName(fullName);
+        checkWorkflowFile(workflowFile);
+        checkBranch(branch);
+        ObjectNode body = json.createObjectNode();
+        body.put("ref", branch);
+        Response response = send("POST", "/repos/" + fullName + "/actions/workflows/" + workflowFile + "/dispatches", token, body);
+        if (response.status() == 204) {
+            return java.util.OptionalLong.empty();
+        }
+        require(response, 200, "le lancement du workflow");
+        JsonNode node = response.json(json).path("workflow_run_id");
+        return node.canConvertToLong() && node.asLong() > 0 ? java.util.OptionalLong.of(node.asLong()) : java.util.OptionalLong.empty();
+    }
+
+    /** La plus récente exécution lancée à la main du workflow, créée à partir de {@code notBefore}. */
+    public Optional<Run> latestRun(String token, String fullName, String workflowFile, String branch, java.time.Instant notBefore) {
+        checkFullName(fullName);
+        checkWorkflowFile(workflowFile);
+        checkBranch(branch);
+        Response response = send("GET", "/repos/" + fullName + "/actions/workflows/" + workflowFile
+                + "/runs?event=workflow_dispatch&per_page=10&branch=" + java.net.URLEncoder.encode(branch, java.nio.charset.StandardCharsets.UTF_8),
+                token, null);
+        require(response, 200, "la recherche de l'exécution");
+        Run latest = null;
+        for (JsonNode node : response.json(json).path("workflow_runs")) {
+            Run run = runOf(node);
+            if (!run.createdAt().isBefore(notBefore) && (latest == null || run.createdAt().isAfter(latest.createdAt()))) {
+                latest = run;
+            }
+        }
+        return Optional.ofNullable(latest);
+    }
+
+    /** L'état actuel d'une exécution. */
+    public Run run(String token, String fullName, long runId) {
+        checkFullName(fullName);
+        if (runId <= 0) {
+            throw new GithubPushException(Kind.OTHER, "Identifiant d'exécution invalide.");
+        }
+        Response response = send("GET", "/repos/" + fullName + "/actions/runs/" + runId, token, null);
+        require(response, 200, "la lecture de l'exécution");
+        return runOf(response.json(json));
+    }
+
     // ------------------------------------------------------------------ Interne
+
+    private Run runOf(JsonNode node) {
+        long id = node.path("id").asLong(0);
+        String status = node.path("status").asText("");
+        String conclusion = node.path("conclusion").isNull() ? null : node.path("conclusion").asText(null);
+        String url = node.path("html_url").asText("");
+        if (id <= 0 || status.isEmpty() || (!url.startsWith("https://") && !url.startsWith("http://"))) {
+            throw new GithubPushException(Kind.OTHER, "GitHub a renvoyé une exécution illisible.");
+        }
+        java.time.Instant created;
+        try {
+            created = java.time.Instant.parse(node.path("created_at").asText(""));
+        } catch (java.time.format.DateTimeParseException e) {
+            created = java.time.Instant.EPOCH;
+        }
+        return new Run(id, status, conclusion, url, created);
+    }
+
+    private static void checkWorkflowFile(String file) {
+        if (!WORKFLOW_FILE.matcher(file).matches() || file.contains("..")) {
+            throw new GithubPushException(Kind.OTHER, "Nom de workflow invalide.");
+        }
+    }
+
+    private static void checkBranch(String branch) {
+        if (!BRANCH.matcher(branch).matches() || branch.contains("..")) {
+            throw new GithubPushException(Kind.OTHER, "Nom de branche invalide.");
+        }
+    }
 
     /** L'empreinte du commit en tête de branche. Juste après la création, la branche peut tarder à apparaître. */
     private String headOf(String token, String base, String branch) {

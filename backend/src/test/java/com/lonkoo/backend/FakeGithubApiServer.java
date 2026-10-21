@@ -31,6 +31,26 @@ final class FakeGithubApiServer {
     record Call(String method, String path, String authorization, JsonNode body) {
     }
 
+    /** Une exécution de workflow simulée ; les tests changent {@code status} et {@code conclusion}. */
+    static final class Run {
+        final long id;
+        final String repo;
+        volatile String status = "queued";
+        volatile String conclusion;
+        final java.time.Instant createdAt = java.time.Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+
+        Run(long id, String repo) {
+            this.id = id;
+            this.repo = repo;
+        }
+
+        String json() {
+            return "{\"id\":" + id + ",\"status\":\"" + status + "\",\"conclusion\":" + (conclusion == null ? "null" : "\"" + conclusion + "\"")
+                    + ",\"html_url\":\"https://github.com/" + repo + "/actions/runs/" + id + "\",\"created_at\":\"" + createdAt
+                    + "\",\"event\":\"workflow_dispatch\",\"head_branch\":\"main\"}";
+        }
+    }
+
     /** Un dépôt simulé : la branche par défaut pointe un commit, chaque commit un arbre, chaque arbre ses fichiers. */
     static final class Repo {
         final String fullName;
@@ -50,6 +70,7 @@ final class FakeGithubApiServer {
         }
     }
 
+    private static final java.util.concurrent.atomic.AtomicLong RUN_IDS = new java.util.concurrent.atomic.AtomicLong(7_000_000_000L);
     private static final Pattern REPO = Pattern.compile("/repos/([^/]+/[^/]+)(/.*)?");
     private static final JsonMapper JSON = JsonMapper.shared();
 
@@ -73,6 +94,13 @@ final class FakeGithubApiServer {
     volatile boolean enforceWorkflowScope = true;
     /** Quand vrai, la connexion est coupée sans réponse (GitHub injoignable ou en panne réseau). */
     volatile boolean dropConnections;
+    /** Lancer un workflow demande l'autorisation « repo » (comme GitHub pour un jeton OAuth). */
+    volatile boolean dispatchNeedsRepoScope = true;
+    /** Le lancement répond 200 avec l'identifiant de l'exécution (sinon 204 sans rien). */
+    volatile boolean dispatchReturnsRun;
+    /** Nombre de listes d'exécutions qui répondent « aucune » avant de montrer l'exécution lancée (indexation tardive). */
+    volatile int runsHiddenPolls;
+    final List<Run> runs = new CopyOnWriteArrayList<>();
 
     private FakeGithubApiServer(HttpServer server) {
         this.server = server;
@@ -107,6 +135,20 @@ final class FakeGithubApiServer {
         calls.clear();
         enforceWorkflowScope = true;
         dropConnections = false;
+        dispatchNeedsRepoScope = true;
+        dispatchReturnsRun = false;
+        runsHiddenPolls = 0;
+        runs.clear();
+    }
+
+    /** Une autorisation précise de {@code X-OAuth-Scopes} (« public_repo » n'est pas « repo »). */
+    private boolean hasScope(String scope) {
+        String current = scopes;
+        return current != null && java.util.Arrays.stream(current.split(",")).map(String::trim).anyMatch(scope::equals);
+    }
+
+    Run lastRun() {
+        return runs.get(runs.size() - 1);
     }
 
     List<Call> callsTo(String method, String pathPart) {
@@ -214,6 +256,23 @@ final class FakeGithubApiServer {
             String commit = sha();
             repo.commitTrees.put(commit, tree);
             respond(exchange, 201, "{\"sha\":\"" + commit + "\"}");
+        } else if (method.equals("POST") && rest.startsWith("/actions/workflows/") && rest.endsWith("/dispatches")) {
+            dispatch(exchange, repo, rest.substring("/actions/workflows/".length(), rest.length() - "/dispatches".length()), body);
+        } else if (method.equals("GET") && rest.startsWith("/actions/workflows/") && rest.endsWith("/runs")) {
+            if (runsHiddenPolls > 0) {
+                runsHiddenPolls--;
+                respond(exchange, 200, "{\"total_count\":0,\"workflow_runs\":[]}");
+                return;
+            }
+            StringBuilder list = new StringBuilder();
+            for (int i = runs.size() - 1; i >= 0; i--) {
+                list.append(list.length() == 0 ? "" : ",").append(runs.get(i).json());
+            }
+            respond(exchange, 200, "{\"total_count\":" + runs.size() + ",\"workflow_runs\":[" + list + "]}");
+        } else if (method.equals("GET") && rest.startsWith("/actions/runs/")) {
+            String id = rest.substring("/actions/runs/".length());
+            Run run = runs.stream().filter(r -> String.valueOf(r.id).equals(id) && r.repo.equals(repo.fullName)).findFirst().orElse(null);
+            respond(exchange, run == null ? 404 : 200, run == null ? "{\"message\":\"Not Found\"}" : run.json());
         } else if (method.equals("PATCH") && rest.equals("/git/refs/heads/main")) {
             String commit = body.path("sha").asText();
             if (!repo.commitTrees.containsKey(commit)) {
@@ -227,6 +286,26 @@ final class FakeGithubApiServer {
         }
     }
 
+    private void dispatch(HttpExchange exchange, Repo repo, String workflowFile, JsonNode body) throws IOException {
+        boolean exists = repo.files() != null && repo.files().containsKey(".github/workflows/" + workflowFile);
+        if (!exists) {
+            respond(exchange, 404, "{\"message\":\"Not Found\"}");
+        } else if (dispatchNeedsRepoScope && scopes != null && !hasScope("repo")) {
+            respond(exchange, 403, "{\"message\":\"Resource not accessible by personal access token\"}");
+        } else if (!"main".equals(body.path("ref").asText())) {
+            respond(exchange, 422, "{\"message\":\"No ref found for: " + body.path("ref").asText() + "\"}");
+        } else {
+            Run run = new Run(RUN_IDS.incrementAndGet(), repo.fullName);
+            runs.add(run);
+            if (dispatchReturnsRun) {
+                respond(exchange, 200, "{\"workflow_run_id\":" + run.id + ",\"run_url\":\"https://api.github.com/x\",\"html_url\":\"https://github.com/" + repo.fullName + "/actions/runs/" + run.id + "\"}");
+            } else {
+                exchange.sendResponseHeaders(204, -1);
+                exchange.close();
+            }
+        }
+    }
+
     private void createTree(HttpExchange exchange, Repo repo, JsonNode body) throws IOException {
         Map<String, String> base = repo.trees.get(body.path("base_tree").asText());
         if (base == null) {
@@ -236,7 +315,7 @@ final class FakeGithubApiServer {
         Map<String, String> files = new LinkedHashMap<>(base);
         for (JsonNode entry : body.path("tree")) {
             String path = entry.path("path").asText();
-            if (enforceWorkflowScope && path.startsWith(".github/workflows/") && (scopes == null || !scopes.contains("workflow"))) {
+            if (enforceWorkflowScope && path.startsWith(".github/workflows/") && (scopes == null || !hasScope("workflow"))) {
                 respond(exchange, 404, "{\"message\":\"refusing to allow an OAuth App to create or update workflow `" + path
                         + "` without `workflow` scope\"}");
                 return;

@@ -252,6 +252,52 @@ class GithubOAuthIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(count("select count(*) from projects where owner_id = ?", first.userId)).isEqualTo(1);
     }
 
+    // ------------------------------------------------------------------ Autorisations de déploiement
+
+    @Test
+    void theDeployAccessAsksForRepoAndWorkflowAndComesBackToTheDeployPage() throws Exception {
+        MvcResult login = mockMvc.perform(get("/api/auth/github/login").param("access", "deploy"))
+                .andExpect(status().isFound()).andReturn();
+        assertThat(queryOf(login).get("scope")).isEqualTo("read:user repo workflow");
+
+        String code = GITHUB.register(newGithubId(), "deployeur", "Déployeur", null);
+        mockMvc.perform(callback(code, stateOf(login), sessionOf(login)))
+                .andExpect(status().isFound())
+                .andExpect(header().string("Location", "http://localhost:3000/deploy"));
+    }
+
+    @Test
+    void theDeployAccessIsNeverKeptForTheNextOrdinaryLogin() throws Exception {
+        // Un flux « deploy » abandonné ne doit pas élargir la connexion suivante.
+        MockHttpSession session = sessionOf(mockMvc.perform(get("/api/auth/github/login").param("access", "deploy")).andReturn());
+        MvcResult ordinary = mockMvc.perform(get("/api/auth/github/login").session(session)).andExpect(status().isFound()).andReturn();
+        assertThat(queryOf(ordinary).get("scope")).isEqualTo("read:user public_repo");
+
+        String code = GITHUB.register(newGithubId(), "ordinaire", "Ordinaire", null);
+        mockMvc.perform(callback(code, stateOf(ordinary), session))
+                .andExpect(header().string("Location", "http://localhost:3000/dashboard"));
+    }
+
+    @Test
+    void theDeployAccessIsForgottenWhenTheUserRefuses() throws Exception {
+        MvcResult login = mockMvc.perform(get("/api/auth/github/login").param("access", "deploy")).andReturn();
+        MockHttpSession session = sessionOf(login);
+
+        mockMvc.perform(get("/api/auth/github/callback").param("error", "access_denied").session(session))
+                .andExpect(header().string("Location", "http://localhost:3000/login?error=github"));
+
+        String code = GITHUB.register(newGithubId(), "apres_refus", "Après refus", null);
+        MvcResult next = mockMvc.perform(get("/api/auth/github/login").session(session)).andReturn();
+        mockMvc.perform(callback(code, stateOf(next), session))
+                .andExpect(header().string("Location", "http://localhost:3000/dashboard"));
+    }
+
+    @Test
+    void anUnknownAccessValueIsRefused() throws Exception {
+        mockMvc.perform(get("/api/auth/github/login").param("access", "admin")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/auth/github/login").param("access", "")).andExpect(status().isBadRequest());
+    }
+
     // ------------------------------------------------------------------ Refus et états invalides
 
     @Test

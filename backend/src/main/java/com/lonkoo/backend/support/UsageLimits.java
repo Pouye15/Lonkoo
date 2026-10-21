@@ -30,6 +30,7 @@ public class UsageLimits {
     private final int snapshotMaxBytes;
     private final int generationsPerCanvas;
     private final long generatedMaxBytes;
+    private final int deploymentsPerGeneration;
 
     public UsageLimits(
             JdbcClient jdbcClient,
@@ -40,7 +41,8 @@ public class UsageLimits {
             @Value("${lonkoo.limits.share-links-per-canvas:20}") int shareLinksPerCanvas,
             @Value("${lonkoo.limits.snapshot-max-bytes:1048576}") int snapshotMaxBytes,
             @Value("${lonkoo.limits.generations-per-canvas:20}") int generationsPerCanvas,
-            @Value("${lonkoo.limits.generated-max-bytes:8388608}") long generatedMaxBytes) {
+            @Value("${lonkoo.limits.generated-max-bytes:8388608}") long generatedMaxBytes,
+            @Value("${lonkoo.limits.deployments-per-generation:20}") int deploymentsPerGeneration) {
         this.jdbcClient = jdbcClient;
         this.guestProjects = guestProjects;
         this.accountProjects = accountProjects;
@@ -50,6 +52,7 @@ public class UsageLimits {
         this.snapshotMaxBytes = snapshotMaxBytes;
         this.generationsPerCanvas = generationsPerCanvas;
         this.generatedMaxBytes = generatedMaxBytes;
+        this.deploymentsPerGeneration = deploymentsPerGeneration;
     }
 
     /** Projets dont l'utilisateur est le créateur (ceux où il a seulement été invité ne comptent pas). */
@@ -92,6 +95,15 @@ public class UsageLimits {
         if (count("select count(*) from generations where canvas_id = ?", canvasId) >= generationsPerCanvas) {
             throw new LimitExceededException("Limite atteinte : " + generationsPerCanvas
                     + " générations au maximum par canvas. Supprimez-en une pour en lancer une nouvelle.");
+        }
+    }
+
+    /** Les demandes de déploiement d'une génération (abouties ou non) comptent : chacune peut lancer un workflow GitHub. */
+    public void requireRoomForDeployment(UUID generationId) {
+        lock("generations", generationId);
+        if (count("select count(*) from deployments where generation_id = ?", generationId) >= deploymentsPerGeneration) {
+            throw new LimitExceededException("Limite atteinte : " + deploymentsPerGeneration
+                    + " déploiements au maximum par projet généré. Lancez une nouvelle génération.");
         }
     }
 
