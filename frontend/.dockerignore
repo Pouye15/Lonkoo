@@ -1,0 +1,13 @@
+# Rien de local ne doit entrer dans l'image : dépendances, sortie de build, réglages et secrets du poste.
+node_modules
+.next
+out
+coverage
+*.log
+*.tsbuildinfo
+.env
+.env.*
+.git
+.gitignore
+Dockerfile
+.dockerignore

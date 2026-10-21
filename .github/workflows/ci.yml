@@ -188,6 +188,7 @@ jobs:
   # ---------------------------------------------------------------
   # Images Docker : les Dockerfiles se construisent (Docker n'est pas installé sur le poste du backend).
   # L'image du serveur temps réel est en plus démarrée : une route interne sans jeton doit répondre 401.
+  # L'image de l'interface est démarrée aussi : elle doit répondre, et ne pas avoir été construite en mode simulé.
   # ---------------------------------------------------------------
   docker:
     name: Image Docker (${{ matrix.dir }})
@@ -195,7 +196,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dir: [backend, realtime]
+        dir: [backend, realtime, frontend]
     steps:
       - uses: actions/checkout@v4
 
@@ -232,6 +233,27 @@ jobs:
           echo "Réponses inattendues : /health $health (200 attendu), route interne $internal (401 attendu)"
           docker logs realtime
           exit 1
+
+      - name: Démarrer l'image de l'interface
+        if: steps.has.outputs.present == 'true' && matrix.dir == 'frontend'
+        run: |
+          docker run --detach --name frontend --publish 3000:3000 lonkoo-frontend:ci
+          for attempt in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/login || true)
+            [ "$code" = "200" ] && break
+            sleep 1
+          done
+          if [ "$code" != "200" ]; then
+            echo "/login répond $code (200 attendu)"
+            docker logs frontend
+            exit 1
+          fi
+          # Construite en mode simulé, l'interface fonctionnerait sur des données factices du navigateur, sans aucune
+          # erreur visible. Le mode fixé au build est lisible dans le HTML servi (data-api-mode sur <html>).
+          if ! curl -s http://localhost:3000/login | grep -q 'data-api-mode="live"'; then
+            echo "L'image n'a pas été construite en mode API : NEXT_PUBLIC_API_MODE doit valoir « live »."
+            exit 1
+          fi
 
   # ---------------------------------------------------------------
   # Avis de sécurité connus sur les dépendances (informatif : ne bloque pas la fusion).

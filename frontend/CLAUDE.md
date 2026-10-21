@@ -181,6 +181,11 @@ npm run build
 
 # Serveur de production (port 3000)
 npm run start
+
+# Image Docker de production (mode API et chemin /ws par défaut ; voir l'en-tête du Dockerfile)
+docker build -t lonkoo-frontend frontend
 ```
+
+Les variables `NEXT_PUBLIC_*` sont fixées à la construction : `--build-arg NEXT_PUBLIC_API_MODE=…` et `--build-arg NEXT_PUBLIC_REALTIME_URL=…`, pas au démarrage du conteneur. Le mode choisi est lisible dans le HTML servi (`<html data-api-mode="live">`) ; la CI démarre l'image et refuse un mode autre que `live`.
 
 `next dev` génère un `AGENTS.md` (consignes pour les agents IA, version Next.js) ; il est versionné pour garder l'arbre propre.

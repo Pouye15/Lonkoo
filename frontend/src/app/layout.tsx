@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider, themeInitScript } from "@/components/theme/ThemeProvider";
 import { SessionProvider } from "@/lib/session";
+import { IS_LIVE_API } from "@/lib/api";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -44,7 +45,14 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="fr" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
+    // data-api-mode : le mode fixé au build (« live » = API réelle, « mock » = données simulées du navigateur),
+    // lisible dans le HTML servi ; la CI s'en sert pour refuser une image de production construite en mode simulé.
+    <html
+      lang="fr"
+      data-api-mode={IS_LIVE_API ? "live" : "mock"}
+      className={`${geistSans.variable} ${geistMono.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
