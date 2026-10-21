@@ -16,15 +16,19 @@ const JAVA = [
 ];
 
 const SQL = [
-  "all", "alter", "analyse", "analyze", "and", "any", "array", "as", "asc", "begin", "between",
-  "by", "cast", "check", "collate", "column", "commit", "constraint", "create", "cross",
-  "current_date", "current_time", "current_timestamp", "current_user", "database", "delete",
-  "desc", "distinct", "drop", "else", "end", "except", "exists", "false", "fetch", "for",
-  "foreign", "from", "full", "grant", "group", "having", "in", "index", "inner", "insert",
-  "intersect", "into", "is", "join", "key", "left", "like", "limit", "natural", "not", "null",
-  "offset", "on", "or", "order", "outer", "primary", "references", "right", "rollback", "schema",
-  "select", "session_user", "set", "some", "table", "then", "to", "trigger", "true", "union",
-  "unique", "update", "user", "using", "values", "view", "when", "where", "with",
+  "all", "alter", "analyse", "analyze", "and", "any", "array", "as", "asc", "asymmetric",
+  "authorization", "begin", "between", "binary", "both", "by", "cast", "check", "collate", "collation",
+  "column", "commit", "concurrently", "constraint", "create", "cross", "current_catalog",
+  "current_date", "current_role", "current_schema", "current_time", "current_timestamp",
+  "current_user", "database", "deferrable", "delete", "desc", "distinct", "do", "drop", "else", "end",
+  "except", "exists", "false", "fetch", "for", "foreign", "freeze", "from", "full", "grant", "group",
+  "having", "ilike", "in", "index", "initially", "inner", "insert", "intersect", "into", "is",
+  "isnull", "join", "key", "lateral", "leading", "left", "like", "limit", "localtime",
+  "localtimestamp", "natural", "not", "notnull", "null", "offset", "on", "only", "or", "order",
+  "outer", "overlaps", "placing", "primary", "references", "returning", "right", "rollback", "schema",
+  "select", "session_user", "set", "similar", "some", "symmetric", "system_user", "table",
+  "tablesample", "then", "to", "trailing", "trigger", "true", "union", "unique", "update", "user",
+  "using", "values", "variadic", "verbose", "view", "when", "where", "window", "with",
 ];
 
 const YAML = ["true", "false", "null", "yes", "no", "on", "off", "y", "n"];
