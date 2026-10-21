@@ -5,6 +5,7 @@
 import http from 'node:http';
 
 import { HocuspocusProvider } from '@hocuspocus/provider';
+import { createCanvasServer } from '../src/index.js';
 import { SignJWT } from 'jose';
 import { Awareness } from 'y-protocols/awareness';
 import * as Y from 'yjs';
@@ -22,6 +23,9 @@ export const CANVAS_ID = '2f0e3c1a-5d6b-4c7e-8f90-a1b2c3d4e5f6';
 export function createFakeBackend({ seed = null, state = null } = {}) {
   let stored = state;
   let lastAuthorization = null;
+  let putCount = 0;
+  /** Comportements modifiables par un test : pannes d'écriture et réponse à la lecture de l'état. */
+  const behaviour = { putFailuresLeft: 0, putFailureStatus: 503, stateStatus: 200, putDelayMs: 0 };
   const server = http.createServer((req, res) => {
     lastAuthorization = req.headers.authorization ?? null;
     if (!/^\/internal\/canvases\/[^/]+\/state$/.test(req.url)) {
@@ -29,6 +33,10 @@ export function createFakeBackend({ seed = null, state = null } = {}) {
       return;
     }
     if (req.method === 'GET') {
+      if (behaviour.stateStatus !== 200) {
+        res.writeHead(behaviour.stateStatus).end();
+        return;
+      }
       res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ state: stored, seed }));
     } else if (req.method === 'PUT') {
       let body = '';
@@ -36,8 +44,17 @@ export function createFakeBackend({ seed = null, state = null } = {}) {
         body += chunk;
       });
       req.on('end', () => {
-        stored = JSON.parse(body).state;
-        res.writeHead(204).end();
+        putCount += 1;
+        const payload = JSON.parse(body).state;
+        setTimeout(() => {
+          if (behaviour.putFailuresLeft > 0) {
+            behaviour.putFailuresLeft -= 1;
+            res.writeHead(behaviour.putFailureStatus).end();
+            return;
+          }
+          stored = payload;
+          res.writeHead(204).end();
+        }, behaviour.putDelayMs);
       });
     } else {
       res.writeHead(405).end();
@@ -48,6 +65,8 @@ export function createFakeBackend({ seed = null, state = null } = {}) {
     start: () => new Promise((resolve) => server.listen(0, '127.0.0.1', resolve)),
     url: () => `http://127.0.0.1:${server.address().port}`,
     stored: () => stored,
+    putCount: () => putCount,
+    behaviour,
     lastAuthorization: () => lastAuthorization,
     stop: () => new Promise((resolve) => server.close(resolve)),
   };
@@ -119,3 +138,26 @@ export async function internalCall(port, path, { method = 'GET', token = SERVICE
 }
 
 export const bearer = (token = SERVICE_TOKEN) => `Bearer ${token}`;
+
+/** Démarre un faux backend et un serveur temps réel, exécute `body`, puis arrête tout. */
+export async function withServer(backendOptions, body, serverOptions = {}) {
+  const backend = createFakeBackend(backendOptions);
+  await backend.start();
+  const server = createCanvasServer({
+    backendUrl: backend.url(),
+    serviceToken: SERVICE_TOKEN,
+    ticketSecret: TICKET_SECRET,
+    port: 0,
+    storeDebounceMs: 50,
+    storeMaxDebounceMs: 200,
+    storeRetryDelaysMs: [10, 10, 10],
+    ...serverOptions,
+  });
+  const { port } = await server.start();
+  try {
+    await body({ backend, server, port, wsUrl: `ws://127.0.0.1:${port}` });
+  } finally {
+    await server.stop();
+    await backend.stop();
+  }
+}

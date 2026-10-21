@@ -1,32 +1,51 @@
 /**
  * Client HTTP interne vers le backend (routes /internal).
- * Le serveur temps réel charge l'état et réécrit via ces routes.
+ * Le serveur temps réel charge l'état et réécrit via ces routes, avec le jeton de service.
  */
-export function createBackendClient(baseUrl, serviceToken) {
+
+/** Échec d'un appel au backend ; `status` est absent quand le backend est injoignable ou trop lent. */
+export class BackendError extends Error {
+  constructor(message, status) {
+    super(message);
+    this.status = status;
+  }
+}
+
+/** Une nouvelle tentative a un sens si le backend est injoignable ou en erreur, pas s'il refuse (4xx). */
+export function isRetryable(error) {
+  return !(error instanceof BackendError) || error.status === undefined || error.status >= 500;
+}
+
+export function createBackendClient(baseUrl, serviceToken, { timeoutMs = 5000 } = {}) {
+  async function call(path, options = {}) {
+    try {
+      return await fetch(`${baseUrl}${path}`, {
+        ...options,
+        headers: { Authorization: `Bearer ${serviceToken}`, ...options.headers },
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch (cause) {
+      throw new BackendError(`Backend injoignable ou trop lent (${cause.name})`);
+    }
+  }
+
+  /** État d'un canvas : `{ state: "<base64>" | null, seed: {…} | null }`. Un canvas inconnu (404) est refusé. */
   async function getState(canvasId) {
-    const res = await fetch(`${baseUrl}/internal/canvases/${canvasId}/state`, {
-      headers: { Authorization: `Bearer ${serviceToken}` },
-    });
-    if (res.status === 404) {
-      return null;
-    }
+    const res = await call(`/internal/canvases/${canvasId}/state`);
     if (!res.ok) {
-      throw new Error(`Backend getState ${res.status}`);
+      throw new BackendError(`Backend getState ${res.status}`, res.status);
     }
-    return res.json(); // { state: "<base64>" | null, seed: {…} | null }
+    return res.json();
   }
 
   async function putState(canvasId, base64) {
-    const res = await fetch(`${baseUrl}/internal/canvases/${canvasId}/state`, {
+    const res = await call(`/internal/canvases/${canvasId}/state`, {
       method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${serviceToken}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ state: base64 }),
     });
     if (!res.ok) {
-      throw new Error(`Backend putState ${res.status}`);
+      throw new BackendError(`Backend putState ${res.status}`, res.status);
     }
   }
 

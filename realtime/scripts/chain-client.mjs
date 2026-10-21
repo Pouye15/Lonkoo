@@ -48,6 +48,7 @@ const entry = (type, position, data) =>
   ]);
 
 provider.on('authenticationFailed', ({ reason }) => finish(3, `AUTH_FAILED ${reason}`));
+provider.on('close', () => console.log('CLOSED'));
 const timeout = setTimeout(() => finish(2, 'TIMEOUT_NO_SYNC'), 6000);
 
 provider.on('synced', () => {

@@ -8,6 +8,11 @@
  *     (`Authorization: Bearer <REALTIME_SERVICE_TOKEN>`) :
  *       GET  /internal/canvases/{id}/snapshot  -> instantané JSON du contrat
  *       POST /internal/canvases/{id}/restore   -> remplace le contenu en transaction
+ *       POST /internal/canvases/{id}/close     -> ferme les connexions ouvertes sur ce canvas
+ *   - GET /health (sans jeton) : 200 en service, 503 pendant l'arrêt.
+ *
+ * Arrêt propre (SIGTERM, SIGINT) : plus de nouvelle connexion, connexions fermées, tous les
+ * documents ouverts enregistrés auprès du backend avant la sortie.
  *
  * Hooks :
  *   - onAuthenticate : vérifie le ticket JWT (signature, expiration, audience,
@@ -22,7 +27,7 @@ import { Hocuspocus } from '@hocuspocus/server';
 import { WebSocketServer } from 'ws';
 import * as Y from 'yjs';
 
-import { createBackendClient } from './backendClient.js';
+import { createBackendClient, isRetryable } from './backendClient.js';
 import { createServiceTokenVerifier, createTicketVerifier } from './auth.js';
 import {
   applySeed,
@@ -42,6 +47,21 @@ const WEBSOCKET_PATHS = new Set(['/', '/ws']);
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const INTERNAL_SNAPSHOT_PATH = new RegExp(`^/internal/canvases/(${UUID})/snapshot$`, 'i');
 const INTERNAL_RESTORE_PATH = new RegExp(`^/internal/canvases/(${UUID})/restore$`, 'i');
+const INTERNAL_CLOSE_PATH = new RegExp(`^/internal/canvases/(${UUID})/close$`, 'i');
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Rejoue `action` après chaque attente de `delaysMs` tant que l'erreur peut passer (backend injoignable ou en 5xx). */
+async function withRetry(action, delaysMs) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await action();
+    } catch (err) {
+      if (!isRetryable(err) || attempt >= delaysMs.length) throw err;
+      await sleep(delaysMs[attempt]);
+    }
+  }
+}
 
 /** Erreur qui se traduit en un statut HTTP précis. */
 class HttpError extends Error {
@@ -126,6 +146,9 @@ function rejectUpgrade(socket, status, message) {
  * @param {number} [options.storeDebounceMs]     Attente avant d'enregistrer après une modification (3 s).
  * @param {number} [options.storeMaxDebounceMs]  Attente maximale sous modifications continues (15 s).
  * @param {number} [options.maxMessageBytes]     Taille maximale d'un message WebSocket et d'un corps HTTP (2 Mio).
+ * @param {number[]} [options.storeRetryDelaysMs]    Attentes entre les tentatives d'enregistrement (1 s, 2 s, 4 s).
+ * @param {number[]} [options.shutdownRetryDelaysMs] Idem pendant l'arrêt, plus court : Docker laisse 10 s (0,5 s).
+ * @param {number} [options.backendTimeoutMs]        Délai maximal d'un appel au backend (5 s).
  */
 export function createCanvasServer({
   backendUrl,
@@ -135,10 +158,21 @@ export function createCanvasServer({
   storeDebounceMs = 3000,
   storeMaxDebounceMs = 15000,
   maxMessageBytes = 2 * 1024 * 1024,
+  storeRetryDelaysMs = [1000, 2000, 4000],
+  shutdownRetryDelaysMs = [500],
+  backendTimeoutMs = 5000,
 }) {
-  const backend = createBackendClient(backendUrl, serviceToken);
+  const backend = createBackendClient(backendUrl, serviceToken, { timeoutMs: backendTimeoutMs });
   const verifyTicket = createTicketVerifier(ticketSecret);
   const hasServiceToken = createServiceTokenVerifier(serviceToken);
+  let shuttingDown = false;
+  let shutdownPromise = null;
+
+  /** Enregistre l'état Yjs d'un document auprès du backend, avec de nouvelles tentatives si besoin. */
+  async function persist(documentName, document, retryDelaysMs) {
+    const base64 = Buffer.from(Y.encodeStateAsUpdate(document)).toString('base64');
+    await withRetry(() => backend.putState(documentName, base64), retryDelaysMs);
+  }
 
   const hocuspocus = new Hocuspocus({
     name: 'lonkoo-realtime',
@@ -147,6 +181,7 @@ export function createCanvasServer({
     maxDebounce: storeMaxDebounceMs,
     timeout: 20000,
     async onLoadDocument({ document, documentName }) {
+      // Un canvas inconnu du backend (supprimé) lève une erreur : la connexion est refusée.
       const state = await backend.getState(documentName);
       if (state?.state) {
         Y.applyUpdate(document, Buffer.from(state.state, 'base64'));
@@ -155,13 +190,11 @@ export function createCanvasServer({
       } else if (state?.seed) {
         applySeed(document, state.seed);
       }
-      // Canvas sans état ni seed (ou inconnu) : document vide.
+      // Canvas sans état ni seed : document vide.
     },
     async onStoreDocument({ document, documentName }) {
-      const update = Y.encodeStateAsUpdate(document);
-      const base64 = Buffer.from(update).toString('base64');
       try {
-        await backend.putState(documentName, base64);
+        await persist(documentName, document, storeRetryDelaysMs);
       } catch (err) {
         console.error(`[realtime] échec de persistance du canvas ${documentName}:`, err.message);
       }
@@ -182,16 +215,24 @@ export function createCanvasServer({
     },
   });
 
-  /** Routes internes : instantané et restauration, réservées au backend. */
-  async function handleInternal(request, response, snapshotMatch, restoreMatch) {
+  /** Routes internes : instantané, restauration et fermeture des connexions, réservées au backend. */
+  async function handleInternal(request, response, snapshotMatch, restoreMatch, closeMatch) {
     if (!hasServiceToken(request.headers.authorization)) {
       sendJson(response, 401, { error: 'jeton de service manquant ou invalide' }, { 'WWW-Authenticate': 'Bearer' });
       return;
     }
     const isSnapshot = Boolean(snapshotMatch) && request.method === 'GET';
     const isRestore = Boolean(restoreMatch) && request.method === 'POST';
-    if (!isSnapshot && !isRestore) {
+    const isClose = Boolean(closeMatch) && request.method === 'POST';
+    if (!isSnapshot && !isRestore && !isClose) {
       sendJson(response, 405, { error: 'méthode non autorisée' });
+      return;
+    }
+    if (isClose) {
+      // Droits retirés ou canvas supprimé : les clients connectés sont déconnectés.
+      hocuspocus.closeConnections(closeMatch[1]);
+      response.writeHead(204);
+      response.end();
       return;
     }
 
@@ -219,11 +260,16 @@ export function createCanvasServer({
       const url = new URL(request.url, 'http://localhost');
       const snapshotMatch = url.pathname.match(INTERNAL_SNAPSHOT_PATH);
       const restoreMatch = url.pathname.match(INTERNAL_RESTORE_PATH);
-      if (!snapshotMatch && !restoreMatch) {
+      const closeMatch = url.pathname.match(INTERNAL_CLOSE_PATH);
+      if (url.pathname === '/health' && request.method === 'GET') {
+        sendJson(response, shuttingDown ? 503 : 200, { status: shuttingDown ? 'STOPPING' : 'UP' });
+        return;
+      }
+      if (!snapshotMatch && !restoreMatch && !closeMatch) {
         sendJson(response, 404, { error: 'not found' });
         return;
       }
-      await handleInternal(request, response, snapshotMatch, restoreMatch);
+      await handleInternal(request, response, snapshotMatch, restoreMatch, closeMatch);
     } catch (err) {
       const status = err instanceof HttpError ? err.status : err instanceof InvalidSnapshotError ? 400 : 500;
       if (status === 500) {
@@ -244,6 +290,10 @@ export function createCanvasServer({
   const wss = new WebSocketServer({ noServer: true, maxPayload: maxMessageBytes });
 
   httpServer.on('upgrade', (request, socket, head) => {
+    if (shuttingDown) {
+      rejectUpgrade(socket, 503, 'arrêt en cours');
+      return;
+    }
     // Une autre montée en protocole que WebSocket (par exemple HTTP/2 en clair, que le client HTTP de
     // Java tente par défaut) reçoit un refus net plutôt qu'une connexion coupée.
     if (String(request.headers.upgrade ?? '').toLowerCase() !== 'websocket') {
@@ -281,8 +331,42 @@ export function createCanvasServer({
     });
   });
 
+  function stop() {
+    return new Promise((resolve) => {
+      // Les connexions encore ouvertes (client qui n'a pas répondu à la fermeture) ne doivent pas bloquer l'arrêt.
+      wss.clients.forEach((client) => client.terminate());
+      wss.close(() => {
+        httpServer.close(() => resolve());
+      });
+    });
+  }
+
+  /**
+   * Arrêt propre : refuse les nouvelles connexions, ferme les existantes et enregistre tous les documents
+   * ouverts (y compris ceux dont l'enregistrement différé n'avait pas encore eu lieu) avant de rendre la main.
+   */
+  function shutdown() {
+    if (!shutdownPromise) {
+      shuttingDown = true;
+      shutdownPromise = (async () => {
+        const open = [...hocuspocus.documents];
+        hocuspocus.closeConnections();
+        await Promise.allSettled(
+          open.map(([name, document]) =>
+            persist(name, document, shutdownRetryDelaysMs).catch((err) => {
+              console.error(`[realtime] canvas ${name} non enregistré à l'arrêt:`, err.message);
+            }),
+          ),
+        );
+        await stop();
+      })();
+    }
+    return shutdownPromise;
+  }
+
   return {
     hocuspocus,
+    shutdown,
     start() {
       return new Promise((resolve, reject) => {
         httpServer.once('error', reject);
@@ -292,13 +376,7 @@ export function createCanvasServer({
         });
       });
     },
-    stop() {
-      return new Promise((resolve) => {
-        wss.close(() => {
-          httpServer.close(() => resolve());
-        });
-      });
-    },
+    stop,
   };
 }
 
@@ -320,4 +398,16 @@ if (isMain) {
   server.start().then(() => {
     console.log(`[realtime] écoute sur ws://localhost:${port} (backend ${backendUrl})`);
   });
+
+  // Docker laisse 10 s entre SIGTERM et SIGKILL : on enregistre les documents, puis on sort.
+  for (const signal of ['SIGTERM', 'SIGINT']) {
+    process.once(signal, () => {
+      console.log(`[realtime] ${signal} reçu : arrêt propre`);
+      const deadline = setTimeout(() => process.exit(1), 9000);
+      server.shutdown().then(() => {
+        clearTimeout(deadline);
+        process.exit(0);
+      });
+    });
+  }
 }

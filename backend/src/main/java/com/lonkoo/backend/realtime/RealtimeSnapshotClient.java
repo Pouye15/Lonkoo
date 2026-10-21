@@ -93,6 +93,15 @@ public class RealtimeSnapshotClient {
         }
     }
 
+    /** Demande au serveur temps réel de fermer les connexions ouvertes sur ce canvas (droits retirés, projet supprimé). */
+    public void closeConnections(UUID canvasId) {
+        HttpRequest request = request(canvasId, "close").POST(HttpRequest.BodyPublishers.noBody()).build();
+        HttpResponse<String> response = send(request, "fermeture des connexions");
+        if (response.statusCode() != 204) {
+            throw unexpectedStatus(response.statusCode(), "fermeture des connexions");
+        }
+    }
+
     private HttpRequest.Builder request(UUID canvasId, String action) {
         return HttpRequest.newBuilder(URI.create(baseUrl + "/internal/canvases/" + canvasId + "/" + action))
                 .timeout(requestTimeout)

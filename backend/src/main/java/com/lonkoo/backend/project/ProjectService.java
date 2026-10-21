@@ -4,16 +4,20 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.lonkoo.backend.canvas.CanvasAccessService;
 import com.lonkoo.backend.model.Canvas;
 import com.lonkoo.backend.model.CurrentUser;
 import com.lonkoo.backend.model.Project;
 import com.lonkoo.backend.model.Role;
+import com.lonkoo.backend.realtime.RealtimeSnapshotClient;
 import com.lonkoo.backend.support.AuditService;
 import com.lonkoo.backend.web.BadRequestException;
 import com.lonkoo.backend.web.CanvasResponse;
@@ -29,6 +33,8 @@ import com.lonkoo.backend.web.ProjectResponse;
  */
 @Service
 public class ProjectService {
+
+    private static final Logger log = LoggerFactory.getLogger(ProjectService.class);
 
     private static final RowMapper<Project> PROJECT_MAPPER = (rs, rowNum) -> new Project(
             rs.getObject("id", UUID.class),
@@ -48,11 +54,16 @@ public class ProjectService {
     private final JdbcClient jdbcClient;
     private final CanvasAccessService canvasAccessService;
     private final AuditService auditService;
+    private final RealtimeSnapshotClient realtimeSnapshotClient;
+    private final TransactionTemplate transactions;
 
-    public ProjectService(JdbcClient jdbcClient, CanvasAccessService canvasAccessService, AuditService auditService) {
+    public ProjectService(JdbcClient jdbcClient, CanvasAccessService canvasAccessService, AuditService auditService,
+            RealtimeSnapshotClient realtimeSnapshotClient, TransactionTemplate transactions) {
         this.jdbcClient = jdbcClient;
         this.canvasAccessService = canvasAccessService;
         this.auditService = auditService;
+        this.realtimeSnapshotClient = realtimeSnapshotClient;
+        this.transactions = transactions;
     }
 
     public List<ProjectResponse> listProjects(CurrentUser user) {
@@ -148,13 +159,33 @@ public class ProjectService {
         return toResponse(requireProject(projectId));
     }
 
-    @Transactional
+    /**
+     * Supprime le projet, puis déconnecte ceux qui éditaient encore ses canvas. La suppression est
+     * transactionnelle ; l'appel au serveur temps réel vient après, hors transaction, et ne fait jamais
+     * échouer la suppression (les connexions restantes ne pourront de toute façon plus rien enregistrer).
+     */
     public void deleteProject(CurrentUser user, UUID projectId) {
         requireOwner(user.id(), projectId);
-        jdbcClient.sql("delete from projects where id = ?")
+        List<UUID> canvasIds = jdbcClient.sql("select id from canvases where project_id = ?")
                 .param(projectId)
-                .update();
-        auditService.record(user.id(), "project.deleted", "project:" + projectId, null);
+                .query(UUID.class)
+                .list();
+
+        transactions.executeWithoutResult(status -> {
+            jdbcClient.sql("delete from projects where id = ?")
+                    .param(projectId)
+                    .update();
+            auditService.record(user.id(), "project.deleted", "project:" + projectId, null);
+        });
+
+        for (UUID canvasId : canvasIds) {
+            try {
+                realtimeSnapshotClient.closeConnections(canvasId);
+            } catch (RuntimeException e) {
+                log.warn("Projet supprimé, mais les connexions du canvas {} n'ont pas pu être fermées : {}",
+                        canvasId, e.getMessage());
+            }
+        }
     }
 
     public List<CanvasResponse> listCanvases(CurrentUser user, UUID projectId) {

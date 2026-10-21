@@ -199,6 +199,22 @@ class RealtimeChainIntegrationTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void deleting_a_project_disconnects_the_people_editing_it() throws Exception {
+        Demo demo = newDemo();
+
+        try (Watcher watcher = watch(demo)) {
+            watcher.awaitLine("SYNCED nodes=" + SEED_NODES);
+
+            HttpResponse<String> deleted = call("DELETE", "/api/projects/" + demo.projectId, demo.cookie, null);
+            assertThat(deleted.statusCode()).isEqualTo(204);
+
+            watcher.awaitLine("CLOSED");
+        }
+        // Le canvas n'existe plus : un nouveau ticket est refusé (404), et aucune connexion ne se rouvre sur un document vide.
+        assertThat(demo.post("/api/canvases/" + demo.canvasId + "/realtime-ticket", null).statusCode()).isEqualTo(404);
+    }
+
+    @Test
     void the_websocket_is_accepted_on_slash_and_on_ws() throws Exception {
         Demo demo = newDemo();
         String ticket = demo.ticket();

@@ -59,13 +59,10 @@ public class CanvasVersionController {
 
     @GetMapping("/canvases/{canvasId}/versions/{versionId}")
     CanvasVersionResponse detail(Authentication auth, @PathVariable UUID canvasId, @PathVariable UUID versionId) {
-        var snapshot = versionService.getSnapshot(currentUser(auth), canvasId, versionId);
-        var v = versionService.list(currentUser(auth), canvasId).stream()
-                .filter(x -> x.id().equals(versionId))
-                .findFirst()
-                .orElseThrow();
+        var detail = versionService.detail(currentUser(auth), canvasId, versionId);
+        var v = detail.version();
         return new CanvasVersionResponse(v.id(), v.canvasId(), v.name(), v.message(),
-                v.schemaVersion(), v.authorId(), v.createdAt(), snapshot);
+                v.schemaVersion(), v.authorId(), v.createdAt(), detail.snapshot());
     }
 
     @PostMapping("/canvases/{canvasId}/versions/{versionId}/restore")

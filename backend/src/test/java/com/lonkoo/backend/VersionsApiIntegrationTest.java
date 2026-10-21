@@ -2,6 +2,7 @@ package com.lonkoo.backend;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -14,10 +15,14 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -46,6 +51,9 @@ class VersionsApiIntegrationTest extends AbstractPostgresIntegrationTest {
     static void stopRealtime() {
         REALTIME.server.stop(0);
     }
+
+    @Autowired
+    private JdbcClient jdbc;
 
     @BeforeEach
     void resetRealtime() throws IOException {
@@ -226,6 +234,73 @@ class VersionsApiIntegrationTest extends AbstractPostgresIntegrationTest {
                 .andExpect(content().contentTypeCompatibleWith("application/problem+json"));
     }
 
+    // ------------------------------------------------------------------ Restauration d'un instantané devenu invalide
+
+    @Test
+    void aStoredSnapshotThatIsNoLongerValidIsNotRestored() throws Exception {
+        Canvas canvas = newCanvas();
+        // Version enregistrée à une époque où ce nom était accepté : il est réservé aujourd'hui.
+        UUID versionId = UUID.randomUUID();
+        jdbc.sql("insert into canvas_versions (id, canvas_id, name, snapshot) values (?, ?, 'ancienne', ?::jsonb)")
+                .param(versionId).param(UUID.fromString(canvas.id))
+                .param("{\"schemaVersion\":1,\"nodes\":[{\"id\":\"n1\",\"type\":\"service\",\"position\":{\"x\":0,\"y\":0},"
+                        + "\"data\":{\"name\":\"class\"}}],\"edges\":[]}")
+                .update();
+
+        mockMvc.perform(post("/api/canvases/" + canvas.id + "/versions/" + versionId + "/restore").session(canvas.session))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.errors[0]").value(containsString("class")));
+
+        assertThat(REALTIME.restoreBodies).as("rien n'est envoyé au document partagé").isEmpty();
+    }
+
+    @Test
+    void theDetailOfAVersionIsReadWithItsSnapshotInOneCall() throws Exception {
+        Canvas canvas = newCanvas();
+        String versionId = createVersion(canvas, "v1");
+
+        mockMvc.perform(get("/api/canvases/" + canvas.id + "/versions/" + versionId).session(canvas.session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(versionId))
+                .andExpect(jsonPath("$.name").value("v1"))
+                .andExpect(jsonPath("$.authorId").isNotEmpty())
+                .andExpect(jsonPath("$.snapshot.nodes.length()").value(7));
+        mockMvc.perform(get("/api/canvases/" + canvas.id + "/versions/" + UUID.randomUUID()).session(canvas.session))
+                .andExpect(status().isNotFound());
+    }
+
+    // ------------------------------------------------------------------ Suppression d'un projet
+
+    @Test
+    void deletingAProjectDisconnectsTheEditorsOfEachOfItsCanvases() throws Exception {
+        Canvas canvas = newCanvas();
+        MvcResult second = mockMvc.perform(post("/api/projects/" + canvas.projectId + "/canvases").session(canvas.session)
+                .contentType("application/json").content("{\"name\":\"Deuxième\"}"))
+                .andExpect(status().isCreated()).andReturn();
+        String secondId = JSON.readTree(second.getResponse().getContentAsString()).get("id").asText();
+
+        mockMvc.perform(delete("/api/projects/" + canvas.projectId).session(canvas.session))
+                .andExpect(status().isNoContent());
+
+        assertThat(REALTIME.closedCanvases).containsExactlyInAnyOrder(canvas.id, secondId);
+        assertThat(jdbc.sql("select count(*) from projects where id = ?").param(UUID.fromString(canvas.projectId))
+                .query(Integer.class).single()).isZero();
+    }
+
+    @Test
+    void aProjectIsDeletedEvenWhenTheRealtimeServerCannotBeReached() throws Exception {
+        Canvas canvas = newCanvas();
+        REALTIME.closeStatus = 500;
+
+        mockMvc.perform(delete("/api/projects/" + canvas.projectId).session(canvas.session))
+                .andExpect(status().isNoContent());
+
+        assertThat(REALTIME.closedCanvases).containsExactly(canvas.id);
+        mockMvc.perform(get("/api/projects/" + canvas.projectId).session(canvas.session)).andExpect(status().isNotFound());
+        assertThat(jdbc.sql("select count(*) from audit_log where action = 'project.deleted' and target = ?")
+                .param("project:" + canvas.projectId).query(Integer.class).single()).isEqualTo(1);
+    }
+
     // ------------------------------------------------------------------ Outils
 
     private record Canvas(MockHttpSession session, String projectId, String id) {
@@ -273,6 +348,8 @@ class VersionsApiIntegrationTest extends AbstractPostgresIntegrationTest {
         volatile String expectedToken = SERVICE_TOKEN;
         final List<String> restoreBodies = new CopyOnWriteArrayList<>();
         final List<String> authorizations = new CopyOnWriteArrayList<>();
+        volatile int closeStatus = 204;
+        final List<String> closedCanvases = new CopyOnWriteArrayList<>();
 
         private FakeRealtime(HttpServer server) {
             this.server = server;
@@ -301,6 +378,8 @@ class VersionsApiIntegrationTest extends AbstractPostgresIntegrationTest {
             expectedToken = SERVICE_TOKEN;
             restoreBodies.clear();
             authorizations.clear();
+            closeStatus = 204;
+            closedCanvases.clear();
         }
 
         private void handle(HttpExchange exchange) throws IOException {
@@ -311,6 +390,9 @@ class VersionsApiIntegrationTest extends AbstractPostgresIntegrationTest {
                 respond(exchange, 401, "{}");
             } else if (path.endsWith("/snapshot") && "GET".equals(exchange.getRequestMethod())) {
                 respond(exchange, snapshotStatus, snapshotStatus == 200 ? snapshot : "{}");
+            } else if (path.endsWith("/close") && "POST".equals(exchange.getRequestMethod())) {
+                closedCanvases.add(path.replace("/internal/canvases/", "").replace("/close", ""));
+                respond(exchange, closeStatus, null);
             } else if (path.endsWith("/restore") && "POST".equals(exchange.getRequestMethod())) {
                 restoreBodies.add(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
                 respond(exchange, restoreStatus, null);

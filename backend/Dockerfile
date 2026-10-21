@@ -15,4 +15,5 @@ RUN useradd --system --uid 10001 --create-home spring
 COPY --from=build /workspace/target/*.jar app.jar
 USER spring:spring
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# La JVM se dimensionne sur la mémoire du conteneur (75 % pour le tas).
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "app.jar"]

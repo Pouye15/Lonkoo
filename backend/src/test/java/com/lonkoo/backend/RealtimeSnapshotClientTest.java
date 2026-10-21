@@ -110,6 +110,26 @@ class RealtimeSnapshotClientTest {
     }
 
     @Test
+    void closeConnectionsPostsToTheCloseRouteWithTheServiceToken() {
+        status = 204;
+
+        client().closeConnections(canvasId);
+
+        assertThat(requests).hasSize(1);
+        assertThat(requests.get(0)).startsWith("POST /internal/canvases/" + canvasId + "/close")
+                .contains("Authorization=Bearer " + TOKEN).contains("Upgrade=null");
+    }
+
+    @Test
+    void aFailedCloseIsReportedAsBadGateway() {
+        status = 500;
+
+        assertThatThrownBy(() -> client().closeConnections(canvasId))
+                .isInstanceOfSatisfying(RealtimeUnavailableException.class,
+                        e -> assertThat(statusOf(e)).isEqualTo(HttpStatus.BAD_GATEWAY.value()));
+    }
+
+    @Test
     void anErrorFromTheRealtimeServerIsBadGateway() {
         status = 500;
         responseBody = "{\"error\":\"erreur interne\"}";
