@@ -57,7 +57,7 @@ public class RealtimeTicketService {
     public RealtimeTicketResponse issue(CurrentUser user, UUID canvasId) {
         var access = canvasAccessService.requireRead(canvasId);
 
-        String name = user.displayName() != null ? user.displayName() : user.login();
+        String name = presenceName(user);
         String color = colorFor(user.id());
 
         Instant issuedAt = Instant.now();
@@ -87,5 +87,18 @@ public class RealtimeTicketService {
                 expiresAt,
                 access.role().name(),
                 new RealtimeTicketResponse.TicketUser(name, color));
+    }
+
+    /**
+     * Nom affiché à côté du curseur. Tous les invités s'appellent « Invité » : quatre caractères de leur
+     * identifiant les distinguent à l'écran (« Invité 85c2 »).
+     */
+    private static String presenceName(CurrentUser user) {
+        String name = user.displayName() != null ? user.displayName() : user.login();
+        String login = user.login();
+        if (user.isGuest() && login != null && login.length() >= 4) {
+            return name + " " + login.substring(login.length() - 4);
+        }
+        return name;
     }
 }

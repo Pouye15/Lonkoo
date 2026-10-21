@@ -46,6 +46,28 @@ class RealtimeTicketIntegrationTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void guestsAreToldApartByTheirPresenceName() throws Exception {
+        String first = presenceNameOfNewGuest();
+        String second = presenceNameOfNewGuest();
+
+        assertThat(first).matches("Invité [0-9a-f]{4}");
+        assertThat(second).matches("Invité [0-9a-f]{4}");
+        assertThat(first).as("deux invités, deux noms").isNotEqualTo(second);
+    }
+
+    private String presenceNameOfNewGuest() throws Exception {
+        MvcResult guest = mockMvc.perform(post("/api/auth/guest")).andExpect(status().isCreated()).andReturn();
+        MockHttpSession session = (MockHttpSession) guest.getRequest().getSession(false);
+        String projectId = JSON.readTree(mockMvc.perform(get("/api/projects").session(session))
+                .andReturn().getResponse().getContentAsString()).get(0).get("id").asText();
+        String canvasId = JSON.readTree(mockMvc.perform(get("/api/projects/" + projectId + "/canvases").session(session))
+                .andReturn().getResponse().getContentAsString()).get(0).get("id").asText();
+        String ticket = mockMvc.perform(post("/api/canvases/" + canvasId + "/realtime-ticket").session(session))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        return JSON.readTree(ticket).get("user").get("name").asText();
+    }
+
+    @Test
     void canvasOfAnotherUserIsNotFound() throws Exception {
         MvcResult owner = mockMvc.perform(post("/api/auth/guest")).andExpect(status().isCreated()).andReturn();
         MvcResult other = mockMvc.perform(post("/api/auth/guest")).andExpect(status().isCreated()).andReturn();
