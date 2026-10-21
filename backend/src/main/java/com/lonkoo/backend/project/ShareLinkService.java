@@ -110,40 +110,17 @@ public class ShareLinkService {
 
         CurrentUser user = userSupplier.get();
 
-        // Ajoute le membre s'il ne l'est pas déjà (sinon met à jour le rôle s'il
-        // est plus élevé que l'actuel).
-        boolean exists = jdbcClient.sql("""
-                select 1 from project_members where project_id = ? and user_id = ?
-                """)
+        // Ajout atomique : deux jonctions simultanées du même utilisateur ne se heurtent pas, et un membre
+        // déjà plus haut placé (OWNER, MAINTAINER…) n'est jamais rétrogradé par un lien.
+        String roles = "array['OWNER','MAINTAINER','WRITE','TRIAGE','READ']";
+        jdbcClient.sql("insert into project_members (project_id, user_id, role) values (?, ?, ?) "
+                + "on conflict (project_id, user_id) do update set role = case "
+                + "when array_position(" + roles + ", excluded.role::text) < array_position(" + roles + ", project_members.role::text) "
+                + "then excluded.role else project_members.role end")
                 .param(row.projectId())
                 .param(user.id())
-                .query(Integer.class)
-                .optional()
-                .isPresent();
-
-        if (exists) {
-            jdbcClient.sql("""
-                    update project_members
-                    set role = case
-                        when ? = 'WRITE' and role = 'READ' then 'WRITE'
-                        else role
-                    end
-                    where project_id = ? and user_id = ?
-                    """)
-                    .param(row.role())
-                    .param(row.projectId())
-                    .param(user.id())
-                    .update();
-        } else {
-            jdbcClient.sql("""
-                    insert into project_members (project_id, user_id, role)
-                    values (?, ?, ?)
-                    """)
-                    .param(row.projectId())
-                    .param(user.id())
-                    .param(row.role())
-                    .update();
-        }
+                .param(row.role())
+                .update();
 
         auditService.record(user.id(), "share.joined", "canvas:" + row.canvasId(), null);
 

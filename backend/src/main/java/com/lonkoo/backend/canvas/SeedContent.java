@@ -10,21 +10,24 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+
 import jakarta.annotation.PostConstruct;
 
 /**
  * Modèle d'exemple (seed) livré avec le backend et validé au démarrage contre
- * le schéma du canvas. Copie de {@code docs/exemples/marketplace-mobile.canvas.json}.
+ * le contrat du canvas (schéma et règles métier). Copie de {@code docs/exemples/marketplace-mobile.canvas.json}.
  */
 @Component
 public class SeedContent {
 
     private static final Logger log = LoggerFactory.getLogger(SeedContent.class);
 
-    private final CanvasJsonValidator validator;
+    private final CanvasValidator validator;
     private final String seedJson;
 
-    public SeedContent(CanvasJsonValidator validator) {
+    public SeedContent(CanvasValidator validator) {
         this.validator = validator;
         this.seedJson = load();
     }
@@ -39,12 +42,16 @@ public class SeedContent {
 
     @PostConstruct
     void validateAtStartup() {
-        List<String> errors = validator.validate(seedJson);
+        List<String> errors = validator.validate(readTree(seedJson));
         if (!errors.isEmpty()) {
             log.error("Le seed du canvas est invalide : {}", errors);
             throw new IllegalStateException("Le seed du canvas est invalide : " + errors);
         }
         log.info("Seed du canvas validé ({} caractères)", seedJson.length());
+    }
+
+    private static JsonNode readTree(String json) {
+        return JsonMapper.shared().readTree(json);
     }
 
     public String json() {

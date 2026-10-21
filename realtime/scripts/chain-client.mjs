@@ -59,7 +59,7 @@ provider.on('synced', () => {
   }
   doc.transact(() => {
     if (action === 'add-node') {
-      nodes.set('n-e2e', entry('auth', { x: 5, y: 5 }, { name: 'connexion', method: 'otp-sms' }));
+      nodes.set('n-e2e', entry('auth', { x: 5, y: 5 }, { name: 'connexion_e2e', method: 'otp-sms' }));
     }
     if (action === 'add-bad-node') {
       nodes.set('n-bad', entry('auth', { x: 5, y: 5 }, { name: 'class', method: 'otp-sms' }));
