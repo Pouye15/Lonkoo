@@ -1,6 +1,6 @@
 # Proposition : modèle de blocs du front et contrat du canvas (décision D2)
 
-> Rédigée le 2026-10-21 par Pouye (backend). Destinataires : Fall (interface), Ngom (IA), Gaye (génération). Le contrat du canvas ne change que par une pull request relue par ces trois personnes et Pouye : ce document en est le texte, **rien n'a été modifié dans `canvas.schema.json`**.
+> Rédigée le 2026-10-21 par Pouye (backend). Destinataires : Fall (interface), Ngom (IA), Gaye (génération). Le contrat du canvas ne change que par une pull request relue par ces trois personnes et Pouye : ce document en est le texte, et le changement de `canvas.schema.json` qu'il demande est dans la pull request, à relire.
 
 ## Le problème
 
@@ -37,7 +37,7 @@ Autorisés en version 1 (`schema-canvas.md`, section « Évolution » : un champ
 - **Nouveau type `generic`**, avec `data` : `name` (identifiant), `label` facultatif, `tech` facultatif, `description` facultative (texte de 300 caractères au plus). Ignoré par le générateur.
 - **Champ facultatif `tech`** (texte de 80 caractères au plus) sur chaque `data_*` : la stack choisie par l'utilisateur (« Spring Boot », « PostgreSQL 16 »…). **Jamais inséré dans du code, un nom de fichier ou une commande** (règle des libellés). Il permet de garder « aucune stack » (absent) ou une stack libre.
 
-Le schéma n'est pas modifié ici : il le sera dans la pull request, après relecture.
+**État (21/10) :** ces deux ajouts sont appliqués dans un commit distinct de la branche `backend` (`docs/canvas.schema.json` et sa copie du backend, `schema-canvas.md`, tests du validateur), pour que la pull request les soumette à la relecture de Fall, Ngom et Gaye. Ils sont compatibles avec la version 1 (type et champ facultatif ajoutés, rien de renommé) : les instantanés enregistrés restent valides. Gaye : le type `generic` doit être ignoré par le générateur.
 
 ## Ce que cela demande au front (Fall)
 

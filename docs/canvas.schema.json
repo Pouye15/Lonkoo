@@ -44,7 +44,7 @@
       "properties": {
         "id": { "$ref": "#/$defs/id" },
         "type": {
-          "enum": ["webapp", "service", "database", "auth", "queue", "mobile-payment", "messaging", "billing"]
+          "enum": ["webapp", "service", "database", "auth", "queue", "mobile-payment", "messaging", "billing", "generic"]
         },
         "position": { "$ref": "#/$defs/position" },
         "data": { "type": "object" }
@@ -57,7 +57,8 @@
         { "if": { "properties": { "type": { "const": "queue" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/data_queue" } } } },
         { "if": { "properties": { "type": { "const": "mobile-payment" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/data_mobile_payment" } } } },
         { "if": { "properties": { "type": { "const": "messaging" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/data_messaging" } } } },
-        { "if": { "properties": { "type": { "const": "billing" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/data_billing" } } } }
+        { "if": { "properties": { "type": { "const": "billing" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/data_billing" } } } },
+        { "if": { "properties": { "type": { "const": "generic" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/data_generic" } } } }
       ]
     },
     "edge": {
@@ -79,6 +80,7 @@
       "properties": {
         "name": { "$ref": "#/$defs/ident" },
         "label": { "$ref": "#/$defs/text80" },
+        "tech": { "$ref": "#/$defs/text80" },
         "pages": { "type": "array", "maxItems": 30, "items": { "$ref": "#/$defs/ident" } }
       }
     },
@@ -89,6 +91,7 @@
       "properties": {
         "name": { "$ref": "#/$defs/ident" },
         "label": { "$ref": "#/$defs/text80" },
+        "tech": { "$ref": "#/$defs/text80" },
         "endpoints": {
           "type": "array",
           "maxItems": 50,
@@ -112,6 +115,7 @@
       "properties": {
         "name": { "$ref": "#/$defs/ident" },
         "label": { "$ref": "#/$defs/text80" },
+        "tech": { "$ref": "#/$defs/text80" },
         "engine": { "enum": ["postgresql"], "default": "postgresql" },
         "entities": {
           "type": "array",
@@ -149,6 +153,7 @@
       "properties": {
         "name": { "$ref": "#/$defs/ident" },
         "label": { "$ref": "#/$defs/text80" },
+        "tech": { "$ref": "#/$defs/text80" },
         "method": { "enum": ["github", "password", "otp-sms"] }
       }
     },
@@ -159,6 +164,7 @@
       "properties": {
         "name": { "$ref": "#/$defs/ident" },
         "label": { "$ref": "#/$defs/text80" },
+        "tech": { "$ref": "#/$defs/text80" },
         "topics": { "type": "array", "maxItems": 30, "items": { "$ref": "#/$defs/ident" } }
       }
     },
@@ -170,6 +176,7 @@
       "properties": {
         "name": { "$ref": "#/$defs/ident" },
         "label": { "$ref": "#/$defs/text80" },
+        "tech": { "$ref": "#/$defs/text80" },
         "currency": { "$ref": "#/$defs/currency" },
         "flow": { "enum": ["collect", "payout"], "default": "collect" }
       }
@@ -182,6 +189,7 @@
       "properties": {
         "name": { "$ref": "#/$defs/ident" },
         "label": { "$ref": "#/$defs/text80" },
+        "tech": { "$ref": "#/$defs/text80" },
         "channel": { "enum": ["sms", "ussd", "whatsapp", "email"] },
         "templates": {
           "type": "array",
@@ -205,8 +213,21 @@
       "properties": {
         "name": { "$ref": "#/$defs/ident" },
         "label": { "$ref": "#/$defs/text80" },
+        "tech": { "$ref": "#/$defs/text80" },
         "model": { "enum": ["subscription", "one-time", "usage"] },
         "currency": { "$ref": "#/$defs/currency" }
+      }
+    },
+    "data_generic": {
+      "description": "Bloc libre sans effet sur le code généré (passerelle, cache, IA, utilisateur…). Le générateur l'ignore.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "$ref": "#/$defs/ident" },
+        "label": { "$ref": "#/$defs/text80" },
+        "tech": { "$ref": "#/$defs/text80" },
+        "description": { "type": "string", "maxLength": 300 }
       }
     }
   }

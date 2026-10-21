@@ -51,6 +51,52 @@ class CanvasValidatorTest {
         assertThat(errorsOf(snapshot(database("n1", "base_clients", entity)))).isEmpty();
     }
 
+    // ------------------------------------------------------------------ Bloc libre et stack
+
+    @Test
+    void aGenericBlockIsValidWithOrWithoutAStack() {
+        String bare = node("n1", "generic", "{\"name\":\"passerelle\"}");
+        String full = node("n2", "generic", "{\"name\":\"cache\",\"label\":\"Cache\",\"tech\":\"Redis 7\",\"description\":\"Cache des produits\"}");
+
+        assertThat(errorsOf(snapshot(bare, full))).isEmpty();
+    }
+
+    @Test
+    void theStackIsAnOptionalLabelOnEveryBlockType() {
+        List<String> blocks = List.of(
+                node("n1", "webapp", "{\"name\":\"site\",\"tech\":\"Next.js\"}"),
+                node("n2", "service", "{\"name\":\"api\",\"tech\":\"Spring Boot\"}"),
+                node("n3", "database", "{\"name\":\"base\",\"tech\":\"PostgreSQL 16\"}"),
+                node("n4", "auth", "{\"name\":\"connexion\",\"method\":\"github\",\"tech\":\"OAuth\"}"),
+                node("n5", "queue", "{\"name\":\"bus\",\"tech\":\"Kafka\"}"),
+                node("n6", "mobile-payment", "{\"name\":\"paiement\",\"currency\":\"XOF\",\"tech\":\"générique\"}"),
+                node("n7", "messaging", "{\"name\":\"sms\",\"channel\":\"sms\",\"tech\":\"générique\"}"),
+                node("n8", "billing", "{\"name\":\"facture\",\"model\":\"one-time\",\"currency\":\"XOF\",\"tech\":\"générique\"}"));
+
+        assertThat(errorsOf(snapshot(blocks, List.of()))).isEmpty();
+    }
+
+    @Test
+    void aGenericBlockStillRefusesUnknownFieldsAndOversizedTexts() {
+        String unknown = node("n1", "generic", "{\"name\":\"cache\",\"replicas\":3}");
+        String longTech = node("n2", "generic", "{\"name\":\"gw\",\"tech\":\"" + "x".repeat(81) + "\"}");
+        String longDescription = node("n3", "generic", "{\"name\":\"ia\",\"description\":\"" + "x".repeat(301) + "\"}");
+        String noName = node("n4", "generic", "{\"label\":\"sans identifiant\"}");
+
+        for (String block : List.of(unknown, longTech, longDescription, noName)) {
+            assertThat(errorsOf(snapshot(block))).as(block).isNotEmpty();
+        }
+    }
+
+    @Test
+    void aGenericBlockFollowsTheNamingRules() {
+        assertThat(errorsOf(snapshot(node("n1", "generic", "{\"name\":\"class\"}"))))
+                .anyMatch(error -> error.contains("Nom de bloc réservé"));
+        assertThat(errorsOf(snapshot(node("n1", "generic", "{\"name\":\"api\"}"), service("n2", "api"))))
+                .anyMatch(error -> error.contains("Nom de bloc dupliqué : api"));
+        assertThat(errorsOf(snapshot(node("n1", "generic", "{\"name\":\"Pas-Valide\"}")))).isNotEmpty();
+    }
+
     // ------------------------------------------------------------------ Liens et identifiants de blocs
 
     @Test

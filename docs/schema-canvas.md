@@ -14,7 +14,7 @@ Exemple complet : [exemples/marketplace-mobile.canvas.json](exemples/marketplace
 4. **Seuls les identifiants techniques (`ident`) peuvent finir dans du code généré.** Règle : `^[a-z][a-z0-9_]{0,30}$`. Les libellés (`label`, `summary`, `text`) ne servent qu'à l'affichage et ne sont jamais insérés dans du code, un nom de fichier ou une commande.
 5. **Limites** : 200 blocs, 500 liens, 40 entités par base, 40 champs par entité. Elles protègent le navigateur, l'IA et le générateur.
 
-## Blocs (8 types)
+## Blocs (9 types)
 
 | Type | Rôle | Données propres |
 |---|---|---|
@@ -26,6 +26,9 @@ Exemple complet : [exemples/marketplace-mobile.canvas.json](exemples/marketplace
 | `mobile-payment` | Paiement mobile (générique) | `currency` (code ISO), `flow` : collect ou payout |
 | `messaging` | SMS, USSD, WhatsApp, courriel (générique) | `channel`, `templates` |
 | `billing` | Facturation | `model` : subscription, one-time, usage ; `currency` |
+| `generic` | Bloc libre (passerelle, cache, IA, utilisateur…) | `description` (300 caractères au plus). **Sans effet sur le code généré** : le générateur l'ignore |
+
+Chaque bloc porte un `name` (identifiant technique), un `label` facultatif (affichage) et un `tech` facultatif (80 caractères au plus) : la stack choisie par l'utilisateur (« Spring Boot », « PostgreSQL 16 »…). `tech` est un libellé : **jamais inséré dans du code, un nom de fichier ou une commande**. Absent, le bloc n'a aucune stack imposée.
 
 Les blocs `mobile-payment` et `messaging` sont volontairement **génériques : aucune marque, aucun logo, aucune intégration réelle** (règle du dépôt).
 
