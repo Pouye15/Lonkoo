@@ -19,6 +19,7 @@ import com.lonkoo.backend.model.Project;
 import com.lonkoo.backend.model.Role;
 import com.lonkoo.backend.realtime.RealtimeSnapshotClient;
 import com.lonkoo.backend.support.AuditService;
+import com.lonkoo.backend.support.UsageLimits;
 import com.lonkoo.backend.web.BadRequestException;
 import com.lonkoo.backend.web.CanvasResponse;
 import com.lonkoo.backend.web.CreateProjectRequest;
@@ -56,14 +57,16 @@ public class ProjectService {
     private final AuditService auditService;
     private final RealtimeSnapshotClient realtimeSnapshotClient;
     private final TransactionTemplate transactions;
+    private final UsageLimits usageLimits;
 
     public ProjectService(JdbcClient jdbcClient, CanvasAccessService canvasAccessService, AuditService auditService,
-            RealtimeSnapshotClient realtimeSnapshotClient, TransactionTemplate transactions) {
+            RealtimeSnapshotClient realtimeSnapshotClient, TransactionTemplate transactions, UsageLimits usageLimits) {
         this.jdbcClient = jdbcClient;
         this.canvasAccessService = canvasAccessService;
         this.auditService = auditService;
         this.realtimeSnapshotClient = realtimeSnapshotClient;
         this.transactions = transactions;
+        this.usageLimits = usageLimits;
     }
 
     public List<ProjectResponse> listProjects(CurrentUser user) {
@@ -84,6 +87,7 @@ public class ProjectService {
 
     @Transactional
     public ProjectResponse createProject(CurrentUser user, CreateProjectRequest request) {
+        usageLimits.requireRoomForProject(user);
         UUID projectId = UUID.randomUUID();
         UUID canvasId = UUID.randomUUID();
         String visibility = normalizeVisibility(request.visibility());
@@ -202,6 +206,7 @@ public class ProjectService {
     @Transactional
     public CanvasResponse createCanvas(CurrentUser user, UUID projectId, String name) {
         requireWriter(user.id(), projectId);
+        usageLimits.requireRoomForCanvas(projectId);
         UUID canvasId = UUID.randomUUID();
 
         jdbcClient.sql("""

@@ -1,5 +1,6 @@
 package com.lonkoo.backend.canvas;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -12,6 +13,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.lonkoo.backend.model.CurrentUser;
 import com.lonkoo.backend.realtime.RealtimeSnapshotClient;
 import com.lonkoo.backend.support.AuditService;
+import com.lonkoo.backend.support.UsageLimits;
 import com.lonkoo.backend.web.NotFoundException;
 
 import tools.jackson.core.JacksonException;
@@ -31,6 +33,7 @@ public class CanvasVersionService {
     private final RealtimeSnapshotClient realtimeSnapshotClient;
     private final AuditService auditService;
     private final TransactionTemplate transactions;
+    private final UsageLimits usageLimits;
     private final JsonMapper jsonMapper = JsonMapper.shared();
 
     public CanvasVersionService(
@@ -39,13 +42,15 @@ public class CanvasVersionService {
             CanvasValidator canvasValidator,
             RealtimeSnapshotClient realtimeSnapshotClient,
             AuditService auditService,
-            TransactionTemplate transactions) {
+            TransactionTemplate transactions,
+            UsageLimits usageLimits) {
         this.jdbcClient = jdbcClient;
         this.canvasAccessService = canvasAccessService;
         this.canvasValidator = canvasValidator;
         this.realtimeSnapshotClient = realtimeSnapshotClient;
         this.auditService = auditService;
         this.transactions = transactions;
+        this.usageLimits = usageLimits;
     }
 
     public List<CanvasVersion> list(CurrentUser user, UUID canvasId) {
@@ -89,9 +94,12 @@ public class CanvasVersionService {
         } catch (JacksonException e) {
             throw new IllegalStateException("Impossible de sérialiser l'instantané", e);
         }
+        usageLimits.requireSnapshotSize(snapshotJson.getBytes(StandardCharsets.UTF_8).length);
 
-        // La version et son entrée de journal sont écrites ensemble, ou pas du tout.
+        // La version et son entrée de journal sont écrites ensemble, ou pas du tout ; le plafond se vérifie
+        // dans cette même transaction, canvas verrouillé, pour que deux enregistrements simultanés ne le dépassent pas.
         transactions.executeWithoutResult(status -> {
+            usageLimits.requireRoomForVersion(canvasId);
             jdbcClient.sql("""
                     insert into canvas_versions (id, canvas_id, name, message, schema_version, snapshot, author_id)
                     values (?, ?, ?, ?, 1, ?::jsonb, ?)

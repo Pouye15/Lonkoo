@@ -189,6 +189,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/LimitReached"
 
   /projects/{projectId}:
     get:
@@ -289,6 +291,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/LimitReached"
 
   /canvases/{canvasId}:
     get:
@@ -423,6 +427,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/LimitReached"
 
   /join/{token}:
     post:
@@ -517,6 +523,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/LimitReached"
         "422":
           $ref: "#/components/responses/Unprocessable"
         "502":
@@ -768,6 +776,16 @@ components:
             $ref: "#/components/schemas/Problem"
     TooManyRequests:
       description: Limite d'usage par adresse atteinte
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    LimitReached:
+      description: |
+        Plafond d'usage atteint (titre « Limite atteinte », `detail` en français). Réessayer ne change rien :
+        il faut libérer de la place ou, pour un invité, se connecter avec GitHub. Plafonds par défaut :
+        20 projets par invité, 100 par compte GitHub, 10 canvas par projet, 50 versions par canvas,
+        20 liens de partage actifs par canvas, 1 Mio par instantané enregistré (réglables par variables d'environnement).
       content:
         application/problem+json:
           schema:

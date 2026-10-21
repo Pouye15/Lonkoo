@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.lonkoo.backend.canvas.CanvasAccessService;
 import com.lonkoo.backend.model.CurrentUser;
 import com.lonkoo.backend.support.AuditService;
+import com.lonkoo.backend.support.UsageLimits;
 import com.lonkoo.backend.web.BadRequestException;
 import com.lonkoo.backend.web.NotFoundException;
 import com.lonkoo.backend.web.ShareLinkResponse;
@@ -35,6 +36,7 @@ public class ShareLinkService {
     private final JdbcClient jdbcClient;
     private final CanvasAccessService canvasAccessService;
     private final AuditService auditService;
+    private final UsageLimits usageLimits;
     private final String publicUrl;
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -42,10 +44,12 @@ public class ShareLinkService {
             JdbcClient jdbcClient,
             CanvasAccessService canvasAccessService,
             AuditService auditService,
+            UsageLimits usageLimits,
             @Value("${app.public-url}") String publicUrl) {
         this.jdbcClient = jdbcClient;
         this.canvasAccessService = canvasAccessService;
         this.auditService = auditService;
+        this.usageLimits = usageLimits;
         this.publicUrl = publicUrl;
     }
 
@@ -56,6 +60,7 @@ public class ShareLinkService {
         if (!role.equals("WRITE") && !role.equals("READ")) {
             throw new BadRequestException("Rôle de partage invalide : " + role);
         }
+        usageLimits.requireRoomForShareLink(canvasId);
         int ttl = ttlHours == null ? 72 : ttlHours;
         Instant expiresAt = Instant.now().plus(ttl, ChronoUnit.HOURS);
 
