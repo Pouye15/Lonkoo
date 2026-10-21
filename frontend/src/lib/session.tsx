@@ -146,6 +146,17 @@ const apiAdapter: SessionAdapter = {
     return toSessionUser(await response.json());
   },
   async github() {
+    // Sondage préalable : si le serveur n'a pas d'application OAuth (503), on l'explique ici plutôt que
+    // d'envoyer le navigateur sur une page de JSON brut. Une redirection vers GitHub reste « opaque » (non lue).
+    let probe: Response;
+    try {
+      probe = await fetch("/api/auth/github/login", { redirect: "manual", cache: "no-store" });
+    } catch {
+      throw new Error("Le serveur est injoignable. Réessayez dans un instant.");
+    }
+    if (probe.status === 503) {
+      throw new Error("La connexion GitHub n'est pas encore configurée sur ce serveur. Utilisez « Essayer sans compte ».");
+    }
     // Navigation complète vers le backend (route hors de l'application Next) : le flux OAuth quitte la page.
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.assign("/api/auth/github/login");
