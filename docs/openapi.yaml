@@ -43,25 +43,74 @@ paths:
     get:
       tags: [Session]
       summary: Démarre la connexion GitHub (OAuth)
-      x-implemented: false
       security: []
-      description: Redirige le navigateur vers GitHub avec un état `state` conservé en session.
+      description: |
+        Garde un `state` aléatoire (à usage unique) en session et redirige le navigateur vers GitHub
+        avec les portées `read:user` et `public_repo`. L'adresse de retour vient de la configuration,
+        jamais de la requête. À appeler par navigation (`window.location`), pas par `fetch`.
       responses:
         "302":
-          description: Redirection vers GitHub
+          description: Redirection vers la page d'autorisation de GitHub
+        "503":
+          description: L'application OAuth n'est pas configurée sur ce serveur
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
 
   /auth/github/callback:
     get:
       tags: [Session]
       summary: Retour d'OAuth GitHub
-      x-implemented: false
       security: []
-      description: Vérifie `state`, échange le code, lit le profil, ouvre la session.
+      description: |
+        Vérifie le `state`, échange le code, lit le profil, crée ou met à jour le compte, ouvre une
+        session neuve et redirige vers `APP_PUBLIC_URL/dashboard`. Un invité connecté rattache son
+        compte : ses projets, ses appartenances et ses versions passent au compte GitHub. Le jeton
+        GitHub reste dans la session serveur ; il n'est ni stocké ni renvoyé.
+        Si l'utilisateur refuse l'autorisation (`error` présent), redirection vers
+        `APP_PUBLIC_URL/login?error=github`, sans session.
+      parameters:
+        - name: code
+          in: query
+          schema:
+            type: string
+        - name: state
+          in: query
+          schema:
+            type: string
+        - name: error
+          in: query
+          description: Renseigné par GitHub quand l'utilisateur refuse
+          schema:
+            type: string
       responses:
         "302":
-          description: Redirection vers APP_PUBLIC_URL/dashboard
+          description: Redirection vers `APP_PUBLIC_URL/dashboard`, ou vers `APP_PUBLIC_URL/login?error=github` en cas de refus
         "400":
-          description: État ou code invalide
+          description: État absent, faux ou déjà utilisé ; code manquant, invalide ou expiré
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "502":
+          description: GitHub a répondu une erreur ou un contenu inutilisable (ou l'application OAuth est mal configurée)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          description: GitHub est injoignable, ou l'application OAuth n'est pas configurée sur ce serveur
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "504":
+          description: GitHub n'a pas répondu à temps (10 s)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
 
   /auth/guest:
     post:

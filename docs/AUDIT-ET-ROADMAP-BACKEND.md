@@ -6,7 +6,7 @@
 >
 > **Limites de l'audit :** seul le dépôt local a été examiné. Docker n'est pas installé sur le poste, donc **aucune image n'a été construite** ; aucun navigateur, VPS, GitHub ni Caddy n'a été contacté ; le travail éventuel de Fall ou de Gaye sur d'autres branches n'est pas vu.
 >
-> **Suivi du 21/10 :** les lots R1, R2 et R3 sont faits. Les constats C-01 à C-06, S-01 à S-03, S-05, D-01 à D-05 sont corrigés et couverts par des tests (OSV.dev : 0 avis sur les 97 dépendances Maven ; `npm audit` : 0) ; un test de chaîne permanent (backend Spring et serveur Node réels) surveille la chaîne temps réel. Un défaut de plus a été trouvé et corrigé en chemin (S-08). Après R2 : 71 tests Java et 31 tests Node, tous verts. Les constats ci-dessous restent tels que relevés à l'audit, avec la mention **Corrigé** quand c'est le cas ; le travail est commité localement en six commits, **pas encore poussé** ; reste à faire : R4 à R12.
+> **Suivi du 21/10 :** les lots R1, R2 et R3 sont faits, R4 est fait côté code (essai réel en attente). Les constats C-01 à C-06, S-01 à S-03, S-05, D-01 à D-05 sont corrigés et couverts par des tests (OSV.dev : 0 avis sur les 97 dépendances Maven ; `npm audit` : 0) ; un test de chaîne permanent (backend Spring et serveur Node réels) surveille la chaîne temps réel. Un défaut de plus a été trouvé et corrigé en chemin (S-08). Après R2 : 71 tests Java et 31 tests Node, tous verts ; avec R4, 97 tests Java. Les constats ci-dessous restent tels que relevés à l'audit, avec la mention **Corrigé** quand c'est le cas ; le travail est commité localement en six commits, **pas encore poussé** ; reste à faire : R4 à R12.
 
 ## 1. En bref
 
@@ -41,7 +41,7 @@ Les sondes sont jetables : le test de chaîne est à recréer en test permanent 
 | WP2 Squelette Spring | fait (licences Maven bloquantes en CI depuis R3) | l'image sera construite par la CI au premier push |
 | WP3 Base | fait (V1, V2, purge testée) | migration V3 d'index (Q-03) |
 | WP4a Invité et session | fait | rien : fixation de session, expiration, limite par adresse (testées) |
-| WP4b Connexion GitHub | non commencé | R4 |
+| WP4b Connexion GitHub | codée et testée contre un faux GitHub (21/10) | essai réel avec l'application OAuth de développement ; message d'erreur côté front |
 | WP5 Projets, canvas, partage | fait (T1 et suppression) | membres et rôles (T3) ; tests de rôles (Q-01) |
 | WP6 Temps réel | écrit ; chaîne réparée le 21/10 (R1) | R6 |
 | WP7 Versions | écrit ; utilisable depuis R1 | Q-02, Q-04 |
@@ -163,17 +163,21 @@ Dépendances à lever aujourd'hui : création des deux applications OAuth GitHub
 
 **Preuve :** `git log` montre les six commits ; `git status` ne laisse que le PDF du cahier des charges, volontairement non suivi ; `openapi-spec-validator` et Redocly valident `docs/openapi.yaml` ; `scripts/check_licenses_maven.py` passe sur les 97 dépendances et refuse un POM GPL seul (essai sur un dépôt Maven factice). La CI n'a pas encore tourné : rien n'est poussé.
 
-#### R4 — Connexion GitHub, WP4b (Pouye ; 3,5 h ; commence quand R1 est fini)
+#### R4 — Connexion GitHub, WP4b (Pouye ; 3,5 h) — **code et tests faits le 21/10, essai réel en attente**
 
-Pré-requis humain : les deux applications OAuth (développement et production) et leurs secrets.
+Pré-requis humain, seulement pour l'essai dans un vrai navigateur : l'application OAuth de développement et ses secrets, pas à pas dans [GITHUB-OAUTH.md](GITHUB-OAUTH.md). L'application de production attend l'étape de déploiement.
 
-- [ ] `GET /api/auth/github/login` (paramètre `state` en session, redirection vers GitHub avec les portées `read:user` et `public_repo`) et `GET /api/auth/github/callback` (vérifie `state`, échange le code, lit `GET /user`, crée ou met à jour `users` par `github_id`, ouvre la session, redirige vers une adresse fixe `APP_PUBLIC_URL/dashboard`).
-- [ ] Le jeton GitHub reste **dans la session uniquement** (jamais en base, jamais dans les journaux), exposé par une interface `GithubSession.token()` pour R8.
-- [ ] Un invité qui se connecte **rattache** son compte (projets conservés) au lieu d'en créer un second.
-- [ ] Journal d'audit `login.github` ; erreurs `problem+json` ; session neuve à la connexion (déjà fournie par `SessionSecurityContextRepository.login`).
-- [ ] Tests avec un faux GitHub (serveur HTTP local) : succès, `state` invalide, refus de l'utilisateur, rattachement.
+- [x] `GET /api/auth/github/login` (`state` aléatoire de 32 octets gardé en session, redirection vers GitHub avec `read:user public_repo`, adresse de retour issue de la configuration) et `GET /api/auth/github/callback` (état à usage unique vérifié en temps constant, échange du code, lecture du profil, compte créé ou mis à jour par `github_id`, session neuve, redirection vers `APP_PUBLIC_URL/dashboard`).
+- [x] Le jeton GitHub reste **dans la session uniquement**, exposé par `GithubSession.token()` pour R8 ; un test parcourt toutes les tables et toutes les réponses : ni le jeton ni le secret de l'application n'y sont.
+- [x] Un invité qui se connecte **rattache** son compte : ses projets, ses appartenances (rôle le plus élevé gardé), les auteurs de ses versions et ses liens de partage passent au compte GitHub, puis la ligne d'invité est supprimée, en une transaction, que le compte GitHub existe déjà ou non. Le brouillon initial perdait les projets de l'invité quand le compte existait déjà.
+- [x] Erreurs en `problem+json` : 400 (état faux, absent ou rejoué, code manquant, invalide ou expiré), 502 (GitHub en erreur, réponse illisible, application OAuth refusée), 503 (GitHub injoignable, ou application non configurée : les routes répondent 503 au lieu d'envoyer vers GitHub avec `change-me`), 504 (GitHub trop lent). Les appels à GitHub se font hors de toute transaction.
+- [x] Refus de l'utilisateur : redirection vers `APP_PUBLIC_URL/login?error=github`, sans session, et l'état abandonné n'est plus valable.
+- [x] Audit `login.github` et `guest.merged` ; `ConfigurationCheck` refuse en profil `prod` les valeurs d'exemple des trois variables GitHub et une adresse de retour qui n'est pas en `https`.
+- [x] Contrat d'API (`openapi.yaml`) et `.env.example` à jour.
+- [ ] **Essai réel** : créer l'application OAuth de développement, remplir le `.env`, lancer le front en `NEXT_PUBLIC_API_MODE=live` et se connecter pour de vrai.
+- [ ] **Front (Fall)** : la page de connexion ne lit pas encore `?error=github` ; elle devrait afficher « connexion GitHub refusée » dans ce cas.
 
-**Preuve :** le bouton « Continuer avec GitHub » du front aboutit sur `/dashboard` avec `GET /api/me` correct ; la valeur du jeton n'apparaît dans aucun journal ni table.
+**Preuve :** 14 tests contre un faux GitHub (`GithubOAuthIntegrationTest`), 8 tests du client (`GithubApiClientTest`), 2 sur l'application non configurée, 2 sur `ConfigurationCheck` ; le retrait de la fusion des comptes fait échouer 2 tests. L'essai avec le vrai GitHub reste à faire.
 
 #### R5 — Tests, validateur, contrôles d'accès (Pouye ; 3,5 h)
 
