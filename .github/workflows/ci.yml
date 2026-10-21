@@ -88,6 +88,17 @@ jobs:
           java-version: 21
           cache: maven
 
+      # Le test de chaîne (RealtimeChainIntegrationTest) lance le vrai serveur temps réel Node.
+      - uses: actions/setup-node@v4
+        if: steps.has.outputs.present == 'true'
+        with:
+          node-version: 24
+
+      - name: Dépendances du serveur temps réel (test de chaîne)
+        if: steps.has.outputs.present == 'true'
+        working-directory: realtime
+        run: npm ci
+
       - name: Build et tests
         if: steps.has.outputs.present == 'true'
         run: mvn -B -ntp verify
@@ -105,14 +116,20 @@ jobs:
           python3 -m pip install --quiet jsonschema
           python3 scripts/check_canvas_schema.py
 
+      # Le contrat d'API (docs/openapi.yaml) doit rester une description OpenAPI valide.
+      - name: Valider le contrat d'API
+        run: |
+          python3 -m pip install --quiet openapi-spec-validator
+          python3 -m openapi_spec_validator docs/openapi.yaml
+
   # ---------------------------------------------------------------
   # Licences des composants tiers
   # Le règlement CADev rend le projet irrecevable avec une licence GPL, AGPL ou LGPL.
   # - npm : bloquant. Seules les licences de la liste ci-dessous passent.
   #   Faux positifs possibles (licences doubles) : vérifiez à la main,
   #   puis documentez la décision dans docs/LICENCES-TIERCES.md.
-  # - Maven : informatif au départ. Passez continue-on-error à false
-  #   quand la liste est propre.
+  # - Maven : bloquant pour les dépendances d'exécution (scripts/check_licenses_maven.py) ;
+  #   le rapport complet du plugin (test compris) reste informatif.
   # ---------------------------------------------------------------
   licences:
     name: Licences des composants tiers
@@ -145,7 +162,15 @@ jobs:
           java-version: 21
           cache: maven
 
-      - name: Licences Maven (informatif)
+      # Bloquant : une licence GPL, AGPL ou LGPL sans alternative permissive rend le projet irrecevable.
+      # Les licences sont lues dans les POM des dépendances d'exécution (exceptions documentées dans le script).
+      - name: Licences Maven (bloquant)
+        if: hashFiles('backend/pom.xml') != ''
+        run: |
+          (cd backend && mvn -B -ntp dependency:list -DincludeScope=runtime -DoutputFile="$GITHUB_WORKSPACE/maven-deps.txt")
+          python3 scripts/check_licenses_maven.py maven-deps.txt
+
+      - name: Licences Maven (rapport complet, informatif)
         continue-on-error: true
         run: |
           if [ -f backend/pom.xml ]; then
@@ -159,6 +184,92 @@ jobs:
           else
             echo "Pas encore de pom.xml dans backend : étape ignorée."
           fi
+
+  # ---------------------------------------------------------------
+  # Images Docker : les Dockerfiles se construisent (Docker n'est pas installé sur le poste du backend).
+  # L'image du serveur temps réel est en plus démarrée : une route interne sans jeton doit répondre 401.
+  # ---------------------------------------------------------------
+  docker:
+    name: Image Docker (${{ matrix.dir }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: [backend, realtime]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Vérifier la présence du Dockerfile
+        id: has
+        run: |
+          if [ -f "${{ matrix.dir }}/Dockerfile" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "Pas de Dockerfile dans ${{ matrix.dir }} : étape ignorée."
+          fi
+
+      - name: Construire l'image
+        if: steps.has.outputs.present == 'true'
+        run: docker build --pull --tag "lonkoo-${{ matrix.dir }}:ci" "${{ matrix.dir }}"
+
+      - name: Démarrer l'image du serveur temps réel
+        if: steps.has.outputs.present == 'true' && matrix.dir == 'realtime'
+        run: |
+          # Secrets jetables, tirés au hasard pour ce seul démarrage.
+          docker run --detach --name realtime --publish 1234:1234 \
+            --env REALTIME_SERVICE_TOKEN="$(openssl rand -hex 16)" \
+            --env REALTIME_TICKET_SECRET="$(openssl rand -hex 32)" \
+            lonkoo-realtime:ci
+          for attempt in $(seq 1 20); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' \
+              http://localhost:1234/internal/canvases/00000000-0000-0000-0000-000000000000/snapshot || true)
+            [ "$code" = "401" ] && exit 0
+            sleep 1
+          done
+          echo "Réponse inattendue : $code (401 attendu)"
+          docker logs realtime
+          exit 1
+
+  # ---------------------------------------------------------------
+  # Avis de sécurité connus sur les dépendances (informatif : ne bloque pas la fusion).
+  # npm audit pour le front et le temps réel, OSV.dev pour les dépendances Maven d'exécution.
+  # ---------------------------------------------------------------
+  vulnerabilites:
+    name: Avis de sécurité des dépendances (informatif)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: npm audit (frontend)
+        if: hashFiles('frontend/package-lock.json') != ''
+        continue-on-error: true
+        working-directory: frontend
+        run: npm audit --omit=dev
+
+      - name: npm audit (temps réel)
+        if: hashFiles('realtime/package-lock.json') != ''
+        continue-on-error: true
+        working-directory: realtime
+        run: npm audit --omit=dev
+
+      - uses: actions/setup-java@v4
+        if: hashFiles('backend/pom.xml') != ''
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Avis OSV sur les dépendances Maven d'exécution
+        if: hashFiles('backend/pom.xml') != ''
+        run: |
+          (cd backend && mvn -B -ntp dependency:list -DincludeScope=runtime -DoutputFile="$GITHUB_WORKSPACE/deps.txt")
+          python3 scripts/check_osv_maven.py deps.txt
 
   # ---------------------------------------------------------------
   # Détection de secrets dans tout l'historique
