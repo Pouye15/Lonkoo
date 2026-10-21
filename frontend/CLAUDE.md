@@ -24,6 +24,7 @@ Reste à faire côté front (voir `../docs/ROADMAP-BACKEND.md`) :
 - **API branchée (lot R9, 21/10)** : avec `NEXT_PUBLIC_API_MODE=live` (lu au build), `session.tsx`, `workspace.tsx` et `project-graph.ts` parlent à l'API et au document Yjs partagé ; sans, les données simulées du navigateur restent le comportement par défaut (la CI construit sans la variable). Voir § 3.5, § 3.10 et « Mode API » ci-dessous.
 - **Modèle de blocs aligné sur le contrat** (décision D2, `../docs/PROPOSITION-MODELE-DE-BLOCS.md`) : 9 types dont `generic` (passerelle, cache, IA, utilisateur, bloc libre) ; la forme dessinée et tout champ propre au front vont dans la clé `ui` du document, hors contrat. La proposition et l'ajout du type `generic` au schéma attendent la relecture de l'équipe (pull request).
 - **Panneau « Propriétés »** (21/10) : tables et champs d'une base, endpoints d'un service, pages d'une application web, topics d'une file, méthode d'authentification, canal, devise, flux, modèle de facturation. Ces champs du contrat sont portés par `ArchitectureNode.contract` (voir `canvas-model.ts`) : ils passent par le même chemin que le reste (annuler/rétablir, lecture seule, mode simulé). Les saisies sont validées comme le fait le backend (`canvas-contract.ts`) avant d'être écrites : une saisie refusée n'arrive jamais dans le document partagé.
+- **Exports et comparateur de versions** (21/10) : bouton *Exporter* du Studio (Mermaid avec aperçu et copie prête pour un README GitHub, spécification JSON du contrat, image SVG, image PNG) et bouton *Comparer* de chaque version (voir § 3.5). Les formats sont produits par des modules purs (`canvas-export.ts`, `canvas-diff.ts`) ; le Mermaid est validé par l'analyseur Mermaid, le SVG est un fichier autonome (couleurs et polices du système, thème clair).
 - **Reste à faire** : modification des gabarits de message d'un bloc de messagerie (ils sont conservés tels quels) ; liste réelle des membres (le serveur n'a pas encore de route).
 - Écrans sans backend prévu (communauté, revues, MCP, Orion) : données fictives, à garder en démonstration ou à masquer avant la soumission.
 
@@ -65,6 +66,7 @@ Six onglets compacts (une seule ligne, défilement horizontal si l'écran est é
    - **Conventions visuelles** : `cylinder` = base de données en pile de cylindres ; `user` = silhouette ; `queue` = tuyau horizontal segmenté ; `gateway`, `service`, `cache`, `security`, `ai` = boîtes à icône ; `mobile-payment`, `messaging`, `billing` = blocs locaux génériques, sans marque (contrat du canvas) ; `generic` = **bloc libre** neutre.
    - **Indépendance entre bloc et stack** : un composant posé n'a **aucune stack imposée** (`tech: ""`). L'utilisateur le laisse neutre (« Aucune stack ») ou lui attribue un préréglage en un clic (`whiteboard/stencils.ts`) ou une saisie libre.
    - **Boîte à outils** (dock, en bas au centre, réductible) : onglets *Composants* (cliquer ou **glisser** sur le canevas) et *Stack technique* (propriétés du bloc sélectionné).
+   - **Exporter** (en-tête du Studio) : code Mermaid (`flowchart LR`, copiable avec ses balises de code), spécification JSON du contrat (en mode API, l'instantané du serveur), image SVG et image PNG (fond blanc, résolution doublée). Le texte saisi par l'utilisateur est échappé dans chaque format.
    - **Propriétés** (bouton de la barre d'outils, panneau à droite qui réduit le tableau sans le recouvrir) : les champs du contrat propres au type du bloc sélectionné (tables et champs, endpoints, pages, topics…). C'est ce qui permet de générer les entités et les contrôleurs du projet.
 2. **Analyse IA** : topologie, points uniques de défaillance, cohérence de stack ; correctifs applicables en un clic. *Maquette : l'IA réelle est un autre chantier.*
 3. **Simulateur** : trafic de 1 000 à 20 000 req/s, charge et latence par bloc, ajout de répliques.
@@ -116,7 +118,8 @@ frontend/
 │   │   ├── layout/               # AppShell, PageHeader, ProjectSwitcher, UserMenu
 │   │   ├── landing/              # Nav, StudioDemo (+ sequence/render-frame.ts), Features, Faq, bas de page
 │   │   ├── studio/               # ArchitectureWhiteboard + whiteboard/ (geometry, use-viewport, NodeView, EdgesLayer, Dock, ContractInspector, Minimap, stencils)
-│   │   │   └── live/             # Mode API : CanvasGate, ShareDialog, VersionsPanel, LiveTeamPanel
+│   │   ├── studio/ExportDialog.tsx   # Exports : Mermaid, JSON, SVG, PNG
+│   │   │   └── live/             # Mode API : CanvasGate, ShareDialog, VersionsPanel (+ CompareDialog), LiveTeamPanel
 │   │   └── palabre/              # BlueprintDetailClient
 │   └── lib/
 │       ├── session.tsx           # Session (adaptateur simulé ou API)
@@ -127,6 +130,9 @@ frontend/
 │       ├── canvas-yjs.ts         # Lecture et écriture du document Yjs, par différences
 │       ├── canvas-model.ts       # Bloc du front ↔ entrée du contrat (champs propres au front dans `ui`)
 │       ├── canvas-contract.ts    # Champs du contrat par type (tables, endpoints…) : lecture tolérante, validation
+│       ├── canvas-export.ts      # Instantané du contrat, Mermaid et SVG tirés du graphe
+│       ├── canvas-diff.ts        # Différences entre deux instantanés (ajouté, supprimé, modifié, déplacé)
+│       ├── download.ts           # Téléchargements (texte, JSON) et image PNG tirée d'un SVG
 │       ├── reserved-words.ts     # Mots réservés Java, SQL, YAML (copie surveillée du backend)
 │       ├── *.test.ts             # Tests (lanceur de Node : `npm test`)
 │       ├── lonkoo-data.ts        # Types et données d'exemple
@@ -142,7 +148,7 @@ frontend/
 - **Lecture seule** (rôles Read et Triage, ou refus du serveur) : pas de boîte à outils, ni déplacement, ni liaison, ni suppression, ni annulation ; la barre d'outils l'indique. Le serveur ignore de toute façon leurs écritures.
 - **Document Yjs** : trois cartes (`nodes`, `edges`, `meta`), une `Y.Map` par entrée (`type`, `position`, `data`, `ui`). `data.name` est l'identifiant technique, déduit du titre à la création (sans accent, hors mots réservés, unique) puis **stable** ; `data.label` porte le titre, `data.tech` la stack (80 caractères au plus), le reste de `data` (tables, endpoints…) est `node.contract`. Ouvrir un canvas sans le modifier n'écrit rien dans le document.
 - **Partage** : bouton *Partager* (rôles Owner et Maintainer) : rôle et durée au choix (72 h au plus). La page `/join/[token]` ouvre une session d'invité si besoin et rejoint le projet.
-- **Versions** : onglet *Versions* en mode API : enregistrer (le serveur valide : 422 avec la liste des erreurs), restaurer (vu en direct par tous), exporter en JSON.
+- **Versions** : onglet *Versions* en mode API : enregistrer (le serveur valide : 422 avec la liste des erreurs), restaurer (vu en direct par tous), exporter en JSON, **comparer** : le schéma des deux états superposés (ajouté en vert, supprimé en rouge pointillé, modifié en orange) et la liste de ce qui a changé (tables, champs, endpoints, pages, topics, titre, stack, liens). Un bloc seulement déplacé est compté à part, sans couleur. On compare une version au canvas actuel ou à une autre version.
 - **Erreurs** : `api.ts` lit les `problem+json` ; un 401 renvoie à la connexion en gardant la page demandée.
 
 ### Thème

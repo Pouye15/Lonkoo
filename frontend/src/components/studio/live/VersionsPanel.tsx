@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { ArrowCounterClockwise, DownloadSimple, FloppyDisk } from "@phosphor-icons/react";
+import { ArrowCounterClockwise, DownloadSimple, FloppyDisk, GitDiff } from "@phosphor-icons/react";
 import { ApiError, apiFetch, messageOf, relativeTime, type ApiVersion } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/Button";
 import { inputClass, textareaClass } from "@/components/ui/Field";
+import { CompareDialog } from "./CompareDialog";
 
 interface VersionsPanelProps {
   canvasId: string;
@@ -45,6 +46,7 @@ export function VersionsPanel({ canvasId, projectName, canWrite }: VersionsPanel
   const [saving, setSaving] = useState(false);
   const [confirming, setConfirming] = useState<string | null>(null);
   const [restoring, setRestoring] = useState<string | null>(null);
+  const [comparing, setComparing] = useState<ApiVersion | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -169,6 +171,10 @@ export function VersionsPanel({ canvasId, projectName, canWrite }: VersionsPanel
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-edge-soft pt-2.5">
               <span className="font-mono text-[11px] text-ink-3">Contrat version {version.schemaVersion}</span>
               <div className="flex flex-wrap items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setComparing(version)}>
+                  <GitDiff size={14} />
+                  Comparer
+                </Button>
                 <Button variant="ghost" size="sm" onClick={() => void exportVersion(version)}>
                   <DownloadSimple size={14} />
                   Exporter
@@ -251,6 +257,8 @@ export function VersionsPanel({ canvasId, projectName, canWrite }: VersionsPanel
           Exporter le canvas actuel (JSON)
         </Button>
       </div>
+
+      <CompareDialog open={comparing !== null} onClose={() => setComparing(null)} canvasId={canvasId} version={comparing} versions={versions ?? []} />
     </div>
   );
 }
