@@ -1,6 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { IS_LIVE_API, type ApiRole } from "@/lib/api";
+import { useCanvas, type CanvasStatus, type Peer } from "@/lib/canvas-session";
+import { ensureCanvas, noteBlockCount, useWorkspace } from "@/lib/workspace";
 import {
   CORE_STUDIO_NODES,
   STUDIO_EDGES,
@@ -12,8 +15,9 @@ import {
 /**
  * Graphe d'architecture d'un projet (blocs et liaisons).
  *
- * Provisoire : conservé dans le navigateur, un graphe par projet. Il sera remplacé par le document
- * Yjs partagé du serveur temps réel (docs/ROADMAP-BACKEND.md, WP6 et WP12).
+ * Mode simulé (par défaut) : conservé dans le navigateur, un graphe par projet. Mode API
+ * (`NEXT_PUBLIC_API_MODE=live`) : le document Yjs partagé du serveur temps réel, voir `canvas-session.ts`.
+ * Les deux modes rendent la même forme : le tableau blanc ne sait pas d'où viennent ses blocs.
  */
 
 interface Graph {
@@ -77,10 +81,78 @@ export function clearStoredGraphs() {
 
 type Updater<T> = T | ((previous: T) => T);
 
+/** État de la connexion au canvas partagé (mode API seulement). */
+export interface LiveCanvasInfo {
+  canvasId: string | null;
+  status: CanvasStatus;
+  /** Le document est chargé : le tableau peut s'afficher. */
+  synced: boolean;
+  role: ApiRole | null;
+  readOnly: boolean;
+  peers: Peer[];
+  error: string | null;
+  setCursor: (point: { x: number; y: number } | null) => void;
+}
+
+export interface ProjectGraph {
+  nodes: ArchitectureNode[];
+  edges: ArchitectureEdge[];
+  setNodes: (next: Updater<ArchitectureNode[]>) => void;
+  setEdges: (next: Updater<ArchitectureEdge[]>) => void;
+  reset: () => void;
+  /** Renseigné en mode API, `null` en mode simulé. */
+  live: LiveCanvasInfo | null;
+}
+
+/* ------------------------------------------------------------------ */
+/* Mode API : document Yjs partagé                                      */
+/* ------------------------------------------------------------------ */
+
+function useLiveGraph(slug: string): ProjectGraph {
+  const { projects } = useWorkspace();
+  const project = projects.find((p) => p.slug === slug);
+  const projectId = project?.id;
+  const canvasId = project?.canvasId ?? null;
+
+  useEffect(() => {
+    if (projectId && !canvasId) ensureCanvas(projectId);
+  }, [projectId, canvasId]);
+
+  const canvas = useCanvas(canvasId);
+
+  useEffect(() => {
+    if (projectId && canvas.synced) noteBlockCount(projectId, canvas.nodes.length);
+  }, [projectId, canvas.synced, canvas.nodes.length]);
+
+  const reset = useCallback(() => undefined, []);
+
+  return {
+    nodes: canvas.nodes,
+    edges: canvas.edges,
+    setNodes: canvas.setNodes,
+    setEdges: canvas.setEdges,
+    reset,
+    live: {
+      canvasId,
+      status: canvas.status,
+      synced: canvas.synced,
+      role: canvas.role,
+      readOnly: canvas.readOnly,
+      peers: canvas.peers,
+      error: canvas.error,
+      setCursor: canvas.setCursor,
+    },
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Mode simulé : graphe gardé dans le navigateur                        */
+/* ------------------------------------------------------------------ */
+
 /**
  * @param persist `false` pour une simple lecture (aucune écriture dans le navigateur).
  */
-export function useProjectGraph(slug: string, { persist = true }: { persist?: boolean } = {}) {
+function useMockGraph(slug: string, { persist = true }: { persist?: boolean } = {}): ProjectGraph {
   const [loaded, setLoaded] = useState<Loaded>(() => ({ slug, graph: loadGraph(slug) }));
 
   // Le projet change sans démontage : on charge le graphe du nouveau projet.
@@ -127,5 +199,10 @@ export function useProjectGraph(slug: string, { persist = true }: { persist?: bo
     return () => window.clearTimeout(timer);
   }, [loaded, persist]);
 
-  return { nodes: loaded.graph.nodes, edges: loaded.graph.edges, setNodes, setEdges, reset };
+  return { nodes: loaded.graph.nodes, edges: loaded.graph.edges, setNodes, setEdges, reset, live: null };
 }
+
+/** Le graphe du projet `slug` : simulé ou partagé selon le mode de l'application (fixé au build). */
+export const useProjectGraph: (slug: string, options?: { persist?: boolean }) => ProjectGraph = IS_LIVE_API
+  ? useLiveGraph
+  : useMockGraph;

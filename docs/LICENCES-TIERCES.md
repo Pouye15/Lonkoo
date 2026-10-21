@@ -18,12 +18,14 @@ La colonne « Vérifié » se coche seulement après avoir lu la licence dans le
 | TypeScript | 6.0.3 | Apache 2.0 | Oui | Compilation et vérification des types (développement) | npm | [x] |
 | ESLint, eslint-config-next | 9.39.5, 16.4.2 | MIT | Oui | Lint (développement) | npm | [x] |
 | caniuse-lite (dépendance de next) | 1.0.30001816 | CC-BY-4.0 | Oui (données, attribution) | Table de compatibilité des navigateurs, livrée avec next | npm | [x] |
-| Yjs | 13.6.33 | MIT | Oui | Document partagé du canvas (serveur temps réel) | npm | [x] |
-| Hocuspocus (`@hocuspocus/server`, `@hocuspocus/common` ; `@hocuspocus/provider` pour les tests seulement) | 4.7.1 | MIT | Oui | Serveur de synchronisation temps réel (remplace y-websocket, qui n'a plus de serveur) | npm | [x] |
+| Yjs | 13.6.33 | MIT | Oui | Document partagé du canvas (serveur temps réel et navigateur) | npm | [x] |
+| Hocuspocus (`@hocuspocus/server`, `@hocuspocus/common` ; `@hocuspocus/provider` : tests du serveur et navigateur) | 4.7.1 | MIT | Oui | Serveur de synchronisation temps réel (remplace y-websocket, qui n'a plus de serveur) et client du studio | npm | [x] |
 | jose | 6.2.13 | MIT | Oui | Vérification des tickets JWT du temps réel | npm | [x] |
 | ws | 8.22.0 | MIT | Oui | Serveur WebSocket (8.18.3 écarté : deux avis de sécurité) | npm | [x] |
 | Dépendances de Hocuspocus et Yjs : async-mutex 0.5.0, crossws 0.4.15, isomorphic.js 0.2.5, kleur 4.1.5, lib0 0.2.119, y-protocols 1.0.7 | voir `package-lock.json` | MIT | Oui | Serveur temps réel | npm | [x] |
 | tslib (dépendance de Hocuspocus) | 2.8.1 | 0BSD | Oui | Serveur temps réel | npm | [x] |
+| @lifeomic/attempt (dépendance de `@hocuspocus/provider`) | 3.1.0 | MIT | Oui | Reconnexion du client temps réel (navigateur) | npm | [x] |
+| ajv, avec fast-deep-equal 3.1.3, json-schema-traverse 1.0.0, require-from-string 2.0.2, fast-uri 3.1.9 (BSD-3-Clause) | 8.17.1 | MIT | Oui | Tests du front : un bloc écrit par le tableau blanc est valide pour le schéma du contrat (développement uniquement, jamais livré) | npm | [x] |
 | Spring Boot (starters, Spring Framework 7.0.9, Spring Security) | 4.1.1 | Apache 2.0 | Oui | Backend | Maven | [x] |
 | Apache Log4j2 (log4j-core, log4j-slf4j2-impl) | 2.25.5 | Apache 2.0 | Oui | Journaux (remplace Logback) | Maven | [x] |
 | Flyway (flyway-core, flyway-database-postgresql) | 12.4.0 | Apache 2.0 | Oui | Migrations SQL | Maven | [x] |

@@ -17,6 +17,7 @@ import {
   Users,
 } from "@phosphor-icons/react";
 import { ARCHITECTURE_REVIEWS } from "@/lib/lonkoo-data";
+import { IS_LIVE_API, messageOf } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { initialsOf, useSession } from "@/lib/session";
 import { slugify, useWorkspace } from "@/lib/workspace";
@@ -44,22 +45,33 @@ function NewProjectModal({ open, onClose }: { open: boolean; onClose: () => void
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [visibility, setVisibility] = useState<"public" | "private">("private");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!name.trim() || !user) return;
-    const created = createProject({
-      name,
-      description,
-      visibility,
-      stack: [],
-      owner: { login: user.login, initials: initialsOf(user.displayName), name: user.displayName },
-    });
-    setName("");
-    setDescription("");
-    setVisibility("private");
-    onClose();
-    router.push(`/studio?project=${created.slug}`);
+    if (!name.trim() || !user || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const created = await createProject({
+        name,
+        description,
+        visibility,
+        stack: [],
+        owner: { login: user.login, initials: initialsOf(user.displayName), name: user.displayName },
+      });
+      setName("");
+      setDescription("");
+      setVisibility("private");
+      onClose();
+      router.push(`/studio?project=${created.slug}`);
+    } catch (failure) {
+      // Limite atteinte (409), session expirée, serveur injoignable : le dialogue reste ouvert avec le message.
+      setError(messageOf(failure));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -125,12 +137,18 @@ function NewProjectModal({ open, onClose }: { open: boolean; onClose: () => void
           </div>
         </fieldset>
 
+        {error && (
+          <p role="alert" className="rounded-lg border border-edge-strong bg-sunken px-3 py-2 text-sm text-ink">
+            {error}
+          </p>
+        )}
+
         <div className="flex items-center justify-end gap-2 border-t border-edge-soft pt-4">
           <Button variant="secondary" onClick={onClose}>
             Annuler
           </Button>
-          <Button type="submit" disabled={!name.trim()}>
-            Créer le projet
+          <Button type="submit" disabled={!name.trim() || submitting}>
+            {submitting ? "Création…" : "Créer le projet"}
           </Button>
         </div>
       </form>
@@ -139,7 +157,7 @@ function NewProjectModal({ open, onClose }: { open: boolean; onClose: () => void
 }
 
 export default function DashboardPage() {
-  const { projects, toggleVisibility } = useWorkspace();
+  const { projects, toggleVisibility, status, error, clearError, reload } = useWorkspace();
   const router = useRouter();
   const search = useSearchParams();
   const [filter, setFilter] = useState<FilterVisibility>("all");
@@ -257,7 +275,28 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {filtered.length === 0 ? (
+        {error && status === "ready" && (
+          <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-edge-strong bg-sunken px-4 py-2.5 text-sm text-ink">
+            <span>{error}</span>
+            <Button variant="ghost" size="sm" onClick={clearError}>
+              Fermer
+            </Button>
+          </div>
+        )}
+
+        {status === "loading" || status === "idle" ? (
+          <p role="status" className="rounded-xl border border-edge bg-surface px-6 py-14 text-center text-sm text-ink-3">
+            Chargement de vos projets…
+          </p>
+        ) : status === "error" ? (
+          <div role="alert" className="flex flex-col items-center rounded-xl border border-dashed border-edge-strong bg-surface px-6 py-14 text-center">
+            <h2 className="text-base font-semibold text-ink">Impossible de lire vos projets</h2>
+            <p className="mt-1 max-w-sm text-sm text-ink-3">{error}</p>
+            <Button size="sm" className="mt-5" onClick={() => void reload()}>
+              Réessayer
+            </Button>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center rounded-xl border border-dashed border-edge-strong bg-surface px-6 py-14 text-center">
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-subtle text-ink-2">
               <FolderSimplePlus size={22} />
@@ -324,7 +363,9 @@ export default function DashboardPage() {
                           </div>
                         )}
                       </div>
-                      <span className="flex-shrink-0 font-mono text-xs text-ink-3">{project.nodesCount} blocs</span>
+                      {(!IS_LIVE_API || project.nodesCount > 0) && (
+                        <span className="flex-shrink-0 font-mono text-xs text-ink-3">{project.nodesCount} blocs</span>
+                      )}
                     </div>
 
                     <p className="mt-3 text-sm leading-relaxed text-ink-2">{project.description}</p>

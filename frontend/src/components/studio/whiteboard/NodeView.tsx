@@ -2,6 +2,7 @@
 
 import React, { memo } from "react";
 import {
+  Browser,
   ChatCircleText,
   Cpu,
   Cube,
@@ -18,6 +19,7 @@ import { nodeSize, type Side } from "./geometry";
 
 const ICONS: Partial<Record<ArchitectureShape, React.ElementType>> = {
   generic: Cube,
+  webapp: Browser,
   service: Cpu,
   gateway: ShareNetwork,
   cache: Lightning,
@@ -94,6 +96,7 @@ function Title({ node, editing, onRename, onStopEditing, className }: Pick<BodyP
     <input
       autoFocus
       defaultValue={node.title}
+      maxLength={80}
       aria-label="Nom du bloc"
       onFocus={(event) => event.currentTarget.select()}
       onBlur={(event) => onRename(node.id, event.currentTarget.value)}
@@ -239,6 +242,8 @@ interface NodeViewProps {
   /** Source armée du mode « Relier ». */
   armed: boolean;
   editing: boolean;
+  /** Lecture seule : pas de points d'ancrage pour tracer une liaison. */
+  readOnly?: boolean;
   onRename: (id: string, title: string) => void;
   onStopEditing: () => void;
 }
@@ -252,6 +257,7 @@ export const NodeView = memo(function NodeView({
   dropTarget,
   armed,
   editing,
+  readOnly = false,
   onRename,
   onStopEditing,
 }: NodeViewProps) {
@@ -276,7 +282,7 @@ export const NodeView = memo(function NodeView({
         />
       )}
 
-      {(["top", "right", "bottom", "left"] as const).map((side) => (
+      {!readOnly && (["top", "right", "bottom", "left"] as const).map((side) => (
         <button
           key={side}
           type="button"

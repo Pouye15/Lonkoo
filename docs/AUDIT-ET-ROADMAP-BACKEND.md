@@ -49,7 +49,7 @@ Les sondes sont jetables : le test de chaîne est à recréer en test permanent 
 | WP9 Sécurité transverse | partiel | R2, R10 |
 | WP10 Tests et conformité | partiel | R5, R11 |
 | WP11 Images et pipeline | partiel : Dockerfiles backend et temps réel écrits, jamais construits | R7 |
-| WP12 Branchement du front | non commencé (front en `NEXT_PUBLIC_API_MODE=mock`, aucune référence à Hocuspocus) | R9 |
+| WP12 Branchement du front | **fait le 21/10** pour les projets, le canvas partagé, la lecture seule, le partage et les versions (mode `NEXT_PUBLIC_API_MODE=live`) ; reste l'éditeur d'entités et de champs, la liste des membres | R9 |
 | WP13 Raccordement IA | non commencé | R12 (optionnel) |
 
 ## 4. Ce qui est solide (vérifié)
@@ -98,7 +98,7 @@ Gravité : **Critique** (la démo ne marche pas), **Haute** (faille ou fonction 
 | Q-04 | Moyenne | `CanvasVersionService.create` et `restore` sont `@Transactional` autour d'un appel HTTP pouvant durer 10 s : une connexion JDBC reste prise pendant l'attente. `CanvasVersionController.detail` relit **toute** la liste des versions pour en trouver une ([ligne 63](../backend/src/main/java/com/lonkoo/backend/canvas/CanvasVersionController.java#L63)). Pas de plafond de versions, pas de validation de l'instantané à la restauration. | **Corrigé le 21/10** : plus de transaction autour des appels au temps réel (création, restauration, suppression de projet), détail d'une version en une requête, instantané stocké revalidé avant restauration (422 sinon) ; le plafond de versions passe au lot R10. Prévu à l'audit : R6 |
 | Q-05 | Moyenne | `ShareLinkService.join` lit puis insère ([ligne 115](../backend/src/main/java/com/lonkoo/backend/project/ShareLinkService.java#L115)) : deux requêtes simultanées du même utilisateur donnent une violation de clé primaire (500). | **Corrigé le 21/10** : ajout atomique `insert … on conflict do update`, qui ne rétrograde jamais un membre déjà plus haut placé ; douze jonctions simultanées donnent douze 200 et une seule ligne. Prévu à l'audit : `insert … on conflict do update` |
 | Q-06 | Moyenne | Serveur temps réel : pas de gestion de `SIGTERM` (jusqu'à 3 s d'édition perdues à l'arrêt d'un conteneur : risque n° 8 du plan initial), pas de route de santé, aucune nouvelle tentative si `PUT …/state` échoue (simple `console.error`), `y-protocols` importé par les tests sans être déclaré, `engines` demande Node 24 (le poste a Node 22). | **Corrigé le 21/10** : arrêt propre sur SIGTERM et SIGINT (connexions fermées, documents ouverts enregistrés avant la sortie), `GET /health`, nouvelles tentatives (1 s, 2 s, 4 s) sur panne du backend sans rejouer un refus 4xx, délai d'attente de 5 s sur chaque appel, `y-protocols` déclaré, `engines` à Node 22. Prévu à l'audit : R6 |
-| Q-07 | Faible | Un client en lecture seule modifie son document **localement** (9 blocs chez lui, 8 sur le serveur) : le front doit désactiver l'édition selon le `role` du ticket. | R9 |
+| Q-07 | Faible | Un client en lecture seule modifie son document **localement** (9 blocs chez lui, 8 sur le serveur) : le front doit désactiver l'édition selon le `role` du ticket. | **Corrigé le 21/10** : le tableau blanc passe en lecture seule (pas de boîte à outils, de déplacement, de liaison, de suppression ni d'annulation), selon le rôle du ticket et la portée donnée par le serveur ; vérifié avec un lien en lecture. Prévu à l'audit : R9 |
 
 ### 5.4 Contrats, documentation, dépôt
 
@@ -220,15 +220,17 @@ Fondations fournies par le backend : instantané validé (WP7), jeton GitHub de 
 
 **Preuve :** l'exemple produit un dépôt GitHub qui démarre avec `docker compose up`.
 
-#### R9 — Branchement du front, WP12 (Fall avec Pouye ; environ 7 h ; non commencé)
+#### R9 — Branchement du front, WP12 (Fall avec Pouye ; environ 7 h) — **fait le 21/10 par Pouye, sauf l'éditeur d'entités**
 
-- [ ] `NEXT_PUBLIC_API_MODE=live` (au build, dans `frontend/.env.local`) ; remplacer `workspace.tsx` par `GET/POST/PATCH /projects`.
-- [ ] Canvas : `HocuspocusProvider` et Yjs **selon D11**, ticket via `POST …/realtime-ticket` (renouvelé à la reconnexion), curseurs.
-- [ ] **Mode lecture seule selon le `role` du ticket** (Q-07) : édition désactivée pour `READ` et `TRIAGE`.
-- [ ] Versions : créer, lister, restaurer, export par `GET …/snapshot` ; page de jonction `/join/[token]`.
-- [ ] Gestion des `401` (retour à la connexion), `422` (détail des erreurs du validateur) et `503` (« temps réel indisponible »).
+- [x] `NEXT_PUBLIC_API_MODE=live` (au build, dans `frontend/.env.local`) : `workspace.tsx` lit et écrit `GET/POST/PATCH /projects` (la liste suit la personne connectée, un lien direct `?project=` attend l'arrivée de la liste) ; le mode simulé reste le comportement par défaut, la CI construit sans la variable.
+- [x] Canvas : `HocuspocusProvider` et Yjs **selon D11** (`canvas-session.ts`, `canvas-yjs.ts`, `canvas-model.ts`), ticket via `POST …/realtime-ticket` redemandé à chaque reconnexion, présence (avatars, curseurs, nom « Invité 85c2 » pour distinguer les invités). Le tableau blanc n'a pas changé : il reçoit et rend des tableaux ; les écritures sont des différences (ouvrir un canvas sans le modifier n'écrit rien, supprimer un bloc supprime ses liens).
+- [x] **Mode lecture seule selon le `role` du ticket** (Q-07) : édition désactivée pour `READ` et `TRIAGE`.
+- [x] Versions : créer, lister, restaurer (avec confirmation), export JSON d'une version ou du canvas courant (`GET …/snapshot`) ; bouton *Partager* (rôle et durée) ; page de jonction `/join/[token]`.
+- [x] Gestion des `401` (retour à la connexion en gardant la page demandée), `422` (liste des erreurs du validateur), `409` (limite atteinte, message du serveur) et `503` (« temps réel indisponible », bandeau « Connexion perdue »).
+- [x] **D2 appliquée** : forme « Application web » ajoutée à la boîte à outils, titres et stacks bornés à 80 caractères ; le contrat reçoit le type `generic` et le champ `tech` (commit distinct, **à relire par Fall, Ngom et Gaye**).
+- [ ] Reste (Fall) : éditeur des entités et des champs d'une base et propriétés propres à chaque type (pages, endpoints, méthode d'authentification…) ; liste réelle des membres (pas de route côté serveur) ; Dockerfile du front avec `NEXT_PUBLIC_API_MODE=live` et `NEXT_PUBLIC_REALTIME_URL=/ws` (lot R7).
 
-**Preuve :** deux navigateurs éditent le même canvas via un lien de partage, avec curseurs ; une version est enregistrée puis restaurée.
+**Preuve (21/10, pile locale : PostgreSQL, backend, serveur temps réel, front) :** un scénario de navigateur de 24 vérifications : un invité ouvre le modèle d'exemple (7 blocs), crée un lien en écriture et un lien en lecture ; un second navigateur le rejoint, voit les mêmes blocs, la présence et le curseur de l'autre, un bloc ajouté apparaît en direct chez l'autre ; le navigateur en lecture voit « Lecture seule », n'a pas de boîte à outils et ne peut rien supprimer ; une version est enregistrée, puis une autre avec une passerelle (bloc `generic`), un bloc est supprimé, la première version est restaurée et les trois navigateurs la voient ; un lien inconnu donne un message clair. Un second scénario de 9 vérifications : arrêt du serveur temps réel (bandeau « Connexion perdue », tableau conservé), modification hors connexion, redémarrage (reconnexion seule, modification enregistrée et revue après rechargement), session expirée (retour à la connexion), autres pages sans erreur. 19 tests de modules purs (`npm test` : correspondance bloc ↔ contrat validée par le vrai schéma, document Yjs, fusion de deux auteurs, mots réservés identiques au backend) ; les anciens scénarios du mode simulé (navigation, tableau blanc, tactile, correctifs : 55 vérifications) passent toujours ; build en mode simulé et en mode live, lint et typecheck propres. Les scénarios de navigateur ne sont pas dans le dépôt (Playwright n'y est pas une dépendance) : ils sont à reprendre dans le lot R11.
 
 #### R10 — Limites d'usage (Pouye avec Diagne ; 2 h) — **fait le 21/10**
 

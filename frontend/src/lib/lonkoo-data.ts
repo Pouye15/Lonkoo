@@ -1,5 +1,6 @@
 export type NodeRole =
   | "generic"
+  | "webapp"
   | "gateway"
   | "auth"
   | "service"
@@ -14,6 +15,7 @@ export type NodeRole =
 
 export type ArchitectureShape =
   | "generic"  // Bloc libre / Conteneur logique sans convention imposée
+  | "webapp"   // Application web (type « webapp » du contrat du canvas)
   | "cylinder" // Base de données (pile de cylindres)
   | "user"     // Utilisateur / Client (bonhomme)
   | "gateway"  // Passerelle API / Routeur
@@ -128,6 +130,10 @@ export interface WorkspaceProject {
   openReviewsCount: number;
   mcpActive: boolean;
   orionSynced: boolean;
+  /** Mode API : canvas principal du projet (connu une fois la liste de ses canvas lue). */
+  canvasId?: string;
+  /** Mode API : rôle de l'utilisateur dans le projet. */
+  role?: GitHubRole;
 }
 
 export interface AISuggestion {

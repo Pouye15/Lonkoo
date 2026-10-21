@@ -1,8 +1,9 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { IS_LIVE_API, onUnauthorized } from "@/lib/api";
 import { clearStoredGraphs } from "@/lib/project-graph";
-import { resetWorkspace } from "@/lib/workspace";
+import { resetWorkspace, setWorkspaceUser } from "@/lib/workspace";
 
 /**
  * Session de l'utilisateur.
@@ -35,7 +36,7 @@ interface SessionAdapter {
   logout(): Promise<void>;
 }
 
-export const IS_MOCK_SESSION = process.env.NEXT_PUBLIC_API_MODE !== "live";
+export const IS_MOCK_SESSION = !IS_LIVE_API;
 
 /* ------------------------------------------------------------------ */
 /* Adaptateur simulé                                                    */
@@ -180,6 +181,8 @@ interface SessionContextValue {
   signInAsGuest: () => Promise<SessionUser>;
   signInWithGitHub: () => Promise<SessionUser | null>;
   signOut: () => Promise<void>;
+  /** Relit la session sur le serveur (après avoir rejoint un projet par lien, qui peut ouvrir une session d'invité). */
+  refresh: () => Promise<SessionUser | null>;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -205,6 +208,25 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // Mode API : la liste des projets est celle de la personne connectée.
+  useEffect(() => {
+    if (IS_MOCK_SESSION) return;
+    const user = state.user;
+    setWorkspaceUser(user ? { id: user.id, login: user.login, displayName: user.displayName } : null);
+  }, [state.user]);
+
+  // Une réponse 401 de l'API (session expirée) renvoie à la connexion.
+  useEffect(() => {
+    if (IS_MOCK_SESSION) return;
+    return onUnauthorized(() => setState((current) => (current.status === "anonymous" ? current : { status: "anonymous", user: null })));
+  }, []);
+
+  const refresh = useCallback(async () => {
+    const user = await adapter.load();
+    setState({ status: user ? "authenticated" : "anonymous", user });
+    return user;
+  }, []);
+
   const signInAsGuest = useCallback(async () => {
     const user = await adapter.guest();
     setState({ status: "authenticated", user });
@@ -224,8 +246,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ ...state, signInAsGuest, signInWithGitHub, signOut }),
-    [state, signInAsGuest, signInWithGitHub, signOut],
+    () => ({ ...state, signInAsGuest, signInWithGitHub, signOut, refresh }),
+    [state, signInAsGuest, signInWithGitHub, signOut, refresh],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
@@ -254,9 +276,4 @@ export function safeNextPath(next: string | null | undefined, fallback = "/dashb
   }
 }
 
-/** Initiales pour les avatars (« Aminata S. » → « AS »). */
-export function initialsOf(name: string): string {
-  const parts = name.replace(/[^\p{L}\s-]/gu, "").trim().split(/[\s-]+/).filter(Boolean);
-  const letters = parts.length >= 2 ? [parts[0]?.[0], parts[1]?.[0]] : [parts[0]?.[0], parts[0]?.[1]];
-  return letters.filter(Boolean).join("").toUpperCase() || "?";
-}
+export { initialsOf } from "@/lib/initials";

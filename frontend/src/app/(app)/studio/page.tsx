@@ -7,7 +7,12 @@ import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { useWorkspace } from "@/lib/workspace";
 import { useProjectGraph } from "@/lib/project-graph";
+import { IS_LIVE_API, type ApiRole } from "@/lib/api";
 import { ArchitectureWhiteboard } from "@/components/studio/ArchitectureWhiteboard";
+import { CanvasGate } from "@/components/studio/live/CanvasGate";
+import { LiveTeamPanel } from "@/components/studio/live/LiveTeamPanel";
+import { ShareDialog } from "@/components/studio/live/ShareDialog";
+import { VersionsPanel } from "@/components/studio/live/VersionsPanel";
 import {
   AI_SUGGESTIONS,
   ARCHITECTURE_VERSIONS,
@@ -39,6 +44,7 @@ import {
   MagnifyingGlass,
   ShieldCheck,
   UserPlus,
+  LinkSimple,
 } from "@phosphor-icons/react";
 
 type StudioTab = "canvas" | "scanner" | "simulator" | "docs" | "versions" | "team";
@@ -49,8 +55,34 @@ function parseTab(value: string | null): StudioTab {
   return STUDIO_TABS.find((tab) => tab === value) ?? "canvas";
 }
 
+const API_ROLE_BY_LABEL: Record<GitHubRole, ApiRole> = {
+  Owner: "OWNER",
+  Maintainer: "MAINTAINER",
+  Write: "WRITE",
+  Triage: "TRIAGE",
+  Read: "READ",
+};
+
 export default function StudioPage() {
-  const { activeProject } = useWorkspace();
+  const { activeProject, status, error, reload } = useWorkspace();
+  if (!activeProject && IS_LIVE_API && (status === "idle" || status === "loading")) {
+    return (
+      <p role="status" className="mx-auto max-w-md py-20 text-center text-sm text-ink-3">
+        Chargement du projet…
+      </p>
+    );
+  }
+  if (!activeProject && IS_LIVE_API && status === "error") {
+    return (
+      <div role="alert" className="mx-auto max-w-md py-20 text-center">
+        <h1 className="text-lg font-semibold text-ink">Impossible de lire vos projets</h1>
+        <p className="mt-1 text-sm text-ink-3">{error}</p>
+        <Button className="mt-5" onClick={() => void reload()}>
+          Réessayer
+        </Button>
+      </div>
+    );
+  }
   if (!activeProject) {
     return (
       <div className="mx-auto max-w-md py-20 text-center">
@@ -75,7 +107,12 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
       scroll: false,
     });
 
-  const { nodes, edges, setNodes, setEdges } = useProjectGraph(currentProject.slug);
+  const { nodes, edges, setNodes, setEdges, live } = useProjectGraph(currentProject.slug);
+  const [shareOpen, setShareOpen] = useState(false);
+  // Le ticket temps réel donne le rôle exact ; avant, celui lu avec la liste des canvas du projet.
+  const role: ApiRole | null = live?.role ?? (currentProject.role ? API_ROLE_BY_LABEL[currentProject.role] : null);
+  const canWrite = role === "OWNER" || role === "MAINTAINER" || role === "WRITE";
+  const canShare = Boolean(live?.canvasId) && (role === "OWNER" || role === "MAINTAINER");
   const [selectedNodeId, setSelectedNodeId] = useState<string>(
     () => nodes.find((node) => node.id === "pg-primary")?.id ?? nodes[0]?.id ?? "",
   );
@@ -304,6 +341,12 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
         fullBleed={activeTab === "canvas"}
         actions={
           <>
+            {live && canShare && (
+              <Button variant="secondary" size="sm" onClick={() => setShareOpen(true)}>
+                <LinkSimple size={14} />
+                <span className="hidden md:inline">Partager</span>
+              </Button>
+            )}
             <Button href="/reviews" variant="secondary" size="sm">
               <GitPullRequest size={14} />
               <span className="hidden md:inline">Créer une revue</span>
@@ -339,7 +382,7 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
               { id: "simulator", label: "Simulateur", icon: ChartLineUp },
               { id: "docs", label: "Documentation", icon: FileText },
               { id: "versions", label: "Versions", icon: GitCommit },
-              { id: "team", label: `Équipe (${collaborators.length})`, icon: Users },
+              { id: "team", label: `Équipe (${live ? currentProject.collaborators.length : collaborators.length})`, icon: Users },
             ] as const
           ).map((t) => {
             const Icon = t.icon;
@@ -367,14 +410,30 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
         {/* ONGLET 1 : ARCHITECTURE (TABLEAU BLANC) */}
         {activeTab === "canvas" && (
           <div className="flex-1 w-full min-h-0 flex flex-col">
-            <ArchitectureWhiteboard
-              nodes={nodes}
-              edges={edges}
-              selectedNodeId={selectedNodeId}
-              onSelectNode={setSelectedNodeId}
-              onUpdateNodes={setNodes}
-              onUpdateEdges={setEdges}
-            />
+            {live ? (
+              <CanvasGate live={live}>
+                <ArchitectureWhiteboard
+                  nodes={nodes}
+                  edges={edges}
+                  selectedNodeId={selectedNodeId}
+                  onSelectNode={setSelectedNodeId}
+                  onUpdateNodes={setNodes}
+                  onUpdateEdges={setEdges}
+                  readOnly={live.readOnly}
+                  peers={live.peers}
+                  onCursorMove={live.setCursor}
+                />
+              </CanvasGate>
+            ) : (
+              <ArchitectureWhiteboard
+                nodes={nodes}
+                edges={edges}
+                selectedNodeId={selectedNodeId}
+                onSelectNode={setSelectedNodeId}
+                onUpdateNodes={setNodes}
+                onUpdateEdges={setEdges}
+              />
+            )}
           </div>
         )}
 
@@ -670,7 +729,16 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
         )}
 
         {/* ONGLET 5 : VERSIONS & RELEASES GIT */}
-        {activeTab === "versions" && (
+        {activeTab === "versions" && live && (
+          live.canvasId ? (
+            <VersionsPanel canvasId={live.canvasId} projectName={currentProject.name} canWrite={canWrite && !live.readOnly} />
+          ) : (
+            <p role="status" className="rounded-xl border border-edge bg-surface p-5 text-sm text-ink-3">
+              Chargement du canvas…
+            </p>
+          )
+        )}
+        {activeTab === "versions" && !live && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
             <div className="lg:col-span-8 space-y-3">
               {versions.map((ver) => (
@@ -776,7 +844,10 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
         {/* ===================================================================== */}
         {/* ONGLET 6 : ÉQUIPE & COLLABORATEURS DU PROJET (COMME SUR GITHUB)       */}
         {/* ===================================================================== */}
-        {activeTab === "team" && (
+        {activeTab === "team" && live && (
+          <LiveTeamPanel project={currentProject} canShare={canShare} onShare={() => setShareOpen(true)} />
+        )}
+        {activeTab === "team" && !live && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
             {/* Colonne principale : Membres de l'équipe & Invitation */}
             <div className="lg:col-span-8 space-y-5">
@@ -1033,6 +1104,8 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
           </div>
         )}
       </div>
+
+      {live?.canvasId && <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)} canvasId={live.canvasId} />}
     </>
   );
 }

@@ -116,6 +116,7 @@ export function Dock({ selectedNode, onAdd, onUpdateNode, onClearStack, onApplyP
                     <input
                       type="text"
                       value={selectedNode.title}
+                      maxLength={80}
                       onChange={(event) => onUpdateNode(selectedNode.id, { title: event.target.value }, `title:${selectedNode.id}`)}
                       className={smallInput}
                     />
@@ -127,6 +128,7 @@ export function Dock({ selectedNode, onAdd, onUpdateNode, onClearStack, onApplyP
                         type="text"
                         placeholder="Aucune"
                         value={selectedNode.tech}
+                        maxLength={80}
                         onChange={(event) => onUpdateNode(selectedNode.id, { tech: event.target.value }, `tech:${selectedNode.id}`)}
                         className={cn(smallInput, "font-mono")}
                       />

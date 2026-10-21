@@ -21,8 +21,9 @@ Les tâches de finition du 20/10 sont faites : landing page refaite dans l'espri
 
 Reste à faire côté front (voir `../docs/ROADMAP-BACKEND.md`) :
 
-- **Brancher l'API** : `src/lib/session.tsx` (adaptateur simulé, bascule avec `NEXT_PUBLIC_API_MODE=live`), `src/lib/workspace.tsx` et `src/lib/project-graph.ts` (données locales, à remplacer par l'API et le document Yjs).
-- **Aligner le modèle de blocs sur le contrat du canvas** (8 types : `webapp`, `service`, `database`, `auth`, `queue`, `mobile-payment`, `messaging`, `billing`). Les formes actuelles (`generic`, `gateway`, `cache`, `ai`, `user`…) n'ont pas toutes d'équivalent : décision D2 du roadmap.
+- **API branchée (lot R9, 21/10)** : avec `NEXT_PUBLIC_API_MODE=live` (lu au build), `session.tsx`, `workspace.tsx` et `project-graph.ts` parlent à l'API et au document Yjs partagé ; sans, les données simulées du navigateur restent le comportement par défaut (la CI construit sans la variable). Voir § 3.5, § 3.10 et « Mode API » ci-dessous.
+- **Modèle de blocs aligné sur le contrat** (décision D2, `../docs/PROPOSITION-MODELE-DE-BLOCS.md`) : 9 types dont `generic` (passerelle, cache, IA, utilisateur, bloc libre) ; la forme dessinée et tout champ propre au front vont dans la clé `ui` du document, hors contrat. La proposition et l'ajout du type `generic` au schéma attendent la relecture de l'équipe (pull request).
+- **Reste à faire** : éditeur des entités et des champs d'une base (sans lui le projet généré n'a pas de modèle de données), propriétés propres à chaque type (pages, endpoints, méthode d'authentification…) ; liste réelle des membres (le serveur n'a pas encore de route) ; Dockerfile du front construit avec `NEXT_PUBLIC_API_MODE=live` et `NEXT_PUBLIC_REALTIME_URL=/ws` (lot de mise en ligne).
 - Écrans sans backend prévu (communauté, revues, MCP, Orion) : données fictives, à garder en démonstration ou à masquer avant la soumission.
 
 ---
@@ -69,7 +70,7 @@ Six onglets compacts (une seule ligne, défilement horizontal si l'écran est é
 5. **Versions** : historique des versions et création d'une release (tag Git).
 6. **Équipe** : collaborateurs, rôles (`Owner`, `Maintainer`, `Write`, `Triage`, `Read`), sous-équipes, règles de protection.
 
-Le graphe est conservé par projet dans le navigateur (`src/lib/project-graph.ts`) en attendant le document Yjs partagé.
+Le graphe vient de `useProjectGraph` (`src/lib/project-graph.ts`) : conservé par projet dans le navigateur en mode simulé, document Yjs partagé en mode API. Le tableau blanc est identique dans les deux cas : il reçoit et rend des tableaux.
 
 ### 3.6. Communauté (`/palabre`, `/palabre/[slug]`)
 Architectures publiées, profils d'architectes, abonnements ; suivre / se désabonner ; fork complet ou partiel d'un modèle ; notes et commentaires. Données fictives.
@@ -106,22 +107,40 @@ frontend/
 │   │   └── (app)/                # Espace connecté : layout.tsx monte le shell
 │   │       ├── dashboard/  studio/  reviews/  deploy/
 │   │       ├── palabre/ (+ [slug])  settings/  onboarding/
+│   ├── app/join/[token]/page.tsx # Rejoindre un projet par lien de partage (hors espace connecté)
 │   ├── components/
 │   │   ├── ui/                   # Button, Logo, Modal, Field, hooks (fermeture, préférences)
 │   │   ├── theme/                # ThemeProvider (anti-flash), ThemeSegmented, ThemeIconButton
 │   │   ├── layout/               # AppShell, PageHeader, ProjectSwitcher, UserMenu
 │   │   ├── landing/              # Nav, StudioDemo (+ sequence/render-frame.ts), Features, Faq, bas de page
 │   │   ├── studio/               # ArchitectureWhiteboard + whiteboard/ (geometry, use-viewport, NodeView, EdgesLayer, Dock, Minimap, stencils)
+│   │   │   └── live/             # Mode API : CanvasGate, ShareDialog, VersionsPanel, LiveTeamPanel
 │   │   └── palabre/              # BlueprintDetailClient
 │   └── lib/
 │       ├── session.tsx           # Session (adaptateur simulé ou API)
-│       ├── workspace.tsx         # Projets et projet actif
-│       ├── project-graph.ts      # Graphe d'architecture par projet
+│       ├── workspace.tsx         # Projets et projet actif (simulés ou GET/POST/PATCH /api/projects)
+│       ├── project-graph.ts      # Graphe d'architecture : simulé, ou document partagé
+│       ├── api.ts                # Client de l'API : erreurs problem+json, 401, rôles
+│       ├── canvas-session.ts     # Connexion d'un canvas au temps réel (ticket, présence, lecture seule)
+│       ├── canvas-yjs.ts         # Lecture et écriture du document Yjs, par différences
+│       ├── canvas-model.ts       # Bloc du front ↔ entrée du contrat (champs propres au front dans `ui`)
+│       ├── reserved-words.ts     # Mots réservés Java, SQL, YAML (copie surveillée du backend)
+│       ├── *.test.ts             # Tests (lanceur de Node : `npm test`)
 │       ├── lonkoo-data.ts        # Types et données d'exemple
 │       └── cn.ts
 ├── stubs/sharp/                  # Remplace sharp (licence)
 ├── eslint.config.mjs  next.config.ts  package.json
 ```
+
+### Mode API (`NEXT_PUBLIC_API_MODE=live`)
+- **Variables** (dans `frontend/.env.local`, inlinées au build) : `NEXT_PUBLIC_API_MODE=live` ; `NEXT_PUBLIC_REALTIME_URL=ws://localhost:1234` en local (la CSP de développement l'autorise), `/ws` en production (servi par Caddy sur l'origine du site). En local, Next relaie `/api` vers le backend.
+- **Projets** : `useWorkspace` lit `GET /api/projects` pour la personne connectée (la liste suit la session), crée avec `POST` (le dialogue affiche l'erreur : limite atteinte en 409, session expirée…) et bascule la visibilité avec `PATCH`. `?project=` accepte le nom court ou l'identifiant, et se souvient de la demande tant que la liste n'est pas arrivée.
+- **Canvas partagé** : `useProjectGraph` ouvre une connexion par canvas (ticket `POST …/realtime-ticket`, redemandé à chaque reconnexion), garde le tableau caché jusqu'au premier échange (jamais de tableau vide « en attendant »), montre un bandeau « Connexion perdue » sans retirer le tableau (les modifications partent au retour du réseau) et affiche la présence (avatars, curseurs).
+- **Lecture seule** (rôles Read et Triage, ou refus du serveur) : pas de boîte à outils, ni déplacement, ni liaison, ni suppression, ni annulation ; la barre d'outils l'indique. Le serveur ignore de toute façon leurs écritures.
+- **Document Yjs** : trois cartes (`nodes`, `edges`, `meta`), une `Y.Map` par entrée (`type`, `position`, `data`, `ui`). `data.name` est l'identifiant technique, déduit du titre à la création (sans accent, hors mots réservés, unique) puis **stable** ; `data.label` porte le titre, `data.tech` la stack (80 caractères au plus). Ouvrir un canvas sans le modifier n'écrit rien dans le document.
+- **Partage** : bouton *Partager* (rôles Owner et Maintainer) : rôle et durée au choix (72 h au plus). La page `/join/[token]` ouvre une session d'invité si besoin et rejoint le projet.
+- **Versions** : onglet *Versions* en mode API : enregistrer (le serveur valide : 422 avec la liste des erreurs), restaurer (vu en direct par tous), exporter en JSON.
+- **Erreurs** : `api.ts` lit les `problem+json` ; un 401 renvoie à la connexion en gardant la page demandée.
 
 ### Thème
 Les composants utilisent **uniquement des jetons sémantiques** définis dans `globals.css` et redéfinis sous `.dark` : surfaces `bg-canvas`, `bg-surface`, `bg-sunken`, `bg-subtle`, `bg-strong` ; texte `text-ink`, `text-ink-2`, `text-ink-3`, `text-ink-4` ; traits `border-edge`, `border-edge-soft`, `border-edge-strong` ; marque `bg-brand` (fonds pleins), `text-accent` (texte, liens) ; états `text-danger`, `text-warn`, `text-ok` ; boutons inversés `bg-inverse` + `text-inverse-ink`. **Ne pas écrire de couleur Tailwind en dur** (`bg-white`, `text-slate-900`, `#1265DD`…) : le thème sombre cesserait de fonctionner. Le choix (clair, sombre, système) est mémorisé ; un script dans `<head>` évite le flash.
@@ -150,6 +169,9 @@ npm run typecheck
 
 # Lint (ESLint 9, doit passer sans erreur)
 npm run lint
+
+# Tests des modules purs (correspondance bloc ↔ contrat, document Yjs, mots réservés)
+npm test
 
 # Serveur de développement (port 3000 ; relaie /api vers BACKEND_INTERNAL_URL, localhost:8080 par défaut)
 npm run dev

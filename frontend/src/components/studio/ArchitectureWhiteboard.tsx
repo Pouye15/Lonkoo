@@ -8,6 +8,7 @@ import {
   CornersOut,
   Cursor,
   DotsNine,
+  Eye,
   GridFour,
   Hand,
   MapTrifold,
@@ -19,6 +20,8 @@ import {
   Trash,
 } from "@phosphor-icons/react";
 import type { ArchitectureEdge, ArchitectureNode } from "@/lib/lonkoo-data";
+import type { Peer } from "@/lib/canvas-session";
+import { initialsOf } from "@/lib/initials";
 import { cn } from "@/lib/cn";
 import { Dock, STENCIL_DRAG_TYPE } from "./whiteboard/Dock";
 import { EdgesLayer, type ConnectPreview, type Guide } from "./whiteboard/EdgesLayer";
@@ -49,6 +52,12 @@ interface WhiteboardProps {
   onSelectNode: (id: string) => void;
   onUpdateNodes: (nodes: ArchitectureNode[]) => void;
   onUpdateEdges: (edges: ArchitectureEdge[]) => void;
+  /** Lecture seule (rôle Read ou Triage) : on regarde et on navigue, on ne modifie rien. */
+  readOnly?: boolean;
+  /** Autres personnes connectées au canvas (mode partagé) : leurs curseurs et leurs avatars. */
+  peers?: Peer[];
+  /** Position du curseur dans le repère du tableau, `null` quand il le quitte. */
+  onCursorMove?: (point: Point | null) => void;
 }
 
 type Tool = "select" | "hand" | "connect";
@@ -105,6 +114,7 @@ const EMPTY_HISTORY: HistoryState = { past: [], future: [], emitted: null, lastK
 /** Hauteur approximative de la boîte à outils posée en bas : le cadrage lui réserve cette place. */
 const DOCK_INSET = 176;
 const NO_GUIDES: Guide[] = [];
+const NO_PEERS: Peer[] = [];
 
 let idCounter = 0;
 /** Identifiant local unique, en attendant ceux du serveur. */
@@ -226,6 +236,9 @@ export function ArchitectureWhiteboard({
   onSelectNode,
   onUpdateNodes,
   onUpdateEdges,
+  readOnly = false,
+  peers = NO_PEERS,
+  onCursorMove,
 }: WhiteboardProps) {
   const {
     containerRef,
@@ -291,6 +304,7 @@ export function ArchitectureWhiteboard({
   /** Applique une modification et l'enregistre pour annuler/rétablir ; `mergeKey` regroupe les frappes. */
   const commit = useCallback(
     (nextNodes: ArchitectureNode[] | null, nextEdges: ArchitectureEdge[] | null, mergeKey?: string) => {
+      if (readOnly) return;
       const now = performance.now();
       const merge = Boolean(mergeKey && history.lastKey?.key === mergeKey && now - history.lastKey.at < 1000);
       setHistory({
@@ -302,12 +316,12 @@ export function ArchitectureWhiteboard({
       if (nextNodes) onUpdateNodes(nextNodes);
       if (nextEdges) onUpdateEdges(nextEdges);
     },
-    [history, nodes, edges, onUpdateNodes, onUpdateEdges],
+    [readOnly, history, nodes, edges, onUpdateNodes, onUpdateEdges],
   );
 
   const undo = useCallback(() => {
     const previous = history.past[history.past.length - 1];
-    if (!previous) return;
+    if (!previous || readOnly) return;
     setHistory({
       past: history.past.slice(0, -1),
       future: [...history.future, { nodes, edges }],
@@ -318,11 +332,11 @@ export function ArchitectureWhiteboard({
     onUpdateEdges(previous.edges);
     setSelection((current) => current.filter((id) => previous.nodes.some((n) => n.id === id)));
     setSelectedEdgeId(null);
-  }, [history, nodes, edges, onUpdateNodes, onUpdateEdges]);
+  }, [readOnly, history, nodes, edges, onUpdateNodes, onUpdateEdges]);
 
   const redo = useCallback(() => {
     const next = history.future[history.future.length - 1];
-    if (!next) return;
+    if (!next || readOnly) return;
     setHistory({
       past: [...history.past, { nodes, edges }],
       future: history.future.slice(0, -1),
@@ -333,7 +347,7 @@ export function ArchitectureWhiteboard({
     onUpdateEdges(next.edges);
     setSelection((current) => current.filter((id) => next.nodes.some((n) => n.id === id)));
     setSelectedEdgeId(null);
-  }, [history, nodes, edges, onUpdateNodes, onUpdateEdges]);
+  }, [readOnly, history, nodes, edges, onUpdateNodes, onUpdateEdges]);
 
   /* ------------------------------- Géométrie dérivée ------------------------------- */
 
@@ -436,6 +450,7 @@ export function ArchitectureWhiteboard({
 
   const cloneNodes = useCallback(
     (source: ArchitectureNode[], sourceEdges: ArchitectureEdge[], offset: number) => {
+      if (readOnly) return;
       const ids = new Map<string, string>();
       source.forEach((node) => ids.set(node.id, newId(node.shape)));
       const clones = source.map((node) => {
@@ -452,7 +467,7 @@ export function ArchitectureWhiteboard({
       commit([...nodes, ...clones], cloneEdges.length ? [...edges, ...cloneEdges] : null);
       select(clones.map((node) => node.id));
     },
-    [nodes, edges, commit, select],
+    [readOnly, nodes, edges, commit, select],
   );
 
   const selectedNodes = useCallback(() => nodes.filter((node) => selection.includes(node.id)), [nodes, selection]);
@@ -631,7 +646,7 @@ export function ArchitectureWhiteboard({
     const additive = event.shiftKey || event.metaKey || event.ctrlKey;
 
     // Tracer une liaison depuis un point d'ancrage.
-    if (anchorEl && nodeEl?.dataset.nodeId) {
+    if (anchorEl && nodeEl?.dataset.nodeId && !readOnly) {
       event.preventDefault();
       const fromId = nodeEl.dataset.nodeId;
       const side = anchorEl.dataset.anchor as Side;
@@ -646,7 +661,7 @@ export function ArchitectureWhiteboard({
       const id = nodeEl.dataset.nodeId;
 
       // Mode « Relier » : un clic sur la source, un clic sur la cible.
-      if (tool === "connect") {
+      if (tool === "connect" && !readOnly) {
         if (!armedSourceId) {
           setArmedSourceId(id);
           setPreview({ fromId: id, side: null, to: world, targetId: null });
@@ -670,6 +685,8 @@ export function ArchitectureWhiteboard({
         next = [...selection.filter((other) => other !== id), id];
       }
       if (next !== selection) select(next);
+      // En lecture seule on sélectionne pour regarder, on ne déplace pas.
+      if (readOnly) return;
 
       const origin = new Map<string, Point>();
       for (const moveId of next) {
@@ -705,6 +722,7 @@ export function ArchitectureWhiteboard({
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (onCursorMove && event.pointerType === "mouse") onCursorMove(screenToWorld(event.clientX, event.clientY));
     if (pointers.current.has(event.pointerId)) {
       pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
     }
@@ -842,6 +860,7 @@ export function ArchitectureWhiteboard({
   };
 
   const handleDoubleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (readOnly) return;
     // La capture du pointeur redirige l'événement vers le conteneur : on cherche l'élément sous le curseur.
     const under = document.elementFromPoint(event.clientX, event.clientY);
     const nodeEl = under?.closest<HTMLElement>("[data-node-id]");
@@ -860,6 +879,7 @@ export function ArchitectureWhiteboard({
   };
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    if (readOnly) return;
     const label = event.dataTransfer.getData(STENCIL_DRAG_TYPE);
     const item = STENCIL_ITEMS.find((candidate) => candidate.label === label);
     if (!item) return;
@@ -976,12 +996,12 @@ export function ArchitectureWhiteboard({
         zoomStep(-1);
         return;
       case "Enter":
-        if (selection.length === 1 && selection[0]) setEditingId(selection[0]);
+        if (!readOnly && selection.length === 1 && selection[0]) setEditingId(selection[0]);
         return;
     }
     if (key === "v") setTool("select");
     else if (key === "h") setTool("hand");
-    else if (key === "c") {
+    else if (key === "c" && !readOnly) {
       setTool("connect");
       setArmedSourceId(null);
     }
@@ -1021,16 +1041,16 @@ export function ArchitectureWhiteboard({
           <ToolbarButton label="Main" shortcut="H, ou Espace" active={tool === "hand"} onClick={() => { setTool("hand"); setArmedSourceId(null); setPreview(null); }} showLabel>
             <Hand size={15} weight="bold" />
           </ToolbarButton>
-          <ToolbarButton label="Relier" shortcut="C" active={tool === "connect"} onClick={() => { setTool("connect"); setArmedSourceId(null); }} showLabel>
+          <ToolbarButton label="Relier" shortcut="C" active={tool === "connect"} disabled={readOnly} onClick={() => { setTool("connect"); setArmedSourceId(null); }} showLabel>
             <ShareNetwork size={15} weight="bold" />
           </ToolbarButton>
         </div>
 
         <div role="group" aria-label="Historique" className="flex items-center gap-0.5">
-          <ToolbarButton label="Annuler" shortcut="Ctrl+Z" disabled={!canUndo} onClick={undo}>
+          <ToolbarButton label="Annuler" shortcut="Ctrl+Z" disabled={!canUndo || readOnly} onClick={undo}>
             <ArrowCounterClockwise size={16} />
           </ToolbarButton>
-          <ToolbarButton label="Rétablir" shortcut="Ctrl+Y" disabled={!canRedo} onClick={redo}>
+          <ToolbarButton label="Rétablir" shortcut="Ctrl+Y" disabled={!canRedo || readOnly} onClick={redo}>
             <ArrowClockwise size={16} />
           </ToolbarButton>
         </div>
@@ -1041,6 +1061,7 @@ export function ArchitectureWhiteboard({
               <span className="hidden sm:inline">Protocole</span>
               <select
                 value={selectedEdge.protocol}
+                disabled={readOnly}
                 onChange={(event) => setProtocol(event.target.value as ArchitectureEdge["protocol"])}
                 className="h-8 rounded-md border border-edge bg-sunken px-2 font-mono text-xs text-ink outline-none focus:border-accent"
               >
@@ -1052,14 +1073,14 @@ export function ArchitectureWhiteboard({
               </select>
             </label>
           ) : (
-            <ToolbarButton label="Dupliquer" shortcut="Ctrl+D" disabled={selection.length === 0} onClick={duplicateSelection} showLabel>
+            <ToolbarButton label="Dupliquer" shortcut="Ctrl+D" disabled={selection.length === 0 || readOnly} onClick={duplicateSelection} showLabel>
               <Copy size={15} />
             </ToolbarButton>
           )}
           <ToolbarButton
             label="Supprimer"
             shortcut="Suppr"
-            disabled={!hasSelection}
+            disabled={!hasSelection || readOnly}
             onClick={deleteSelection}
             showLabel
             className="hover:text-danger"
@@ -1070,6 +1091,34 @@ export function ArchitectureWhiteboard({
         </div>
 
         <div className="ml-auto flex flex-shrink-0 items-center gap-2">
+          {readOnly && (
+            <span
+              title="Votre rôle ne permet pas de modifier ce canvas"
+              className="flex h-7 items-center gap-1.5 rounded-md bg-subtle px-2 text-xs font-medium text-ink-2"
+            >
+              <Eye size={13} />
+              Lecture seule
+            </span>
+          )}
+          {peers.length > 0 && (
+            <div role="group" aria-label="Personnes connectées" className="flex -space-x-1.5">
+              {peers.slice(0, 5).map((peer) => (
+                <span
+                  key={peer.id}
+                  title={peer.name}
+                  style={{ backgroundColor: peer.color }}
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold text-white ring-2 ring-surface"
+                >
+                  {initialsOf(peer.name)}
+                </span>
+              ))}
+              {peers.length > 5 && (
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-subtle text-[11px] font-semibold text-ink-2 ring-2 ring-surface">
+                  +{peers.length - 5}
+                </span>
+              )}
+            </div>
+          )}
           <div role="group" aria-label="Zoom" className="flex items-center gap-0.5 rounded-lg bg-subtle p-0.5">
             <ToolbarButton label="Dézoomer" shortcut="-" onClick={() => zoomStep(-1)}>
               <Minus size={14} weight="bold" />
@@ -1117,6 +1166,7 @@ export function ArchitectureWhiteboard({
         onPointerMove={handlePointerMove}
         onPointerUp={(event) => endPointer(event, false)}
         onPointerCancel={(event) => endPointer(event, true)}
+        onPointerLeave={() => onCursorMove?.(null)}
         onLostPointerCapture={(event) => {
           pointers.current.delete(event.pointerId);
           if (pointers.current.size < 2) pinchRef.current = null;
@@ -1153,11 +1203,33 @@ export function ArchitectureWhiteboard({
                 dropTarget={preview?.targetId === node.id}
                 armed={armedSourceId === node.id}
                 editing={editingId === node.id}
+                readOnly={readOnly}
                 onRename={renameNode}
                 onStopEditing={stopEditing}
               />
             );
           })}
+
+          {peers.map((peer) =>
+            peer.cursor ? (
+              <div
+                key={peer.id}
+                aria-hidden="true"
+                className="pointer-events-none absolute left-0 top-0 z-30 transition-transform duration-75"
+                style={{ transform: `translate(${peer.cursor.x}px, ${peer.cursor.y}px) scale(${1 / view.zoom})`, transformOrigin: "0 0" }}
+              >
+                <svg width="16" height="20" viewBox="0 0 16 20" fill={peer.color} stroke="var(--surface)" strokeWidth="1.2" strokeLinejoin="round">
+                  <path d="M1 1l13 7.2-5.6 1.6L6.2 15.8z" />
+                </svg>
+                <span
+                  style={{ backgroundColor: peer.color }}
+                  className="-mt-1 ml-3 block max-w-[10rem] truncate rounded-md px-1.5 py-0.5 text-[11px] font-medium text-white shadow-card"
+                >
+                  {peer.name}
+                </span>
+              </div>
+            ) : null,
+          )}
         </div>
 
         {marquee && (
@@ -1178,7 +1250,9 @@ export function ArchitectureWhiteboard({
             <div className="max-w-sm rounded-xl border border-dashed border-edge-strong bg-surface p-6 text-center">
               <h3 className="text-base font-semibold text-ink">Le canevas est vide</h3>
               <p className="mt-1 text-sm text-ink-3">
-                Ajoutez un composant depuis la boîte à outils, en cliquant ou en le glissant ici.
+                {readOnly
+                  ? "Personne n'a encore dessiné d'architecture ici."
+                  : "Ajoutez un composant depuis la boîte à outils, en cliquant ou en le glissant ici."}
               </p>
             </div>
           </div>
@@ -1202,13 +1276,15 @@ export function ArchitectureWhiteboard({
         </span>
       </div>
 
-      <Dock
-        selectedNode={selectedNode}
-        onAdd={(item) => addNode(item)}
-        onUpdateNode={updateNode}
-        onClearStack={clearStack}
-        onApplyPreset={applyPreset}
-      />
+      {!readOnly && (
+        <Dock
+          selectedNode={selectedNode}
+          onAdd={(item) => addNode(item)}
+          onUpdateNode={updateNode}
+          onClearStack={clearStack}
+          onApplyPreset={applyPreset}
+        />
+      )}
     </div>
   );
 }
