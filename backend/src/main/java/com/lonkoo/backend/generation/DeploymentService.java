@@ -203,10 +203,13 @@ public class DeploymentService {
         if (lastRefresh.size() > 1000) {
             lastRefresh.clear();   // la mémoire de ces horodatages reste bornée
         }
-        Instant last = lastRefresh.put(row.id(), now);
+        // L'horodatage ne change que lorsqu'on interroge vraiment GitHub : un suivi plus fréquent que l'intervalle
+        // n'a pas le droit de repousser indéfiniment le prochain rafraîchissement.
+        Instant last = lastRefresh.get(row.id());
         if (last != null && Duration.between(last, now).compareTo(refreshEvery) < 0) {
             return;
         }
+        lastRefresh.put(row.id(), now);
         if (generation.repoFullName() == null) {
             return;
         }
