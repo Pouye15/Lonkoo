@@ -83,7 +83,7 @@ Architectures publiées, profils d'architectes, abonnements ; suivre / se désab
 Propositions de modification d'architecture (différentiel, vérification de cohérence, approbations, fusion) et salons de discussion d'équipe. Données fictives.
 
 ### 3.8. Déploiement (`/deploy`)
-Onglet *Déploiement* : **Générer le projet**, **Pousser sur GitHub**, **Déployer** (état *En attente → En cours → Déployé*), simulé tant que l'API n'existe pas (la page l'indique). Onglet *MCP et Orion* : configuration du serveur MCP pour les agents, envoi vers Orion. Onglet *Releases* : association d'un tag Git.
+Onglet *Déploiement* : **Générer le projet**, **Envoyer sur GitHub**, **Déployer** (état *En attente → En cours → Déployé*). En **mode API**, c'est `components/deploy/LivePipeline.tsx` contre l'API réelle (génération asynchrone suivie par interrogation toutes les 1,5 s, fichiers consultables, archive ZIP, envoi avec nom et visibilité validés comme le serveur, déploiement lancé par LONKOO ou étapes manuelles, bouton « Autoriser le déploiement depuis LONKOO » qui demande à GitHub `repo` et `workflow` sur choix explicite) ; les règles pures sont dans `lib/generation.ts` (testées), les appels dans `lib/generation-api.ts`. En **mode démonstration**, le parcours reste simulé et la page l'indique. Une adresse saisie par l'utilisateur n'est jamais mise telle quelle dans un lien : `safeHttpUrl` n'accepte que http et https sans identifiants. Onglet *MCP et Orion* : configuration du serveur MCP pour les agents, envoi vers Orion. Onglet *Releases* : association d'un tag Git.
 
 ### 3.9. Configuration initiale (`/onboarding`) et paramètres (`/settings`)
 Organisation, visibilité par défaut, stacks favorites, intégrations ; membres, clés, apparence (thème clair, sombre ou système).
@@ -120,6 +120,7 @@ frontend/
 │   │   ├── studio/               # ArchitectureWhiteboard + whiteboard/ (geometry, use-viewport, NodeView, EdgesLayer, Dock, ContractInspector, Minimap, stencils)
 │   │   ├── studio/ExportDialog.tsx   # Exports : Mermaid, JSON, SVG, PNG
 │   │   │   └── live/             # Mode API : CanvasGate, ShareDialog, VersionsPanel (+ CompareDialog), LiveTeamPanel
+│   │   ├── deploy/               # StepShell (étape numérotée), LivePipeline (génération, GitHub, déploiement en mode API)
 │   │   └── palabre/              # BlueprintDetailClient
 │   └── lib/
 │       ├── session.tsx           # Session (adaptateur simulé ou API)
@@ -133,6 +134,8 @@ frontend/
 │       ├── canvas-export.ts      # Instantané du contrat, Mermaid et SVG tirés du graphe
 │       ├── canvas-diff.ts        # Différences entre deux instantanés (ajouté, supprimé, modifié, déplacé)
 │       ├── download.ts           # Téléchargements (texte, JSON) et image PNG tirée d'un SVG
+│       ├── generation.ts         # Formes des réponses de génération, d'envoi et de déploiement ; règles pures (noms de dépôt, liens sûrs, étapes)
+│       ├── generation-api.ts     # Appels de l'API de génération, d'envoi sur GitHub et de déploiement
 │       ├── reserved-words.ts     # Mots réservés Java, SQL, YAML (copie surveillée du backend)
 │       ├── *.test.ts             # Tests (lanceur de Node : `npm test`)
 │       ├── lonkoo-data.ts        # Types et données d'exemple

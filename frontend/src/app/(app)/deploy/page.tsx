@@ -20,11 +20,12 @@ import { cn } from "@/lib/cn";
 import { IS_MOCK_SESSION, useSession } from "@/lib/session";
 import { slugify, useWorkspace } from "@/lib/workspace";
 import { useProjectGraph } from "@/lib/project-graph";
+import { LivePipeline } from "@/components/deploy/LivePipeline";
+import { StepShell, type StepState } from "@/components/deploy/StepShell";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass, textareaClass } from "@/components/ui/Field";
 
-type StepState = "idle" | "running" | "done";
 type DeployStatus = "idle" | "pending" | "running" | "deployed";
 type DeployTab = "pipeline" | "integrations" | "releases";
 
@@ -40,7 +41,7 @@ const AI_AGENT_MODELS = [
   { id: "cursor-agent", name: "Cursor" },
 ] as const;
 
-/** Simule la durée d'une étape tant que les routes de génération et de déploiement n'existent pas. */
+/** Mode démonstration : simule la durée d'une étape (le mode API utilise `LivePipeline`). */
 function useSimulatedTimers() {
   const timers = useRef<number[]>([]);
   useEffect(() => {
@@ -50,42 +51,6 @@ function useSimulatedTimers() {
   return (callback: () => void, delay: number) => {
     timers.current.push(window.setTimeout(callback, delay));
   };
-}
-
-function StepShell({
-  index,
-  title,
-  state,
-  locked,
-  children,
-}: {
-  index: number;
-  title: string;
-  state: StepState;
-  locked: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <section
-      aria-labelledby={`step-${index}`}
-      className={cn("rounded-xl border bg-surface p-5 transition-colors", locked ? "border-edge-soft opacity-60" : "border-edge")}
-    >
-      <div className="flex items-center gap-3">
-        <span
-          className={cn(
-            "flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-sm font-semibold",
-            state === "done" ? "bg-ok-fill text-white" : "border border-edge-strong text-ink-2",
-          )}
-        >
-          {state === "done" ? <CheckCircle size={16} weight="fill" /> : index}
-        </span>
-        <h2 id={`step-${index}`} className="text-base font-semibold text-ink">
-          {title}
-        </h2>
-      </div>
-      <div className="mt-4 pl-10">{children}</div>
-    </section>
-  );
 }
 
 const STATUS_STEPS: ReadonlyArray<{ id: DeployStatus; label: string }> = [
@@ -599,7 +564,7 @@ export default function DeployPage() {
 
             {/* La clé remet le parcours à zéro quand on change de projet. */}
             <div key={activeProject.slug}>
-              {tab === "pipeline" && <PipelineTab />}
+              {tab === "pipeline" && (IS_MOCK_SESSION ? <PipelineTab /> : <LivePipeline />)}
               {tab === "integrations" && <IntegrationsTab />}
               {tab === "releases" && <ReleasesTab />}
             </div>

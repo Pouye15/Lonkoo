@@ -45,7 +45,7 @@ Les sondes sont jetables : le test de chaîne est à recréer en test permanent 
 | WP5 Projets, canvas, partage | fait (T1 et suppression) | membres et rôles (T3) ; tests de rôles (Q-01) |
 | WP6 Temps réel | écrit ; chaîne réparée le 21/10 (R1) | R6 |
 | WP7 Versions | écrit ; utilisable depuis R1 | Q-02, Q-04 |
-| WP8 Génération, GitHub, déploiement | non commencé (aucun code, migration V10 absente) | R8 |
+| WP8 Génération, GitHub, déploiement | **fait du 21 au 22/10 (serveur et interface)**, essayé contre un faux GitHub : jamais contre le vrai | essai réel sur accord de l'utilisateur ; mise en ligne (R7) |
 | WP9 Sécurité transverse | partiel | R2, R10 |
 | WP10 Tests et conformité | partiel | R5, R11 |
 | WP11 Images et pipeline | partiel : Dockerfiles backend et temps réel écrits, jamais construits | R7 |
@@ -210,15 +210,24 @@ Pré-requis humain, seulement pour l'essai dans un vrai navigateur : l'applicati
 
 **Preuve :** une fusion dans `main` met en ligne la version suivante sans intervention ; un navigateur sans session atteint le modèle d'exemple en moins de 30 secondes.
 
-#### R8 — Génération, envoi sur GitHub, déploiement, WP8 (Gaye ; environ 12 h ; non commencé)
+#### R8 — Génération, envoi sur GitHub, déploiement, WP8 (repris par Pouye ; **fait du 21 au 22/10**, sauf ce qui est listé en dernier)
 
 Fondations fournies par le backend : instantané validé (WP7), jeton GitHub de session (R4), `audit_log`, contrôles d'accès, migrations `V10` à `V19`. Détail des pièges dans `ROADMAP-BACKEND.md` § WP8.
 
-- [ ] Génération asynchrone (`202`) par gabarits fixes, seuls les `ident` validés dans le code ; tests sur `marketplace-mobile`.
-- [ ] Envoi sur GitHub : dépôt public, `auto_init`, un seul commit par l'API Git.
-- [ ] Déploiement par SSH et `docker compose` ; **plan B** : l'interface affiche les commandes (voir § 6.6).
+- [x] **Générateur** (`generation/*`) : gabarits fixes, seuls les identifiants validés entrent dans le code, le SQL et les chemins ; le texte libre est échappé selon sa destination (commentaire Java, YAML, Markdown, Mermaid, XML, JavaScript) ; noms de classes qui évitent ceux du JDK, de Spring et du code généré ; mots réservés identiques côté backend et côté front (test de dérive). Produit une API Spring Boot et sa migration PostgreSQL, les entités, dépôts et contrôleurs, les interfaces des blocs « application web », `docker-compose.yml`, `openapi.yaml`, un README avec schémas Mermaid, et le workflow de déploiement.
+- [x] **API** : `POST /canvases/{id}/generate` (202, état courant ou version figée, 422 si le contrat n'est pas respecté), lecture de l'état, d'un fichier et de l'archive ZIP (identique à chaque téléchargement), suppression ; exécuteur borné (503 « Serveur occupé » au-delà), une génération active par canvas, plafonds `MAX_GENERATIONS_PER_CANVAS` (20) et `MAX_GENERATED_BYTES` (8 Mio), reprise au démarrage (travaux interrompus marqués échoués). Migration `V10`.
+- [x] **Envoi sur GitHub** : `POST /generations/{id}/push-github` crée le dépôt (`auto_init`) puis pousse tout en **un seul commit** par l'API Git (lots de 100 fichiers et 4 Mio). Le jeton reste dans la session, passé au travail asynchrone : absent de la base, des réponses, du journal d'audit (testé). Le fichier de workflow n'est envoyé qu'avec l'autorisation `workflow` ; sinon avertissement, et rejeu sans lui si GitHub n'annonce pas les autorisations. Dépôt privé : autorisation `repo`. Nouvel essai après échec : le dépôt créé par l'essai précédent est repris (jamais un dépôt qui n'est pas le nôtre).
+- [x] **Déploiement** : `POST /generations/{id}/deploy` lance le workflow du dépôt (`workflow_dispatch`) et suit l'exécution à chaque lecture de `GET /deployments/{id}` (en attente, en cours, déployé, échoué). **Plan B** (§ 6.6) : si LONKOO ne peut pas le lancer (fichier absent, autorisations `repo` et `workflow` manquantes) ou si l'utilisateur le préfère, le déploiement passe en `MANUAL` avec les secrets à créer, les liens GitHub et les commandes. **Décision : le serveur n'ouvre aucune connexion SSH** (le workflow GitHub Actions le fait avec les secrets du dépôt) et n'appelle jamais l'adresse publique saisie.
+- [x] **Autorisations élargies sur choix explicite** : `GET /auth/github/login?access=deploy` demande `repo` et `workflow` (écran de consentement bien plus large, donc jamais à la première connexion), retour sur `/deploy` à une adresse fixe ; `GET /github/status` dit ce que la connexion permet (publier, dépôt privé, déployer).
+- [x] **Interface** (page *Déploiement* en mode API) : source (état courant ou version), fichiers consultables, archive, avertissements ; envoi avec nom et visibilité validés comme le serveur ; suivi par interrogation ; étapes manuelles avec commandes copiables ; bouton d'autorisation de déploiement ; adresses saisies jamais mises telles quelles dans un lien (http et https seulement). Le mode démonstration garde son parcours simulé.
 
-**Preuve :** l'exemple produit un dépôt GitHub qui démarre avec `docker compose up`.
+**Preuve (22/10) :** `./mvnw clean test` : **282 tests Java verts, 1 ignoré** (le test contre un vrai serveur), dont 22 sur le générateur (projet généré compilé et démarré, OpenAPI et Mermaid validés par leurs vrais analyseurs, charges d'attaque dans les noms et les textes), 16 sur l'API de génération et ses plafonds, 29 sur l'envoi GitHub et son client, 22 sur le déploiement. Un faux GitHub garde un vrai état (dépôts, arbres, commits, exécutions) : ce qui est poussé se relit. Des retraits volontaires font échouer les tests (reprise d'un dépôt qui n'est pas le nôtre ; limite de rafraîchissement). **Un défaut n'a été vu qu'au navigateur** : la limite « une lecture de GitHub toutes les 3 s » repoussait son propre horodatage, donc un suivi toutes les 1,5 s ne rafraîchissait jamais ; corrigé et couvert par un test à intervalle réel (il échoue sur l'ancien code). Côté interface : 60 tests de modules purs (7 pour les règles de la page : noms de dépôt, adresses, étapes, interrogation), et un scénario de navigateur de **47 vérifications** contre le vrai backend et un faux GitHub (OAuth compris) : génération, lecture d'un fichier, archive, connexion, envoi sans l'autorisation `workflow`, étapes manuelles, consentement élargi, second dépôt avec workflow, déploiement suivi jusqu'à « Déployé » puis un échec expliqué, rechargement, aucun jeton dans la page ; le mode démonstration passe 6 vérifications. Les scénarios de navigateur ne sont pas dans le dépôt : à reprendre en R11.
+
+**Ce qui n'est pas fait, ou pas prouvé :**
+- **Aucun essai contre le vrai GitHub** : créer un dépôt public sur le compte de quelqu'un est une action visible de l'extérieur, à faire seulement sur accord. Les comportements de GitHub (en-tête `X-OAuth-Scopes`, `workflow_dispatch` qui répond 204 ou 200, refus d'un fichier de workflow sans l'autorisation, délai de la branche après `auto_init`) viennent de sa documentation, pas d'un essai ; le faux GitHub les reproduit tels que compris.
+- **Aucun déploiement réel sur un serveur** : le workflow généré n'a jamais tourné (il demande des secrets SSH et un serveur Systalink).
+- Seule la cible `spring-boot` est produite (la cible `nextjs` seule n'est pas proposée : le projet contient déjà les interfaces décrites). Pas d'archivage vers SystaDrive.
+- Un projet déjà envoyé ne peut pas l'être une seconde fois : il faut régénérer, puis choisir un autre nom de dépôt.
 
 #### R9 — Branchement du front, WP12 (Fall avec Pouye ; environ 7 h) — **fait le 21/10 par Pouye, sauf l'éditeur d'entités**
 
