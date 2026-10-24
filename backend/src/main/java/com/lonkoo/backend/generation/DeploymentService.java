@@ -158,6 +158,10 @@ public class DeploymentService {
         } catch (RuntimeException e) {
             log.error("Lancement du déploiement {} échoué", id, e);
             repository.finish(id, "FAILED", "Le lancement a échoué (erreur interne).");
+        } catch (Error e) {
+            log.error("Lancement du déploiement {} interrompu par une erreur grave", id, e);
+            JobGuard.markFailedQuietly(log, "le déploiement " + id, () -> repository.finish(id, "FAILED", "Le lancement a échoué (erreur grave du serveur)."));
+            throw e;
         }
     }
 

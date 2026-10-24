@@ -159,6 +159,8 @@ class GithubPushIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(GITHUB.calls).allMatch(c -> ("Bearer " + GITHUB.token).equals(c.authorization()));
         assertThat(count("select count(*) from audit_log where action = 'push.github' and target = ?", "generation:" + setup.generation()))
                 .isEqualTo(1);
+        assertThat(count("select count(*) from generations where id = ? and push_started_at is not null", UUID.fromString(setup.generation())))
+                .as("l'heure de début de l'envoi est retenue (nettoyage des envois perdus)").isEqualTo(1);
     }
 
     @Test

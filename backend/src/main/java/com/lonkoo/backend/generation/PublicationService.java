@@ -75,13 +75,17 @@ public class PublicationService {
                     ? "Un envoi est déjà en cours pour ce projet."
                     : "Ce projet est déjà envoyé sur GitHub" + (current.repoFullName() == null ? "." : " (" + current.repoFullName() + ")."));
         }
-        auditService.record(user.id(), "push.github", "generation:" + id,
-                "{\"repo\":\"" + name + "\",\"visibility\":\"" + (isPrivate ? "private" : "public") + "\"}");
         try {
+            auditService.record(user.id(), "push.github", "generation:" + id,
+                    "{\"repo\":\"" + name + "\",\"visibility\":\"" + (isPrivate ? "private" : "public") + "\"}");
             jobs.execute(() -> runPush(id, name, isPrivate, accessToken));
         } catch (RejectedExecutionException e) {
             repository.pushFailed(id, "Le serveur est occupé : réessayez dans un instant.", List.of());
             throw new BusyException("Trop de travaux en cours : réessayez dans un instant.");
+        } catch (RuntimeException e) {
+            // L'envoi est déjà réservé : sans cela (journal d'audit en panne, par exemple), il resterait « en cours ».
+            repository.pushFailed(id, "L'envoi n'a pas pu démarrer (erreur interne).", List.of());
+            throw e;
         }
         return generations.get(id);
     }
@@ -135,6 +139,10 @@ public class PublicationService {
         } catch (RuntimeException e) {
             log.error("Envoi {} échoué", id, e);
             repository.pushFailed(id, "L'envoi a échoué (erreur interne).", warnings);
+        } catch (Error e) {
+            log.error("Envoi {} interrompu par une erreur grave", id, e);
+            JobGuard.markFailedQuietly(log, "l'envoi " + id, () -> repository.pushFailed(id, "L'envoi a échoué (erreur grave du serveur).", warnings));
+            throw e;
         }
     }
 

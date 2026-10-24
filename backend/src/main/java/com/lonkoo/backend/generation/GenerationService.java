@@ -150,6 +150,11 @@ public class GenerationService {
         } catch (RuntimeException e) {
             log.error("Génération {} échouée", id, e);
             repository.markFailed(id, "La génération a échoué (erreur interne).");
+        } catch (Error e) {
+            // Mémoire épuisée, pile débordée… : la ligne ne doit pas rester « en cours » (elle bloquerait le canvas).
+            log.error("Génération {} interrompue par une erreur grave", id, e);
+            JobGuard.markFailedQuietly(log, "la génération " + id, () -> repository.markFailed(id, "La génération a échoué (erreur grave du serveur)."));
+            throw e;
         }
     }
 

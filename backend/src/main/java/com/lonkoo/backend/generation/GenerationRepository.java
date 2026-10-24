@@ -152,6 +152,26 @@ class GenerationRepository {
         return generations + pushes;
     }
 
+    /** Génération restée « en attente » ou « en cours » au-delà du délai : son travail s'est perdu. */
+    int failStaleGenerations(int minutes) {
+        return jdbc.sql("""
+                update generations
+                set status = 'FAILED', finished_at = now(),
+                    error = 'La génération n''a pas abouti (travail perdu) : relancez-la.'
+                where status in ('PENDING', 'RUNNING') and created_at < now() - make_interval(mins => ?)
+                """).param(minutes).update();
+    }
+
+    /** Envoi resté « en cours » au-delà du délai ; sans heure de début (ligne ancienne), la création sert de repère. */
+    int failStalePushes(int minutes) {
+        return jdbc.sql("""
+                update generations
+                set push_status = 'FAILED',
+                    push_error = 'L''envoi n''a pas abouti (travail perdu) : réessayez.'
+                where push_status = 'RUNNING' and coalesce(push_started_at, created_at) < now() - make_interval(mins => ?)
+                """).param(minutes).update();
+    }
+
     boolean delete(UUID id) {
         return jdbc.sql("delete from generations where id = ?").param(id).update() == 1;
     }
@@ -159,7 +179,7 @@ class GenerationRepository {
     /** Réserve l'envoi sur GitHub : un seul à la fois, et plus de nouvel envoi une fois réussi. */
     boolean claimPush(UUID id) {
         return jdbc.sql("""
-                update generations set push_status = 'RUNNING', push_error = null, push_warnings = '[]'::jsonb
+                update generations set push_status = 'RUNNING', push_started_at = now(), push_error = null, push_warnings = '[]'::jsonb
                 where id = ? and status = 'DONE' and (push_status is null or push_status = 'FAILED')
                 """).param(id).update() == 1;
     }

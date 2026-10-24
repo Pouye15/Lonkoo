@@ -89,6 +89,24 @@ class DeploymentRepository {
                 .param(GenerationRepository.truncate(detail)).param(id).update();
     }
 
+    /**
+     * Ce qui ne peut pas se résoudre seul au-delà du délai : un lancement jamais parti (travail perdu), ou une exécution
+     * qui n'est jamais apparue sur GitHub. Un déploiement dont l'exécution est connue n'est pas touché : sa lecture le
+     * ramène à l'état réel.
+     */
+    int failStale(int minutes) {
+        return jdbc.sql("""
+                update deployments
+                set status = 'FAILED', updated_at = now(),
+                    detail = case status
+                        when 'PENDING' then 'Le lancement n''a pas abouti (travail perdu) : relancez le déploiement.'
+                        else 'L''exécution n''est jamais apparue sur GitHub : vérifiez l''onglet Actions du dépôt, puis relancez le déploiement.'
+                    end
+                where updated_at < now() - make_interval(mins => ?)
+                  and (status = 'PENDING' or (status = 'RUNNING' and run_id is null))
+                """).param(minutes).update();
+    }
+
     /** Au démarrage, un lancement resté en attente (le workflow n'avait pas encore été déclenché) est perdu. */
     int recoverInterrupted() {
         return jdbc.sql("""

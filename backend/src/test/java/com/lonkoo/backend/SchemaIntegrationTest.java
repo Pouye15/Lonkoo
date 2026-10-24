@@ -20,7 +20,7 @@ class SchemaIntegrationTest extends AbstractPostgresIntegrationTest {
     void allMigrationsAreApplied() {
         List<String> versions = jdbc.sql("select version from flyway_schema_history where success order by installed_rank")
                 .query(String.class).list();
-        assertThat(versions).containsExactly("1", "2", "3", "10");
+        assertThat(versions).containsExactly("1", "2", "3", "10", "11");
     }
 
     @Test
