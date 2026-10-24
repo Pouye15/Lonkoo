@@ -26,6 +26,8 @@ final class FakeRealtimeServer {
     final List<String> authorizations = new CopyOnWriteArrayList<>();
     volatile int closeStatus = 204;
     final List<String> closedCanvases = new CopyOnWriteArrayList<>();
+    /** Corps de chaque demande de fermeture, dans le même ordre que {@code closedCanvases} (vide : tout le canvas). */
+    final List<String> closeBodies = new CopyOnWriteArrayList<>();
 
     private FakeRealtimeServer(HttpServer server) {
         this.server = server;
@@ -56,6 +58,7 @@ final class FakeRealtimeServer {
         authorizations.clear();
         closeStatus = 204;
         closedCanvases.clear();
+        closeBodies.clear();
     }
 
     private void handle(HttpExchange exchange) throws IOException {
@@ -68,6 +71,7 @@ final class FakeRealtimeServer {
             respond(exchange, snapshotStatus, snapshotStatus == 200 ? snapshot : "{}");
         } else if (path.endsWith("/close") && "POST".equals(exchange.getRequestMethod())) {
             closedCanvases.add(path.replace("/internal/canvases/", "").replace("/close", ""));
+            closeBodies.add(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
             respond(exchange, closeStatus, null);
         } else if (path.endsWith("/restore") && "POST".equals(exchange.getRequestMethod())) {
             restoreBodies.add(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));

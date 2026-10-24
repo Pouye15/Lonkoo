@@ -18,4 +18,12 @@ public enum Role {
     public boolean atLeast(Role required) {
         return ordinal() <= required.ordinal();
     }
+
+    /**
+     * Vrai si ce rôle est strictement plus élevé que {@code other}.
+     * Exemple : MAINTAINER.isAbove(WRITE) == true, MAINTAINER.isAbove(MAINTAINER) == false.
+     */
+    public boolean isAbove(Role other) {
+        return ordinal() < other.ordinal();
+    }
 }

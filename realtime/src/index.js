@@ -8,7 +8,9 @@
  *     (`Authorization: Bearer <REALTIME_SERVICE_TOKEN>`) :
  *       GET  /internal/canvases/{id}/snapshot  -> instantané JSON du contrat
  *       POST /internal/canvases/{id}/restore   -> remplace le contenu en transaction
- *       POST /internal/canvases/{id}/close     -> ferme les connexions ouvertes sur ce canvas
+ *       POST /internal/canvases/{id}/close     -> ferme les connexions ouvertes sur ce canvas ;
+ *                                                 avec `{"userId": "..."}`, seulement celles de cette personne
+ *                                                 (socket comprise), dont les tickets déjà émis sont refusés
  *   - GET /health (sans jeton) : 200 en service, 503 pendant l'arrêt.
  *
  * Arrêt propre (SIGTERM, SIGINT) : plus de nouvelle connexion, connexions fermées, tous les
@@ -16,7 +18,8 @@
  *
  * Hooks :
  *   - onAuthenticate : vérifie le ticket JWT (signature, expiration, audience,
- *     cid == documentName) et active la lecture seule pour les rôles lecture.
+ *     cid == documentName), refuse celui d'une personne dont l'accès a été retiré depuis son émission,
+ *     et active la lecture seule pour les rôles lecture.
  *   - onLoadDocument : charge l'état depuis le backend ; sinon initialise depuis
  *     le seed (modèle d'exemple).
  *   - onStoreDocument : réécrit l'état Yjs (base64) vers le backend, avec debounce.
@@ -48,6 +51,12 @@ const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const INTERNAL_SNAPSHOT_PATH = new RegExp(`^/internal/canvases/(${UUID})/snapshot$`, 'i');
 const INTERNAL_RESTORE_PATH = new RegExp(`^/internal/canvases/(${UUID})/restore$`, 'i');
 const INTERNAL_CLOSE_PATH = new RegExp(`^/internal/canvases/(${UUID})/close$`, 'i');
+
+/** Identifiant de personne accepté dans une demande de fermeture (un UUID du backend en production). */
+const USER_ID = /^[0-9A-Za-z_-]{1,64}$/;
+
+/** Fermeture « accès refusé » (code 4403, comme `Forbidden` de Hocuspocus). */
+const FORBIDDEN = { code: 4403, reason: 'Forbidden' };
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -149,6 +158,8 @@ function rejectUpgrade(socket, status, message) {
  * @param {number[]} [options.storeRetryDelaysMs]    Attentes entre les tentatives d'enregistrement (1 s, 2 s, 4 s).
  * @param {number[]} [options.shutdownRetryDelaysMs] Idem pendant l'arrêt, plus court : Docker laisse 10 s (0,5 s).
  * @param {number} [options.backendTimeoutMs]        Délai maximal d'un appel au backend (5 s).
+ * @param {number} [options.revocationMemoryMs]      Durée pendant laquelle un accès retiré est retenu (10 min :
+ *                                                   un ticket vit 5 min, il n'a plus d'effet après).
  */
 export function createCanvasServer({
   backendUrl,
@@ -161,12 +172,50 @@ export function createCanvasServer({
   storeRetryDelaysMs = [1000, 2000, 4000],
   shutdownRetryDelaysMs = [500],
   backendTimeoutMs = 5000,
+  revocationMemoryMs = 10 * 60 * 1000,
 }) {
   const backend = createBackendClient(backendUrl, serviceToken, { timeoutMs: backendTimeoutMs });
   const verifyTicket = createTicketVerifier(ticketSecret);
   const hasServiceToken = createServiceTokenVerifier(serviceToken);
   let shuttingDown = false;
   let shutdownPromise = null;
+
+  /**
+   * Accès retirés (`canvas:personne` -> instant du retrait). Un ticket est un JWT valable 5 minutes que le
+   * serveur ne revérifie pas auprès du backend : sans cette mémoire, une personne retirée pourrait se
+   * reconnecter avec le ticket qu'elle détient déjà. Elle est perdue à l'arrêt du serveur, ce qui est sans
+   * conséquence : toutes les connexions tombent aussi, et au retour un ticket neuf est exigé du backend.
+   */
+  const revocations = new Map();
+
+  function revokeAccess(documentName, userId) {
+    const now = Date.now();
+    for (const [key, at] of revocations) {
+      if (now - at > revocationMemoryMs) revocations.delete(key);
+    }
+    revocations.set(`${documentName}:${userId}`, now);
+  }
+
+  /** Vrai si ce ticket a été émis (à la seconde près) avant ou pendant le retrait de l'accès. */
+  function isRevoked(documentName, userId, issuedAtSeconds) {
+    const at = revocations.get(`${documentName}:${userId}`);
+    if (at === undefined || Date.now() - at > revocationMemoryMs) return false;
+    return !Number.isFinite(issuedAtSeconds) || issuedAtSeconds <= Math.floor(at / 1000);
+  }
+
+  /**
+   * Ferme les connexions d'une personne à un document, socket comprise : fermer seulement la connexion au
+   * document laisserait la socket ouverte, et un client mal intentionné pourrait continuer d'y écrire.
+   */
+  function disconnectUser(documentName, userId) {
+    const document = hocuspocus.documents.get(documentName);
+    if (!document) return;
+    for (const connection of [...document.connections.keys()]) {
+      if (connection.context?.user?.id !== userId) continue;
+      connection.close(FORBIDDEN);
+      connection.webSocket.close(FORBIDDEN.code, FORBIDDEN.reason);
+    }
+  }
 
   /** Enregistre l'état Yjs d'un document auprès du backend, avec de nouvelles tentatives si besoin. */
   async function persist(documentName, document, retryDelaysMs) {
@@ -201,6 +250,9 @@ export function createCanvasServer({
     },
     async onAuthenticate({ token, documentName, connectionConfig }) {
       const payload = await verifyTicket(token, documentName);
+      if (isRevoked(documentName, payload.sub, payload.iat)) {
+        throw new Error('accès retiré');
+      }
       if (payload.role && READ_ONLY_ROLES.has(payload.role)) {
         connectionConfig.readOnly = true;
       }
@@ -229,8 +281,21 @@ export function createCanvasServer({
       return;
     }
     if (isClose) {
-      // Droits retirés ou canvas supprimé : les clients connectés sont déconnectés.
-      hocuspocus.closeConnections(closeMatch[1]);
+      // Canvas supprimé : tous les clients sont déconnectés. Accès d'une personne retiré : seulement les siens,
+      // et ses tickets déjà émis ne rouvrent plus rien.
+      const body = await readJsonBody(request, maxMessageBytes);
+      if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+        throw new HttpError(400, 'corps JSON invalide');
+      }
+      if (body.userId === undefined) {
+        hocuspocus.closeConnections(closeMatch[1]);
+      } else {
+        if (typeof body.userId !== 'string' || !USER_ID.test(body.userId)) {
+          throw new HttpError(400, 'userId invalide');
+        }
+        revokeAccess(closeMatch[1], body.userId);
+        disconnectUser(closeMatch[1], body.userId);
+      }
       response.writeHead(204);
       response.end();
       return;

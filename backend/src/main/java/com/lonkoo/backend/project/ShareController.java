@@ -1,10 +1,13 @@
 package com.lonkoo.backend.project;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -19,6 +22,7 @@ import com.lonkoo.backend.web.ForbiddenException;
 import com.lonkoo.backend.web.JoinResponse;
 import com.lonkoo.backend.web.ShareLinkRequest;
 import com.lonkoo.backend.web.ShareLinkResponse;
+import com.lonkoo.backend.web.ShareLinkSummary;
 import com.lonkoo.backend.web.TooManyRequestsException;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -46,6 +50,17 @@ public class ShareController {
             @Valid @RequestBody ShareLinkRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 shareLinkService.createLink(currentUser(authentication), canvasId, request.role(), request.ttlHours()));
+    }
+
+    @GetMapping("/canvases/{canvasId}/share-links")
+    List<ShareLinkSummary> list(@PathVariable UUID canvasId) {
+        return shareLinkService.listLinks(canvasId);
+    }
+
+    @DeleteMapping("/canvases/{canvasId}/share-links/{linkId}")
+    ResponseEntity<Void> revoke(Authentication authentication, @PathVariable UUID canvasId, @PathVariable UUID linkId) {
+        shareLinkService.revokeLink(currentUser(authentication), canvasId, linkId);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/join/{token}")

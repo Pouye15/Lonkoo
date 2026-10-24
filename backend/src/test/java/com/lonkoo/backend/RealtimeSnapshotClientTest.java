@@ -121,6 +121,37 @@ class RealtimeSnapshotClientTest {
     }
 
     @Test
+    void closingTheConnectionsOfOnePersonNamesThemInTheBodyAndKeepsTheServiceToken() throws Exception {
+        status = 204;
+        UUID userId = UUID.randomUUID();
+
+        client().closeConnections(canvasId, userId);
+
+        assertThat(requests).hasSize(1);
+        assertThat(requests.get(0)).startsWith("POST /internal/canvases/" + canvasId + "/close")
+                .contains("Authorization=Bearer " + TOKEN).contains("Upgrade=null");
+        assertThat(JsonMapper.shared().readTree(bodies.get(0)).get("userId").asText()).isEqualTo(userId.toString());
+    }
+
+    @Test
+    void closingEveryConnectionOfACanvasSendsNoBody() {
+        status = 204;
+
+        client().closeConnections(canvasId);
+
+        assertThat(bodies.get(0)).isEmpty();
+    }
+
+    @Test
+    void aFailedCloseForOnePersonIsReportedAsBadGateway() {
+        status = 500;
+
+        assertThatThrownBy(() -> client().closeConnections(canvasId, UUID.randomUUID()))
+                .isInstanceOfSatisfying(RealtimeUnavailableException.class,
+                        e -> assertThat(statusOf(e)).isEqualTo(HttpStatus.BAD_GATEWAY.value()));
+    }
+
+    @Test
     void aFailedCloseIsReportedAsBadGateway() {
         status = 500;
 

@@ -9,6 +9,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
+import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -24,6 +25,7 @@ import com.lonkoo.backend.support.UsageLimits;
 import com.lonkoo.backend.web.BadRequestException;
 import com.lonkoo.backend.web.NotFoundException;
 import com.lonkoo.backend.web.ShareLinkResponse;
+import com.lonkoo.backend.web.ShareLinkSummary;
 
 /**
  * Liens de partage d'un canvas (durée au plus 72 h, rôle WRITE ou READ).
@@ -67,10 +69,12 @@ public class ShareLinkService {
         String token = generateToken();
         String tokenHash = sha256(token);
 
+        UUID linkId = UUID.randomUUID();
         jdbcClient.sql("""
-                insert into share_links (token_hash, canvas_id, role, expires_at, created_by)
-                values (?, ?, ?, ?, ?)
+                insert into share_links (id, token_hash, canvas_id, role, expires_at, created_by)
+                values (?, ?, ?, ?, ?, ?)
                 """)
+                .param(linkId)
                 .param(tokenHash)
                 .param(canvasId)
                 .param(role)
@@ -80,7 +84,44 @@ public class ShareLinkService {
 
         auditService.record(user.id(), "share.created", "canvas:" + canvasId, null);
 
-        return new ShareLinkResponse(publicUrl + "/join/" + token, expiresAt);
+        return new ShareLinkResponse(linkId, publicUrl + "/join/" + token, expiresAt);
+    }
+
+    /** Liens encore actifs du canvas, du plus récent au plus ancien. Le jeton n'est pas retrouvable : on ne liste que l'identité du lien. */
+    public List<ShareLinkSummary> listLinks(UUID canvasId) {
+        canvasAccessService.requireManageMembers(canvasId);
+        return jdbcClient.sql("""
+                select sl.id, sl.role, sl.expires_at, sl.created_at, coalesce(u.display_name, u.login) as author
+                from share_links sl
+                left join users u on u.id = sl.created_by
+                where sl.canvas_id = ? and sl.expires_at > now()
+                order by sl.created_at desc
+                """)
+                .param(canvasId)
+                .query((rs, rowNum) -> new ShareLinkSummary(
+                        rs.getObject("id", UUID.class),
+                        rs.getString("role"),
+                        rs.getObject("expires_at", OffsetDateTime.class).toInstant(),
+                        rs.getObject("created_at", OffsetDateTime.class).toInstant(),
+                        rs.getString("author")))
+                .list();
+    }
+
+    /**
+     * Révoque un lien : il ne permet plus de rejoindre le projet. Ceux qui l'ont déjà utilisé restent membres
+     * (on les retire séparément) ; un lien d'un autre canvas ou inconnu donne un 404, sans rien révéler.
+     */
+    @Transactional
+    public void revokeLink(CurrentUser user, UUID canvasId, UUID linkId) {
+        canvasAccessService.requireManageMembers(canvasId);
+        int deleted = jdbcClient.sql("delete from share_links where id = ? and canvas_id = ?")
+                .param(linkId)
+                .param(canvasId)
+                .update();
+        if (deleted == 0) {
+            throw new NotFoundException("Lien de partage introuvable");
+        }
+        auditService.record(user.id(), "share.revoked", "canvas:" + canvasId, "{\"linkId\":\"" + linkId + "\"}");
     }
 
     /**

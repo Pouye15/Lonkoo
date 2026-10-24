@@ -29,6 +29,7 @@ tags:
   - name: Session
   - name: Projets
   - name: Canvas
+  - name: Membres
   - name: Partage
   - name: Versions
   - name: IA
@@ -259,6 +260,67 @@ paths:
           $ref: "#/components/responses/NotFound"
 
   # ---------------------------------------------------------------------
+  # Membres
+  # ---------------------------------------------------------------------
+  /projects/{projectId}/members:
+    get:
+      tags: [Membres]
+      summary: Liste les membres du projet (tout membre)
+      description: |
+        Du plus haut rôle au plus bas, puis par ancienneté. `you` désigne l'appelant ; `removable` dit s'il peut
+        retirer ce membre (ou, pour lui-même, quitter le projet) : l'interface n'affiche que des boutons qui marchent.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Membres
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Member"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /projects/{projectId}/members/{userId}:
+    delete:
+      tags: [Membres]
+      summary: Retire un membre, ou quitte le projet si `userId` est l'appelant
+      description: |
+        Retirer quelqu'un demande d'être MAINTAINER ou plus, et d'avoir un rôle **strictement** plus élevé que
+        lui : un MAINTAINER retire un WRITE, un TRIAGE ou un READ, mais ni un autre MAINTAINER ni le propriétaire.
+        Quitter est permis à tout membre sauf au propriétaire (409 : il supprime le projet à la place).
+        Un appelant qui n'a pas le droit de retirer reçoit 403 que `userId` soit membre ou non.
+
+        Le membre perd l'accès aussitôt : plus de ticket temps réel, ses connexions ouvertes sont coupées (les siennes
+        seulement) et le serveur temps réel refuse les tickets qu'il détient encore (5 minutes de validité). Si le
+        temps réel est injoignable à cet instant, le retrait tient quand même, mais la personne garde sa connexion
+        et ses tickets au plus 5 minutes. Elle peut revenir avec un lien de partage encore actif : pour l'en
+        empêcher, révoquer aussi le lien (`DELETE /canvases/{canvasId}/share-links/{linkId}`).
+        Journal d'audit : `member.removed` ou `member.left`.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "204":
+          description: Membre retiré
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Projet non visible par l'appelant, ou `userId` n'est pas membre de ce projet
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: Le propriétaire ne peut pas quitter son projet
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  # ---------------------------------------------------------------------
   # Canvas
   # ---------------------------------------------------------------------
   /projects/{projectId}/canvases:
@@ -428,10 +490,15 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [url, expiresAt]
+                required: [id, url, expiresAt]
                 properties:
+                  id:
+                    type: string
+                    format: uuid
+                    description: Sert à révoquer le lien ; ne permet pas de le rejoindre.
                   url:
                     type: string
+                    description: "Montrée une seule fois (le serveur ne garde que l'empreinte du jeton)."
                   expiresAt:
                     type: string
                     format: date-time
@@ -443,6 +510,46 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/LimitReached"
+    get:
+      tags: [Partage]
+      summary: Liste les liens de partage encore actifs (MAINTAINER et plus)
+      description: |
+        Du plus récent au plus ancien. Les liens expirés n'y figurent pas. Le jeton n'est pas retrouvable
+        (seule son empreinte est stockée) : cette liste dit qui a créé quoi, pas où cliquer.
+      parameters:
+        - $ref: "#/components/parameters/CanvasId"
+      responses:
+        "200":
+          description: Liens actifs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ShareLinkSummary"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /canvases/{canvasId}/share-links/{linkId}:
+    delete:
+      tags: [Partage]
+      summary: Révoque un lien de partage (MAINTAINER et plus)
+      description: |
+        Le lien ne rattache plus personne. Ceux qui l'ont déjà utilisé restent membres : les retirer est une
+        autre action (`DELETE /projects/{projectId}/members/{userId}`). Un lien inconnu, déjà révoqué ou
+        d'un autre canvas donne 404. Journal d'audit : `share.revoked` (identifiant du lien, jamais le jeton).
+      parameters:
+        - $ref: "#/components/parameters/CanvasId"
+        - $ref: "#/components/parameters/LinkId"
+      responses:
+        "204":
+          description: Lien révoqué
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /join/{token}:
     post:
@@ -1147,6 +1254,20 @@ components:
       schema:
         type: string
         format: uuid
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    LinkId:
+      name: linkId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     GenerationId:
       name: generationId
       in: path
@@ -1182,6 +1303,56 @@ components:
           type: string
         isGuest:
           type: boolean
+
+    Member:
+      type: object
+      required: [userId, login, guest, role, joinedAt, you, removable]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+          nullable: true
+        login:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+        guest:
+          type: boolean
+        role:
+          $ref: "#/components/schemas/Role"
+        joinedAt:
+          type: string
+          format: date-time
+        you:
+          type: boolean
+          description: Vrai pour l'appelant.
+        removable:
+          type: boolean
+          description: Vrai si l'appelant peut retirer ce membre (ou, si `you`, quitter le projet).
+
+    ShareLinkSummary:
+      type: object
+      required: [id, role, expiresAt, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [WRITE, READ]
+        expiresAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+          nullable: true
+          description: Nom de l'auteur du lien, absent si son compte a disparu.
 
     Project:
       type: object

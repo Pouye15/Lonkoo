@@ -83,7 +83,7 @@ export async function signTicket({ canvasId = CANVAS_ID, role = 'WRITE', userId 
     .sign(key);
 }
 
-export function makeProvider(url, token, canvasId = CANVAS_ID) {
+export function makeProvider(url, token, canvasId = CANVAS_ID, WebSocketPolyfill = WebSocket) {
   const doc = new Y.Doc();
   const provider = new HocuspocusProvider({
     url,
@@ -91,7 +91,7 @@ export function makeProvider(url, token, canvasId = CANVAS_ID) {
     document: doc,
     token,
     awareness: new Awareness(doc),
-    WebSocketPolyfill: WebSocket,
+    WebSocketPolyfill,
   });
   return { provider, doc };
 }

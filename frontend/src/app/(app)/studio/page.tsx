@@ -110,7 +110,10 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
     });
 
   const { nodes, edges, setNodes, setEdges, live } = useProjectGraph(currentProject.slug);
+  const { reload: reloadProjects } = useWorkspace();
   const [shareOpen, setShareOpen] = useState(false);
+  // Monte à chaque lien créé : la liste des liens actifs de l'onglet Équipe se relit.
+  const [linksVersion, setLinksVersion] = useState(0);
   const [exportOpen, setExportOpen] = useState(false);
   // Le ticket temps réel donne le rôle exact ; avant, celui lu avec la liste des canvas du projet.
   const role: ApiRole | null = live?.role ?? (currentProject.role ? API_ROLE_BY_LABEL[currentProject.role] : null);
@@ -389,7 +392,8 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
               { id: "simulator", label: "Simulateur", icon: ChartLineUp },
               { id: "docs", label: "Documentation", icon: FileText },
               { id: "versions", label: "Versions", icon: GitCommit },
-              { id: "team", label: `Équipe (${live ? currentProject.collaborators.length : collaborators.length})`, icon: Users },
+              // En mode API, le nombre de membres est celui du panneau (lu au serveur) : pas de compteur ici.
+              { id: "team", label: live ? "Équipe" : `Équipe (${collaborators.length})`, icon: Users },
             ] as const
           ).map((t) => {
             const Icon = t.icon;
@@ -852,7 +856,18 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
         {/* ONGLET 6 : ÉQUIPE & COLLABORATEURS DU PROJET (COMME SUR GITHUB)       */}
         {/* ===================================================================== */}
         {activeTab === "team" && live && (
-          <LiveTeamPanel project={currentProject} canShare={canShare} onShare={() => setShareOpen(true)} />
+          <LiveTeamPanel
+            projectId={currentProject.id}
+            canvasId={live.canvasId}
+            canShare={canShare}
+            onShare={() => setShareOpen(true)}
+            linksVersion={linksVersion}
+            onLeft={() => {
+              // Plus d'accès à ce projet : retour à la liste, relue sans lui.
+              router.replace("/dashboard");
+              void reloadProjects();
+            }}
+          />
         )}
         {activeTab === "team" && !live && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
@@ -1120,7 +1135,14 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
         edges={edges}
         canvasId={live?.canvasId}
       />
-      {live?.canvasId && <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)} canvasId={live.canvasId} />}
+      {live?.canvasId && (
+        <ShareDialog
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          canvasId={live.canvasId}
+          onCreated={() => setLinksVersion((version) => version + 1)}
+        />
+      )}
     </>
   );
 }

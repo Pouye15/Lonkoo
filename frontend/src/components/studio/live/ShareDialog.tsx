@@ -12,9 +12,12 @@ interface ShareDialogProps {
   open: boolean;
   onClose: () => void;
   canvasId: string;
+  /** Appelé après chaque lien créé, pour que la liste des liens actifs de l'onglet Équipe se relise. */
+  onCreated?: () => void;
 }
 
 interface CreatedLink {
+  id: string;
   url: string;
   expiresAt: string;
 }
@@ -32,7 +35,7 @@ const ROLES = [
 ] as const;
 
 /** Création d'un lien de partage du canvas (rôle et durée au choix, 72 heures au plus). */
-export function ShareDialog({ open, onClose, canvasId }: ShareDialogProps) {
+export function ShareDialog({ open, onClose, canvasId, onCreated }: ShareDialogProps) {
   const [role, setRole] = useState<"WRITE" | "READ">("WRITE");
   const [hours, setHours] = useState<number>(24);
   const [busy, setBusy] = useState(false);
@@ -60,6 +63,7 @@ export function ShareDialog({ open, onClose, canvasId }: ShareDialogProps) {
           body: { role, ttlHours: hours },
         }),
       );
+      onCreated?.();
     } catch (failure) {
       // Limite de liens actifs (409), rôle insuffisant (403), session expirée…
       setError(messageOf(failure));

@@ -93,12 +93,27 @@ public class RealtimeSnapshotClient {
         }
     }
 
-    /** Demande au serveur temps réel de fermer les connexions ouvertes sur ce canvas (droits retirés, projet supprimé). */
+    /** Demande au serveur temps réel de fermer toutes les connexions ouvertes sur ce canvas (projet supprimé). */
     public void closeConnections(UUID canvasId) {
         HttpRequest request = request(canvasId, "close").POST(HttpRequest.BodyPublishers.noBody()).build();
         HttpResponse<String> response = send(request, "fermeture des connexions");
         if (response.statusCode() != 204) {
             throw unexpectedStatus(response.statusCode(), "fermeture des connexions");
+        }
+    }
+
+    /**
+     * Retire l'accès d'une personne au canvas : le serveur temps réel ferme ses connexions (et seulement les
+     * siennes) et refuse désormais les tickets qu'elle détenait déjà, valables 5 minutes.
+     */
+    public void closeConnections(UUID canvasId, UUID userId) {
+        HttpRequest request = request(canvasId, "close")
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"userId\":\"" + userId + "\"}"))
+                .build();
+        HttpResponse<String> response = send(request, "fermeture des connexions d'une personne");
+        if (response.statusCode() != 204) {
+            throw unexpectedStatus(response.statusCode(), "fermeture des connexions d'une personne");
         }
     }
 

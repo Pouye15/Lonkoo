@@ -71,23 +71,31 @@ class AccessMatrixIntegrationTest extends AbstractPostgresIntegrationTest {
             new Route("lire un projet", HttpMethod.GET, "/api/projects/{project}", null, Role.READ, 200),
             new Route("modifier un projet", HttpMethod.PATCH, "/api/projects/{project}", "{\"description\":\"maj\"}", Role.MAINTAINER, 200),
             new Route("supprimer un projet", HttpMethod.DELETE, "/api/projects/{project}", null, Role.OWNER, 204),
+            new Route("lister les membres", HttpMethod.GET, "/api/projects/{project}/members", null, Role.READ, 200),
+            new Route("retirer un membre", HttpMethod.DELETE, "/api/projects/{project}/members/{victim}", null, Role.MAINTAINER, 204),
             new Route("lister les canvas", HttpMethod.GET, "/api/projects/{project}/canvases", null, Role.READ, 200),
             new Route("créer un canvas", HttpMethod.POST, "/api/projects/{project}/canvases", "{\"name\":\"Autre\"}", Role.WRITE, 201),
             new Route("lire un canvas", HttpMethod.GET, "/api/canvases/{canvas}", null, Role.READ, 200),
             new Route("ticket temps réel", HttpMethod.POST, "/api/canvases/{canvas}/realtime-ticket", null, Role.READ, 200),
             new Route("créer un lien de partage", HttpMethod.POST, "/api/canvases/{canvas}/share-links", "{\"role\":\"READ\"}", Role.MAINTAINER, 201),
+            new Route("lister les liens de partage", HttpMethod.GET, "/api/canvases/{canvas}/share-links", null, Role.MAINTAINER, 200),
+            new Route("révoquer un lien de partage", HttpMethod.DELETE, "/api/canvases/{canvas}/share-links/{link}", null, Role.MAINTAINER, 204),
             new Route("lister les versions", HttpMethod.GET, "/api/canvases/{canvas}/versions", null, Role.READ, 200),
             new Route("enregistrer une version", HttpMethod.POST, "/api/canvases/{canvas}/versions", "{\"name\":\"v2\"}", Role.WRITE, 201),
             new Route("lire une version", HttpMethod.GET, "/api/canvases/{canvas}/versions/{version}", null, Role.READ, 200),
             new Route("restaurer une version", HttpMethod.POST, "/api/canvases/{canvas}/versions/{version}/restore", null, Role.WRITE, 204),
             new Route("instantané courant", HttpMethod.GET, "/api/canvases/{canvas}/snapshot", null, Role.READ, 200));
 
-    /** Un projet, son canvas, une version, et trois sessions : propriétaire, membre au rôle voulu, étranger. */
+    /**
+     * Un projet, son canvas, une version, un lien de partage, un lecteur à retirer (« victim »), et trois sessions :
+     * propriétaire, membre au rôle voulu, étranger.
+     */
     private record World(MockHttpSession owner, MockHttpSession member, MockHttpSession stranger,
-            String project, String canvas, String version) {
+            String project, String canvas, String version, String victim, String link) {
 
         String resolve(String path) {
-            return path.replace("{project}", project).replace("{canvas}", canvas).replace("{version}", version);
+            return path.replace("{project}", project).replace("{canvas}", canvas).replace("{version}", version)
+                    .replace("{victim}", victim).replace("{link}", link);
         }
     }
 
@@ -167,7 +175,10 @@ class AccessMatrixIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(count("select count(*) from canvases where project_id = ?", UUID.fromString(world.project()))).as("aucun canvas ajouté").isEqualTo(1);
         assertThat(count("select count(*) from canvas_versions where canvas_id = ?", UUID.fromString(world.canvas())))
                 .as("aucune version ajoutée").isEqualTo(1);
-        assertThat(count("select count(*) from share_links where canvas_id = ?", UUID.fromString(world.canvas()))).as("aucun lien créé").isZero();
+        assertThat(count("select count(*) from share_links where canvas_id = ?", UUID.fromString(world.canvas())))
+                .as("aucun lien créé ni révoqué : seul celui du départ").isEqualTo(1);
+        assertThat(count("select count(*) from project_members where project_id = ?", UUID.fromString(world.project())))
+                .as("aucun membre retiré : propriétaire, membre et lecteur du départ").isEqualTo(3);
         assertThat(REALTIME.restoreBodies).as("rien envoyé au document partagé").isEmpty();
     }
 
@@ -273,7 +284,13 @@ class AccessMatrixIntegrationTest extends AbstractPostgresIntegrationTest {
         MockHttpSession member = newGuest();
         jdbc.sql("insert into project_members (project_id, user_id, role) values (?, ?, ?)")
                 .param(UUID.fromString(project)).param(userId(member)).param(memberRole.name()).update();
-        return new World(owner, member, newGuest(), project, canvas, version);
+        MockHttpSession victim = newGuest();
+        jdbc.sql("insert into project_members (project_id, user_id, role) values (?, ?, 'READ')")
+                .param(UUID.fromString(project)).param(userId(victim)).update();
+        createLink(owner, canvas, "READ", 24);
+        String link = jdbc.sql("select id from share_links where canvas_id = ?")
+                .param(UUID.fromString(canvas)).query(String.class).single();
+        return new World(owner, member, newGuest(), project, canvas, version, userId(victim).toString(), link);
     }
 
     private MvcResult perform(Route route, World world, MockHttpSession session) throws Exception {
