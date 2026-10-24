@@ -79,6 +79,9 @@ public class GithubAccountService {
         jdbcClient.sql("update projects set owner_id = ? where owner_id = ?").param(userId).param(guestId).update();
         jdbcClient.sql("update canvas_versions set author_id = ? where author_id = ?").param(userId).param(guestId).update();
         jdbcClient.sql("update share_links set created_by = ? where created_by = ?").param(userId).param(guestId).update();
+        // Qui a lancé une génération ou un déploiement : sans cela, la suppression de l'invité efface cette trace.
+        jdbcClient.sql("update generations set requested_by = ? where requested_by = ?").param(userId).param(guestId).update();
+        jdbcClient.sql("update deployments set requested_by = ? where requested_by = ?").param(userId).param(guestId).update();
         jdbcClient.sql("delete from users where id = ?").param(guestId).update();
 
         auditService.record(userId, "guest.merged", "user:" + guestId, null);
