@@ -110,6 +110,23 @@ Gravité : **Critique** (la démo ne marche pas), **Haute** (faille ou fonction 
 | D-04 | Moyenne | `docs/LICENCES-TIERCES.md` ignore les composants du temps réel (Hocuspocus 4.7.1, jose 6.2.13, ws, yjs 13.6.33 et leurs dépendances) ; Dependabot ne surveille ni `/backend` ni `/realtime` ; le contrôle de licences Maven de la CI reste informatif ; la CI ne construit aucune image Docker. | **Corrigé le 21/10** : Dependabot (Maven, npm du temps réel, Docker), composants du temps réel dans `LICENCES-TIERCES.md`, jobs CI « Image Docker » (construction, et démarrage de l'image du temps réel) et « Avis de sécurité » (informatif, `scripts/check_osv_maven.py`). Licences Maven bloquantes dans la CI depuis R3 (`scripts/check_licenses_maven.py`, une exception documentée : `jakarta.annotation-api`). Prévu à l'audit : R2 |
 | D-05 | Faible | `docs/ROADMAP-BACKEND.md` : « point de situation » périmé ; `backend/HELP.md` (généré par Spring Initializr) et les `.gitkeep` de `backend/` et `realtime/` à supprimer. | **Corrigé le 21/10** : `HELP.md` et les `.gitkeep` supprimés, « point de situation » de `ROADMAP-BACKEND.md` mis à jour. Prévu à l'audit : R3 |
 
+### 5.5 Relecture complète du 24/10 (après R8)
+
+Relecture du code des quatre services (accès, tickets, liens de partage, purge, temps réel, travaux en arrière-plan) et des trois suites de tests (backend, interface, temps réel : tout vert), avec corrections des défauts trouvés.
+
+| ID | Gravité | Constat | État |
+|---|---|---|---|
+| A-01 | **Haute** | **La purge des invités supprimait les projets partagés.** Après 24 h, la base supprimait en cascade tous les projets d'un invité expiré, même partagés avec un collègue (cas du jury qui essaie en invité puis partage son canvas). | **Corrigé le 24/10** : le projet passe au membre restant qui n'expire pas (compte GitHub, puis rôle le plus élevé, puis le plus ancien), audit `project.ownership_transferred`, même transaction que la suppression ; 9 tests. |
+| A-02 | **Haute** | **Un travail pouvait rester « en cours » pour toujours** (erreur grave dans un fil, panne de la base à l'écriture du résultat, exécution GitHub jamais visible) et bloquait alors tout le canvas (409 « déjà en cours ») jusqu'au redémarrage. | **Corrigé le 24/10** : erreurs graves interceptées (`JobGuard`), nettoyage toutes les 5 min des travaux restés en cours plus de 30 min (`StaleJobReaper`, `JOB_STALE_MINUTES`), migration `V11` ; 11 tests. |
+| A-03 | **Haute** | **Le démarrage local décrit dans le README ne fonctionnait pas** : le backend lit `${DB_URL}` et les secrets sans valeur par défaut, et ni Spring ni Node ne lisent le fichier `.env`. | **Corrigé le 24/10** : le profil `dev` lit `../.env`, `npm run dev` du temps réel aussi ; README réécrit et **vérifié sur une copie vierge** (environnement vide, `.env` tiré de `.env.example`, base neuve : backend, temps réel, invité, instantané lu à travers le temps réel, ticket, GitHub non configuré en 503). Non vérifié : la commande `docker compose` (Docker n'est pas installé sur ce poste) et les variantes PowerShell. |
+| A-04 | **Haute** | **`main` ne contient que le `README.md` initial**, et la CI (déclenchée par une pull request ou un push sur `main`) n'a jamais tourné sur ce code : ses étapes (images Docker, licences, recherche de secrets) n'ont jamais été exécutées. | Ouvert : demande une pull request `backend` vers `main` (décision de l'équipe). |
+| A-05 | Moyenne | La visibilité « public / privé » d'un projet n'est qu'une étiquette : un projet « public » reste invisible pour qui n'est pas membre. | Ouvert : à implémenter, ou à retirer de l'interface. |
+| A-06 | Moyenne | Aucune route pour retirer un membre ni révoquer un lien de partage avant son expiration (72 h au plus). | Ouvert. |
+| A-07 | Moyenne | Limite de 20 invités par heure et par adresse : plusieurs personnes derrière la même adresse (Wi-Fi du jury) recevront des 429. | Ouvert : relever `GUEST_RATE_LIMIT_PER_HOUR` en production. |
+| A-08 | Moyenne | Connexion GitHub, envoi, déploiement et workflow généré : essayés seulement contre un faux GitHub. | Ouvert : essai réel sur accord (voir R4 et R8). |
+| A-09 | Faible | Le rattachement d'un invité à un compte GitHub oubliait `generations.requested_by` et `deployments.requested_by` (la suppression de l'invité effaçait cette trace). | Corrigé le 24/10 (test). |
+| A-10 | Faible | Les commentaires et `architecture.md` disaient que seules `read:user` et `public_repo` sont demandées ; `?access=deploy` demande aussi `repo` et `workflow`. | Corrigé le 24/10. |
+
 ## 6. Feuille de route du reste à faire
 
 Durées en heures de travail focalisé avec assistance IA, marge de 30 % non comprise. Ce qui est tout en haut passe avant ce qui est en dessous, sauf indication.

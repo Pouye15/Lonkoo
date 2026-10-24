@@ -110,7 +110,7 @@ Les migrations Flyway sont dans `backend/src/main/resources/db/migration`. Une s
 
 | Mesure | Détail |
 |---|---|
-| Droits minimaux | `read:user` et `public_repo` seulement ; aucun jeton stocké |
+| Droits minimaux | `read:user` et `public_repo` à la connexion ordinaire ; `repo` et `workflow` en plus seulement sur choix explicite de l'utilisateur (lancer le déploiement, dépôt privé) ; aucun jeton stocké |
 | Accès aux canvas | Contrôle d'appartenance au projet pour chaque route, chaque ticket temps réel et chaque appel IA |
 | Entrées | Tout JSON de canvas est validé contre le schéma ; l'IA n'écrit jamais directement |
 | Génération et déploiement | Seuls les `ident` entrent dans le code généré ; gabarits fixes ; conteneurs sans privilèges, sans montage de l'hôte, avec limites de mémoire et de processeur |
