@@ -1,5 +1,12 @@
-# Origine unique : / (frontend), /api (backend), /ws (temps réel).
+# Origine unique : / (interface), /api (backend), /ws (temps réel).
 # DOMAIN est fourni par l'environnement (ex. lonkoo.example.com). Caddy obtient le certificat TLS seul.
+#
+# Les adresses des services valent celles du réseau Docker (voir docker-compose.prod.yml). Elles se règlent par
+# variable seulement pour essayer ce fichier sans Docker (BACKEND_UPSTREAM=localhost:8080, par exemple).
+#
+# JOURNAUX : volontairement aucune directive « log », donc aucun journal d'accès. Le jeton d'un lien de partage est
+# dans le chemin (/join/<jeton> pour la page, /api/join/<jeton> pour l'API) et ne doit jamais être écrit (S-07).
+# N'activez pas les journaux sans exclure ces deux chemins avec « log_skip ».
 {$DOMAIN} {
 	encode zstd gzip
 
@@ -15,16 +22,20 @@
 	respond @internal 404
 
 	handle /api/* {
-		reverse_proxy backend:8080
+		# 2 Mio : plus gros que toute requête légitime (les instantanés enregistrés font 1 Mio au plus). Au-delà : 413.
+		request_body {
+			max_size 2MiB
+		}
+		reverse_proxy {$BACKEND_UPSTREAM:backend:8080}
 	}
 
 	# handle_path retire le préfixe : le navigateur ouvre wss://<domaine>/ws, le serveur temps réel reçoit « / ».
 	# (Il accepte aussi « /ws » tel quel, au cas où le préfixe ne serait pas retiré.)
 	handle_path /ws* {
-		reverse_proxy realtime:1234
+		reverse_proxy {$REALTIME_UPSTREAM:realtime:1234}
 	}
 
 	handle {
-		reverse_proxy frontend:3000
+		reverse_proxy {$FRONTEND_UPSTREAM:frontend:3000}
 	}
 }

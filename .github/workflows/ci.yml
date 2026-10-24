@@ -256,6 +256,121 @@ jobs:
           fi
 
   # ---------------------------------------------------------------
+  # Pile de production : infra/docker-compose.prod.yml démarre avec des secrets jetables, derrière Caddy en HTTPS
+  # (certificat de l'autorité locale de Caddy : un nom en « .internal » ne reçoit jamais de certificat public).
+  # On y rejoue ce que le pipeline de déploiement vérifie en production, plus ce qui ne se voit qu'ici : ports publiés,
+  # droits retirés, profil prod, données gardées après un redémarrage, sauvegarde puis restauration testée
+  # (infra/backup.sh et infra/restore.sh). C'est le seul endroit où le compose de production tourne avant le serveur.
+  # ---------------------------------------------------------------
+  pile-production:
+    name: Pile de production (compose)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      COMPOSE_FILE: infra/docker-compose.prod.yml
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configuration jetable
+        run: |
+          # Le contexte « runner » n'est pas disponible dans le env: d'un job : le chemin passe par GITHUB_ENV.
+          echo "ENV_FILE=$RUNNER_TEMP/ci.env" >> "$GITHUB_ENV"
+          {
+            echo "DOMAIN=lonkoo.internal"
+            echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)"
+            echo "REALTIME_TICKET_SECRET=$(openssl rand -hex 32)"
+            echo "REALTIME_SERVICE_TOKEN=$(openssl rand -hex 16)"
+            echo "GITHUB_OAUTH_CLIENT_ID=ci-client-id"
+            echo "GITHUB_OAUTH_CLIENT_SECRET=$(openssl rand -hex 16)"
+            # Réglages facultatifs : le premier doit arriver dans le backend, les autres (absents) ne doivent pas.
+            echo "MAX_PROJECTS_PER_GUEST=7"
+          } > "$RUNNER_TEMP/ci.env"
+
+      - name: Construire et démarrer la pile
+        run: docker compose --env-file "$ENV_FILE" up -d --build --wait --wait-timeout 600
+
+      - name: Parcours de bout en bout en HTTPS
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://lonkoo.internal"
+          c() { curl -sk --resolve lonkoo.internal:443:127.0.0.1 --resolve lonkoo.internal:80:127.0.0.1 "$@"; }
+          compose() { docker compose --env-file "$ENV_FILE" "$@"; }
+          fail() { echo "::error::$*"; exit 1; }
+          # grep sur une variable (pas dans un tube) : avec pipefail, « | grep -q » échoue à tort quand grep s'arrête tôt.
+          has() { grep -q -- "$1" <<< "$2"; }
+          hasi() { grep -qi -- "$1" <<< "$2"; }
+
+          echo "== Santé, HTTPS, routes"
+          code="$(c -o /dev/null -w '%{http_code}' "$base/api/actuator/health")"
+          [ "$code" = "200" ] || fail "santé du backend : $code"
+          has '"UP"' "$(c "$base/api/actuator/health")" || fail "corps de la santé du backend"
+          has '"UP"' "$(c "$base/ws/health")" || fail "santé du temps réel (/ws/health)"
+          has 'data-api-mode="live"' "$(c "$base/login")" || fail "interface construite hors du mode API"
+          redirect="$(c -o /dev/null -w '%{http_code} %{redirect_url}' http://lonkoo.internal/login)"
+          [ "$redirect" = "308 https://lonkoo.internal/login" ] || fail "redirection HTTP vers HTTPS : $redirect"
+          internal="$(c -o /dev/null -w '%{http_code}' "$base/internal/canvases/00000000-0000-0000-0000-000000000000/snapshot")"
+          [ "$internal" = "404" ] || fail "une route interne est joignable depuis l'extérieur : $internal"
+          hasi 'strict-transport-security' "$(c -D - -o /dev/null "$base/login")" || fail "en-tête HSTS absent"
+          ws="$(curl -sk --resolve lonkoo.internal:443:127.0.0.1 --http1.1 -i --max-time 3 \
+            -H 'Connection: Upgrade' -H 'Upgrade: websocket' -H 'Sec-WebSocket-Version: 13' \
+            -H "Sec-WebSocket-Key: $(openssl rand -base64 16)" "$base/ws" 2>/dev/null | head -1 || true)"
+          has '101' "$ws" || fail "poignée de main WebSocket sur /ws : $ws"
+
+          echo "== Parcours d'un invité (session, projet, canvas, instantané lu à travers le temps réel)"
+          jar="$RUNNER_TEMP/jar.txt"
+          headers="$(c -D - -o /dev/null -c "$jar" -X POST "$base/api/auth/guest" | tr -d '\r')"
+          has ' 201' "$(head -1 <<< "$headers")" || fail "création d'un invité"
+          hasi '^set-cookie:.*secure' "$headers" || fail "cookie de session sans l'attribut Secure (profil prod absent ?)"
+          project="$(c -b "$jar" "$base/api/projects" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["id"])')"
+          canvas="$(c -b "$jar" "$base/api/projects/$project/canvases" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["id"])')"
+          has '"schemaVersion"' "$(c -b "$jar" "$base/api/canvases/$canvas/snapshot")" || fail "instantané du canvas (chaîne backend, temps réel, base)"
+          created="$(c -b "$jar" -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' \
+            --data-binary '{"name":"avant redemarrage"}' "$base/api/projects")"
+          [ "$created" = "201" ] || fail "création d'un projet : $created"
+          python3 -c "import json; print(json.dumps({'name': 'a' * 3000000}))" > "$RUNNER_TEMP/gros.json"
+          big="$(c -b "$jar" -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' \
+            --data-binary @"$RUNNER_TEMP/gros.json" "$base/api/projects")"
+          [ "$big" = "413" ] || fail "corps de 3 Mio : $big (413 attendu)"
+
+          echo "== Ce que le serveur expose et ce qu'il s'interdit"
+          listening="$(ss -ltnH | awk '{print $4}')"
+          for port in 5432 8080 1234 3000; do
+            if grep -Eq ":$port\$" <<< "$listening"; then fail "le port $port est joignable depuis la machine hôte"; fi
+          done
+          has '0000000000000000' "$(compose exec -T backend sh -c 'grep CapEff /proc/1/status')" || fail "le backend garde des capacités Linux"
+          has 'profile is active: "prod"' "$(compose logs backend 2>&1)" || fail "le backend ne tourne pas en profil prod"
+          [ "$(compose exec -T backend printenv MAX_PROJECTS_PER_GUEST)" = "7" ] || fail "réglage facultatif non transmis au backend"
+          if compose exec -T backend printenv GUEST_TTL_HOURS > /dev/null 2>&1; then fail "une variable facultative absente est transmise vide"; fi
+
+          echo "== Redémarrage : les données restent"
+          count() { compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tA -c "select count(*) from projects"'; }
+          before="$(count)"
+          compose restart db backend realtime
+          compose up -d --wait --wait-timeout 300
+          after="$(count)"
+          [ "$before" = "$after" ] && [ "$before" -ge 2 ] || fail "projets avant : $before, après redémarrage : $after"
+          code="$(c -o /dev/null -w '%{http_code}' "$base/api/actuator/health")"
+          [ "$code" = "200" ] || fail "santé après redémarrage : $code"
+
+          echo "== Sauvegarde, puis restauration testée"
+          export APP_DIR="$PWD" BACKUP_DIR="$RUNNER_TEMP/sauvegardes"
+          bash infra/backup.sh
+          dump="$(find "$BACKUP_DIR" -name 'lonkoo-*.dump' | head -1)"
+          [ -n "$dump" ] || fail "aucune sauvegarde produite"
+          result="$(bash infra/restore.sh --test "$dump")"
+          echo "$result"
+          has 'Restauration vérifiée' "$result" || fail "la restauration de test n'a pas abouti"
+          if bash infra/restore.sh --live "$dump" > /dev/null 2>&1; then fail "restore --live s'est exécuté sans confirmation"; fi
+          [ "$(count)" = "$before" ] || fail "la base de production a changé pendant le test de restauration"
+
+      - name: État de la pile en cas d'échec
+        if: failure()
+        run: |
+          docker compose --env-file "$ENV_FILE" ps
+          docker compose --env-file "$ENV_FILE" logs --tail=80
+
+  # ---------------------------------------------------------------
   # Avis de sécurité connus sur les dépendances (informatif : ne bloque pas la fusion).
   # npm audit pour le front et le temps réel, OSV.dev pour les dépendances Maven d'exécution.
   # ---------------------------------------------------------------

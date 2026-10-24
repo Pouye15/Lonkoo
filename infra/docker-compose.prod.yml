@@ -1,0 +1,185 @@
+# Production : Caddy (HTTPS), interface, backend, temps réel, PostgreSQL.
+#
+# Sur le serveur (voir docs/DEPLOIEMENT.md) :
+#   cd /opt/lonkoo/app
+#   docker compose -f infra/docker-compose.prod.yml --env-file /opt/lonkoo/.env up -d --build --wait
+#
+# Les secrets viennent du .env du serveur (modèle : infra/production.env.example), jamais du dépôt. Une variable
+# obligatoire absente ou vide arrête la commande avec un message qui la nomme.
+#
+# Seuls les ports 80 et 443 de Caddy sont publiés. PostgreSQL n'est joignable que par le backend (réseau « data »,
+# sans accès à Internet). Ne JAMAIS lancer « docker compose down -v » : le volume caddy_data garde le certificat TLS
+# (Let's Encrypt limite les émissions) et pgdata toutes les données.
+name: lonkoo
+
+x-journaux: &journaux
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-durcissement: &durcissement
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lonkoo}
+      POSTGRES_USER: ${POSTGRES_USER:-lonkoo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Définir POSTGRES_PASSWORD dans le .env du serveur}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [data]
+    logging: *journaux
+    mem_limit: 1g
+
+  backend:
+    build:
+      context: ../backend
+    image: lonkoo-backend:prod
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-lonkoo}
+      POSTGRES_USER: ${POSTGRES_USER:-lonkoo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Définir POSTGRES_PASSWORD dans le .env du serveur}
+      REALTIME_TICKET_SECRET: ${REALTIME_TICKET_SECRET:?Définir REALTIME_TICKET_SECRET (openssl rand -hex 32)}
+      REALTIME_SERVICE_TOKEN: ${REALTIME_SERVICE_TOKEN:?Définir REALTIME_SERVICE_TOKEN (openssl rand -hex 16)}
+      REALTIME_INTERNAL_URL: http://realtime:1234
+      APP_PUBLIC_URL: https://${DOMAIN:?Définir DOMAIN dans le .env du serveur}
+      GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:?Définir GITHUB_OAUTH_CLIENT_ID (application OAuth de production)}
+      GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET:?Définir GITHUB_OAUTH_CLIENT_SECRET (application OAuth de production)}
+      GITHUB_OAUTH_REDIRECT_URI: https://${DOMAIN}/api/auth/github/callback
+      # Réglages facultatifs : transmis seulement s'ils sont définis dans le .env du serveur (sinon, valeurs du code).
+      GUEST_TTL_HOURS:
+      GUEST_RATE_LIMIT_PER_HOUR:
+      MAX_PROJECTS_PER_GUEST:
+      MAX_PROJECTS_PER_ACCOUNT:
+      MAX_CANVASES_PER_PROJECT:
+      MAX_VERSIONS_PER_CANVAS:
+      MAX_SHARE_LINKS_PER_CANVAS:
+      MAX_SNAPSHOT_BYTES:
+      MAX_GENERATIONS_PER_CANVAS:
+      MAX_GENERATED_BYTES:
+      MAX_DEPLOYMENTS_PER_GENERATION:
+      JOB_STALE_MINUTES:
+    healthcheck:
+      # L'image n'a ni curl ni wget : la santé se lit avec bash (/dev/tcp), présent dans l'image Ubuntu.
+      test:
+        - CMD-SHELL
+        - |
+          bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080 && printf "GET /api/actuator/health HTTP/1.0\r\n\r\n" >&3 && grep -q UP <&3'
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 60s
+    networks: [web, data]
+    logging: *journaux
+    mem_limit: 1536m
+    <<: *durcissement
+
+  realtime:
+    build:
+      context: ../realtime
+    image: lonkoo-realtime:prod
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      REALTIME_PORT: "1234"
+      BACKEND_INTERNAL_URL: http://backend:8080
+      REALTIME_SERVICE_TOKEN: ${REALTIME_SERVICE_TOKEN:?Définir REALTIME_SERVICE_TOKEN (openssl rand -hex 16)}
+      REALTIME_TICKET_SECRET: ${REALTIME_TICKET_SECRET:?Définir REALTIME_TICKET_SECRET (openssl rand -hex 32)}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:1234/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    networks: [web]
+    logging: *journaux
+    mem_limit: 512m
+    <<: *durcissement
+
+  frontend:
+    build:
+      context: ../frontend
+      # Fixées à la construction (Next les inscrit dans le code du navigateur) : mode API, temps réel sur /ws.
+      args:
+        NEXT_PUBLIC_API_MODE: live
+        NEXT_PUBLIC_REALTIME_URL: /ws
+    image: lonkoo-frontend:prod
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    networks: [web]
+    logging: *journaux
+    mem_limit: 512m
+    <<: *durcissement
+
+  caddy:
+    build:
+      context: .
+      dockerfile: caddy.Dockerfile
+    image: lonkoo-caddy:prod
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+      realtime:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    environment:
+      DOMAIN: ${DOMAIN:?Définir DOMAIN dans le .env du serveur}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/config/"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 10s
+    networks: [web]
+    logging: *journaux
+    mem_limit: 256m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+
+networks:
+  web:
+  data:
+    # Pas d'accès à Internet depuis ce réseau : PostgreSQL ne sort jamais.
+    internal: true
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
