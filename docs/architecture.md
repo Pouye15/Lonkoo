@@ -14,7 +14,8 @@ flowchart LR
   B --> DB[("PostgreSQL")]
   B -- "API REST" --> GH["GitHub"]
   B -- "appels" --> IA["Modèle d'IA"]
-  B -- "SSH + docker compose" --> S["VPS Systalink<br/>applications générées"]
+  B -- "workflow_dispatch<br/>(jeton de la personne)" --> GH
+  GH -- "SSH + docker compose<br/>(secrets de la personne)" --> S["VPS Systalink<br/>applications générées"]
 ```
 
 Seuls `/`, `/api` et `/ws` sont exposés. Les routes `/internal` du backend (utilisées par le serveur temps réel) ne sont **pas** routées par Caddy.
@@ -46,7 +47,7 @@ Le format du canvas est défini dans [schema-canvas.md](schema-canvas.md) et [ca
 | 2026-10-16 | Connexion | OAuth GitHub géré par le backend (`/api/auth/github/callback`), session serveur avec cookie `HttpOnly`, `Secure`, `SameSite=Lax` | Le frontend ne manipule jamais de jeton GitHub. |
 | 2026-10-16 | Jetons GitHub | Non stockés : gardés **en mémoire du serveur** (à l'origine dans la session ; depuis le 25/10 la session est en base, voir plus bas), perdus au redémarrage. Portées : `read:user` et `public_repo` | `repo` donnerait accès à tous les dépôts privés de l'utilisateur. Limite assumée : les dépôts générés sont publics ; à signaler dans l'interface. |
 | 2026-10-16 | Authentification temps réel | Le backend délivre un ticket court (5 minutes) lié à un canvas et à un utilisateur ; Hocuspocus le vérifie dans `onAuthenticate` | Le serveur temps réel ne connaît ni sessions ni base de données. |
-| 2026-10-16 | Déploiement des applications générées | Orchestré par le backend : SSH puis `docker compose` avec un gabarit fixe. Aucun workflow poussé dans le dépôt de l'utilisateur | Pousser un workflow exige la portée `workflow`, et il faudrait confier notre clé SSH aux dépôts des utilisateurs. Le backend connaît l'état du déploiement. MCP / API Systalink : seulement si la documentation prouve un gain. |
+| 2026-10-16, révisée avec le lot R8 | Déploiement des applications générées | Le projet généré contient son workflow `.github/workflows/deploy-systalink.yml` ; LONKOO le lance par `workflow_dispatch` dans le dépôt GitHub de la personne, avec son jeton, et suit l'exécution (en attente, en cours, déployé, échoué). Sans les autorisations `repo` et `workflow`, ou sans le fichier, le déploiement passe en **mode manuel** : LONKOO affiche les étapes à suivre soi-même. Le serveur de LONKOO ne se connecte à aucune machine et n'appelle jamais l'adresse publique saisie | C'est ce que décrit le cahier des charges. Le choix initial (SSH depuis le backend) obligeait LONKOO à détenir de quoi atteindre des serveurs d'autres personnes ; ici, hôte et clé SSH sont des secrets du dépôt de la personne, que LONKOO ne voit jamais. Coût assumé : la portée `workflow` est demandée, seulement sur choix explicite. |
 | 2026-10-16 | Déploiement de Lonkoo lui-même | GitHub Actions : construction des images, envoi par SSH, `docker compose up -d`, vérification de `/actuator/health` | Les secrets sont dans notre propre dépôt. Voir [DEPLOIEMENT.md](DEPLOIEMENT.md). |
 | 2026-10-16 | Génération | Gabarits fixes sans logique ; seuls les identifiants `ident` du schéma entrent dans le code généré | Évite l'injection de code, y compris sur le VPS. Moteur de gabarits à choisir parmi Mustache ou FreeMarker (Apache 2.0) ; vérifier la licence à l'ajout. |
 | 2026-10-16 | Stockage de fichiers | Aucun | SystaDrive est introuvable dans l'offre publique ; rien ne l'exige. |
@@ -74,7 +75,7 @@ Le format du canvas est défini dans [schema-canvas.md](schema-canvas.md) et [ca
 
 **Génération puis GitHub.** Le backend génère le projet depuis un instantané validé, avec des gabarits fixes, puis crée le dépôt et le commit initial avec la session GitHub de l'utilisateur (un seul commit via l'API Git, pas un appel par fichier).
 
-**Déploiement.** Le backend copie le projet généré sur le VPS, lance `docker compose` avec des limites de ressources, suit l'état (santé de l'application) et l'expose à l'interface.
+**Déploiement.** Le backend lance le workflow `deploy-systalink.yml` du dépôt GitHub de la personne (`workflow_dispatch`) avec son jeton, puis suit l'exécution à chaque lecture de l'état (en attente, en cours, déployé ou échoué) ; c'est le workflow qui se connecte en SSH au serveur de la personne, avec les secrets de son dépôt, et lance `docker compose up -d --build`. Si LONKOO ne peut pas lancer le workflow (fichier absent, autorisations manquantes), le déploiement passe en mode manuel et donne les étapes à suivre.
 
 ## API (contrat de départ)
 
