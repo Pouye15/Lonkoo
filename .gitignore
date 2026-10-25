@@ -62,3 +62,6 @@ Thumbs.db
 # ===== Divers =====
 tmp/
 *.tmp
+
+# ===== Parcours de bout en bout (captures d'écran) =====
+e2e/captures/

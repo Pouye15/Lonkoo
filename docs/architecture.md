@@ -128,4 +128,4 @@ Pas de couverture visée : trois tests de fumée et un test de bout en bout, rel
 1. Connexion invité puis ouverture du modèle d'exemple.
 2. Deux navigateurs voient la même modification en direct.
 3. Enregistrement d'une version, puis restauration.
-4. Parcours complet (Playwright, Apache 2.0) sur l'adresse de production : canvas, génération, envoi GitHub, déploiement.
+4. Parcours complet (Playwright, Apache 2.0) sur l'adresse de production : canvas, génération, envoi GitHub, déploiement. Les parcours qui ne passent pas par GitHub sont dans `e2e/` (collaboration à plusieurs, partage en lecture seule, versions, équipe et liens, projets publics) : `E2E_BASE_URL=<adresse> npm run e2e`, voir [../e2e/README.md](../e2e/README.md). La génération, l'envoi et le déploiement se vérifient contre un faux GitHub dans les tests du backend, et à la main contre le vrai.

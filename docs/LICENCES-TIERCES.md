@@ -29,6 +29,7 @@ La colonne « Vérifié » se coche seulement après avoir lu la licence dans le
 | Spring Boot (starters, Spring Framework 7.0.9, Spring Security) | 4.1.1 | Apache 2.0 | Oui | Backend | Maven | [x] |
 | Apache Log4j2 (log4j-core, log4j-slf4j2-impl) | 2.25.5 | Apache 2.0 | Oui | Journaux (remplace Logback) | Maven | [x] |
 | Flyway (flyway-core, flyway-database-postgresql) | 12.4.0 | Apache 2.0 | Oui | Migrations SQL | Maven | [x] |
+| Playwright (`playwright-core`, dossier `e2e/`) | 1.64.1 | Apache 2.0 | Oui | Outil de vérification dans un navigateur, jamais livré (ni images Docker, ni SBOM) ; télécharge Chromium (BSD-3-Clause) pour son usage | npm | [x] |
 | Spring Session (spring-session-core, spring-session-jdbc, avec les modules `spring-boot-session*` de Spring Boot) | 4.1.1 | Apache 2.0 (le POM écrit « Broadcom Foundation License », sans texte ; le jar embarque la licence Apache 2.0 : voir section 2) | Oui | Sessions en base | Maven | [x] |
 | Pilote JDBC PostgreSQL | 42.7.13 | BSD-2-Clause | Oui | Accès à la base | Maven | [x] |
 | Hibernate Validator | 9.1.3.Final | Apache 2.0 | Oui | Validation des requêtes (pas d'ORM Hibernate) | Maven | [x] |
