@@ -138,6 +138,22 @@ final class InfraWriter {
                       SSH_USER: ${{ secrets.SYSTALINK_SSH_USER }}
                       APP_DIR: apps/@@SLUG@@
                     steps:
+                      - name: Vérifier les secrets
+                        env:
+                          SYSTALINK_SSH_HOST: ${{ secrets.SYSTALINK_SSH_HOST }}
+                          SYSTALINK_SSH_USER: ${{ secrets.SYSTALINK_SSH_USER }}
+                          SYSTALINK_SSH_PRIVATE_KEY: ${{ secrets.SYSTALINK_SSH_PRIVATE_KEY }}
+                          SYSTALINK_SSH_KNOWN_HOSTS: ${{ secrets.SYSTALINK_SSH_KNOWN_HOSTS }}
+                        run: |
+                          missing=""
+                          for name in SYSTALINK_SSH_HOST SYSTALINK_SSH_USER SYSTALINK_SSH_PRIVATE_KEY SYSTALINK_SSH_KNOWN_HOSTS; do
+                            if [ -z "${!name}" ]; then missing="$missing $name"; fi
+                          done
+                          if [ -n "$missing" ]; then
+                            echo "::error title=Secrets manquants::À créer dans Settings > Secrets and variables > Actions :$missing"
+                            exit 1
+                          fi
+
                       - uses: actions/checkout@v4
 
                       - name: Préparer la connexion SSH

@@ -19,6 +19,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
@@ -308,6 +309,53 @@ class ProjectGeneratorTest {
                 .doesNotContain("StrictHostKeyChecking=no")
                 .doesNotContain("ssh-keyscan");
         assertThat(files.values()).noneMatch(content -> content.contains("BEGIN OPENSSH") || content.contains("ghp_"));
+    }
+
+    private static final List<String> WORKFLOW_SECRETS =
+            List.of("SYSTALINK_SSH_HOST", "SYSTALINK_SSH_USER", "SYSTALINK_SSH_PRIVATE_KEY", "SYSTALINK_SSH_KNOWN_HOSTS");
+
+    @Test
+    void theWorkflowNamesTheMissingSecretsInsteadOfFailingInsideSsh() throws Exception {
+        Path bash = Stream.of("/bin/bash", "C:/Program Files/Git/bin/bash.exe").map(Path::of).filter(Files::isExecutable).findFirst().orElse(null);
+        assumeTrue(bash != null, "bash introuvable");
+        Map<String, Object> workflow = map(yaml(generator.generate(example(), "x").files().get(".github/workflows/deploy-systalink.yml")));
+        List<?> steps = (List<?>) map(map(workflow.get("jobs")).get("deploy")).get("steps");
+        Map<String, Object> first = map(steps.get(0));
+
+        assertThat(first.get("name")).as("la vérification passe avant toute connexion").isEqualTo("Vérifier les secrets");
+        assertThat(map(first.get("env")).keySet()).containsExactlyElementsOf(WORKFLOW_SECRETS);
+        String script = (String) first.get("run");
+
+        assertThat(runWithSecrets(bash, script, WORKFLOW_SECRETS)).as("tous présents").isEqualTo(new ScriptResult(0, ""));
+
+        ScriptResult none = runWithSecrets(bash, script, List.of());
+        assertThat(none.exitCode()).as("aucun secret").isEqualTo(1);
+        assertThat(none.output()).contains("Secrets manquants").contains(WORKFLOW_SECRETS);
+
+        ScriptResult oneMissing = runWithSecrets(bash, script, List.of("SYSTALINK_SSH_HOST", "SYSTALINK_SSH_USER", "SYSTALINK_SSH_PRIVATE_KEY"));
+        assertThat(oneMissing.exitCode()).isEqualTo(1);
+        assertThat(oneMissing.output()).contains("SYSTALINK_SSH_KNOWN_HOSTS")
+                .doesNotContain("SYSTALINK_SSH_HOST", "SYSTALINK_SSH_USER", "SYSTALINK_SSH_PRIVATE_KEY")
+                .as("la valeur d'un secret n'est jamais écrite").doesNotContain("valeur-secrete");
+    }
+
+    private record ScriptResult(int exitCode, String output) { }
+
+    /** Joue le script avec ces secrets à la valeur {@code valeur-secrete}, les autres absents, comme le fait GitHub Actions. */
+    private static ScriptResult runWithSecrets(Path bash, String script, List<String> present) throws IOException, InterruptedException {
+        // Un fichier plutôt que « -c » : sous Windows, les guillemets d'un argument multiligne ne survivent pas au passage à bash.
+        Path file = Files.createTempFile("workflow-step", ".sh");
+        try {
+            Files.writeString(file, script, StandardCharsets.UTF_8);
+            ProcessBuilder builder = new ProcessBuilder(bash.toString(), "-e", file.toString().replace('\\', '/')).redirectErrorStream(true);
+            WORKFLOW_SECRETS.forEach(name -> builder.environment().remove(name));
+            present.forEach(name -> builder.environment().put(name, "valeur-secrete"));
+            Process process = builder.start();
+            String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            return new ScriptResult(process.waitFor(), output);
+        } finally {
+            Files.deleteIfExists(file);
+        }
     }
 
     @Test
