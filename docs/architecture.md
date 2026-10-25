@@ -106,7 +106,7 @@ Interne, réservée au serveur temps réel (non routée par Caddy, jeton de serv
 | `generations`, `deployments` | Génération, dépôt créé, état et adresse du déploiement |
 | `spring_session`, `spring_session_attributes` | Sessions HTTP (l'utilisateur connecté et l'état de la connexion GitHub, jamais le jeton GitHub) |
 | `audit_log` | Action, auteur, cible, date. Jamais de jeton ni de contenu sensible |
-| `ai_usage` | **Prévue, pas encore créée** : appels par utilisateur et par jour (quota de l'IA), dans la plage de migrations V20 à V29 réservée à l'IA |
+| `ai_usage` | Appels à l'IA par personne et par jour UTC (quota), migration V20 : un compteur, jamais de texte ni de réponse |
 
 Les migrations Flyway sont dans `backend/src/main/resources/db/migration`. Une sauvegarde `pg_dump` quotidienne est prévue en production.
 
