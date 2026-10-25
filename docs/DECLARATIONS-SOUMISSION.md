@@ -15,7 +15,7 @@ Visez le **samedi 24 octobre** pour garder une marge.
 ## Déclarations demandées à la soumission
 
 - [ ] **Titularité** : chaque membre déclare que le projet a été créé en dehors de toute mission confiée par un employeur, un client ou un établissement d'enseignement susceptible d'en revendiquer les droits. Sinon, autorisation écrite de cette personne. Une déclaration inexacte entraîne la disqualification.
-- [ ] **Composants tiers** : tous les composants et leurs licences (reprendre `LICENCES-TIERCES.md`).
+- [ ] **Composants tiers** : tous les composants et leurs licences (reprendre `LICENCES-TIERCES.md`). Inventaire machine : les trois SBOM CycloneDX de `docs/sbom/` (voir son README).
 - [ ] **Code antérieur** d'un membre, s'il y en a (reprendre la section 4 de `LICENCES-TIERCES.md`).
 - [ ] **Intelligence artificielle** : outils utilisés et parties concernées (reprendre `IA.md`).
 

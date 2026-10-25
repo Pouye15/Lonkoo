@@ -119,7 +119,7 @@ Les migrations Flyway sont dans `backend/src/main/resources/db/migration`. Une s
 | Journal | Génération, envoi sur GitHub, déploiement et restauration sont journalisés |
 | Secrets | Aucun dans le code ni les journaux ; `.env` ignoré par Git ; gitleaks en pré-commit et en CI ; démarrage refusé si une valeur d'exemple (`change-me`) est détectée |
 | Réseau | Seuls les ports 22, 80 et 443 sont ouverts sur le VPS ; PostgreSQL n'écoute que sur le réseau interne ; SSH par clé uniquement |
-| Dépendances | Contrôle de licences en CI ; Dependabot pour les actions GitHub ; SBOM à produire avant la soumission |
+| Dépendances | Contrôle de licences en CI ; Dependabot pour les actions GitHub ; SBOM CycloneDX produit et vérifié par la CI (`docs/sbom/`) |
 
 ## Tests
 

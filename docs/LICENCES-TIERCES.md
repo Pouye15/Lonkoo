@@ -73,6 +73,8 @@ Le règlement permet d'intégrer du code appartenant à un membre de l'équipe e
 
 La CI (`.github/workflows/ci.yml`) contrôle de façon bloquante les licences npm et celles des dépendances d'exécution Maven (`scripts/check_licenses_maven.py` : refus d'une licence GPL, AGPL ou LGPL sans alternative permissive, exceptions documentées dans le script) ; le rapport complet du plugin Maven reste informatif. Lancer aussi à la main avant la soumission :
 
+Les inventaires des composants livrés (SBOM CycloneDX, un par morceau) sont dans [sbom/](sbom/README.md) : `python3 scripts/make_sbom.py` les régénère, la CI vérifie qu'ils sont à jour et complets. Les deux outils qui les produisent, `cyclonedx-maven-plugin` 2.9.3 et `@cyclonedx/cyclonedx-npm` 6.0.1, sont sous licence Apache 2.0 ; ils ne sont pas des dépendances du projet (lancés à la demande, jamais livrés).
+
 ```bash
 # Java
 cd backend && mvn org.codehaus.mojo:license-maven-plugin:2.4.0:add-third-party

@@ -220,7 +220,7 @@ Le backend fournit à Gaye : l'instantané validé (WP7), l'accès au jeton GitH
 - [ ] **Trois tests de fumée** (`architecture.md`) : (1) invité puis ouverture du modèle ; (2) deux navigateurs, même modification (test Node de WP6 ; vérification manuelle en production) ; (3) version puis restauration (test d'intégration backend avec Testcontainers, MIT, qui fonctionne dans la CI mais pas sur ce poste sans Docker).
 - [ ] **Un test de bout en bout** (Playwright, Apache 2.0) sur l'adresse de production.
 - [ ] Tests d'accès de WP9 ; tests du validateur et du contrat d'API.
-- [ ] Audit des licences Maven (rapport de la CI), SBOM npm et Maven, mise à jour de `docs/LICENCES-TIERCES.md`.
+- [ ] Audit des licences Maven (rapport de la CI), mise à jour de `docs/LICENCES-TIERCES.md`. SBOM npm et Maven : **fait le 25/10** (`docs/sbom/`, `scripts/make_sbom.py`, job CI « SBOM des composants »).
 - [ ] Sauvegarde `pg_dump` quotidienne et **restauration testée** ; redémarrage du serveur : tout repart seul, les données sont conservées (les sessions sont en base : personne n'est déconnecté ; seul le jeton GitHub est perdu, il faut reconnecter GitHub avant un envoi).
 
 ### WP11 — Dockerfiles, compose de production, pipeline (Gaye et Diagne ; Pouye fournit les images, J0 à J2)
@@ -493,6 +493,6 @@ Ce que le backend fournit à Ngom, pour que l'IA se branche sans toucher au rest
 - [ ] Après un redémarrage du serveur, tout repart seul ; les données sont conservées.
 - [ ] `pg_dump` quotidien en place et une restauration testée.
 - [ ] Aucun secret dans le dépôt (gitleaks) ni dans les journaux ; aucune valeur `change-me` en production.
-- [ ] Licences : contrôle npm vert, rapport Maven relu, `docs/LICENCES-TIERCES.md` et SBOM à jour.
+- [ ] Licences : contrôle npm vert, rapport Maven relu, `docs/LICENCES-TIERCES.md` à jour. SBOM : à jour (la CI échoue si `docs/sbom` ne correspond plus aux dépendances).
 - [ ] `docs/IA.md` à jour pour chaque outil d'IA utilisé ; chacun sait expliquer le code qu'il a poussé.
 - [ ] Démo de secours enregistrée.

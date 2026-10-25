@@ -186,6 +186,41 @@ jobs:
           fi
 
   # ---------------------------------------------------------------
+  # SBOM : inventaire des composants livrés (CycloneDX, un par morceau), à joindre à la déclaration des composants.
+  # - bloquant : docs/sbom doit correspondre aux dépendances actuelles (sinon : python3 scripts/make_sbom.py, puis commit) ;
+  # - chaque SBOM est comparé à une source indépendante (mvn dependency:list, package-lock.json) : s'il manque un
+  #   composant, le job échoue ;
+  # - les SBOM de cette version sont déposés en artefact.
+  # ---------------------------------------------------------------
+  sbom:
+    name: SBOM des composants
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: docs/sbom est à jour (bloquant)
+        run: python3 scripts/make_sbom.py --verify
+
+      - name: Produire les SBOM de cette version
+        run: python3 scripts/make_sbom.py --out "$RUNNER_TEMP/sbom"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: ${{ runner.temp }}/sbom
+          retention-days: 90
+
+  # ---------------------------------------------------------------
   # Images Docker : les Dockerfiles se construisent (Docker n'est pas installé sur le poste du backend).
   # L'image du serveur temps réel est en plus démarrée : une route interne sans jeton doit répondre 401.
   # L'image de l'interface est démarrée aussi : elle doit répondre, et ne pas avoir été construite en mode simulé.

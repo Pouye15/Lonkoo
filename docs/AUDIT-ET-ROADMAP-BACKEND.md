@@ -276,7 +276,7 @@ Fondations fournies par le backend : instantané validé (WP7), jeton GitHub de 
 #### R11 — Gel, bout en bout, conformité, WP10 (Diagne avec Pouye ; 4,5 h ; vendredi)
 
 - [ ] Trois tests de fumée et un test de bout en bout Playwright sur l'adresse de production.
-- [ ] SBOM Maven et npm (CycloneDX, Apache 2.0), audit des licences, `LICENCES-TIERCES.md` et `IA.md` à jour.
+- [ ] Audit des licences, `LICENCES-TIERCES.md` et `IA.md` à jour. **SBOM Maven et npm : fait le 25/10** (CycloneDX 1.6, Apache 2.0, `docs/sbom/` : 102 composants Maven, 32 et 12 npm ; chacun comparé à `mvn dependency:list` ou au `package-lock.json`, validé contre le schéma officiel, et gardé à jour par la CI).
 - [ ] Redémarrage du serveur puis parcours complet ; restauration d'une sauvegarde ; démo de secours enregistrée ; rotation des secrets, aucune valeur `change-me` en production.
 
 #### R12 — Raccordement de l'agent IA, WP13 (Pouye ; 1,5 h ; optionnel, coupé en premier)

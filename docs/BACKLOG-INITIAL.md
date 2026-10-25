@@ -79,7 +79,7 @@ Le détail du backend (lots, ordre de travail, contrats, risques, ordre de coupe
 
 - [ ] Tenir `docs/IA.md` et `docs/LICENCES-TIERCES.md` à jour dans chaque pull request — *tous*
 - [ ] Rendre bloquant le contrôle de licences Maven dès que le `pom.xml` existe — *Pouye, dès le premier `pom.xml`*
-- [ ] Produire un SBOM (npm et Maven) pour la déclaration des composants — *Diagne, 23/10*
+- [x] Produire un SBOM (npm et Maven) pour la déclaration des composants — *Diagne, 23/10* : fait le 25/10, `docs/sbom/` (CycloneDX 1.6, vérifié par la CI)
 - [ ] Audit complet des licences (22 et 23 octobre), y compris les images Docker — *Diagne*
 - [ ] Sauvegarde quotidienne de PostgreSQL et restauration testée — *Gaye, 22/10*
 - [ ] Tests du parcours complet sur l'adresse de production, après un redémarrage du serveur — *Diagne, 22/10*
