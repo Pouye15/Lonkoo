@@ -117,6 +117,8 @@ export interface ApiProject {
   description: string | null;
   visibility: "private" | "public";
   ownerId: string;
+  /** Identifiant du propriétaire : le début du nom du dépôt, et du fil d'Ariane, quelle que soit la personne qui regarde. */
+  ownerLogin: string;
   createdAt: string;
   updatedAt: string;
 }

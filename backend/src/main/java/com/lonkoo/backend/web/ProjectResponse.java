@@ -12,6 +12,7 @@ public record ProjectResponse(
         String description,
         String visibility,
         UUID ownerId,
+        String ownerLogin,
         Instant createdAt,
         Instant updatedAt) {
 }

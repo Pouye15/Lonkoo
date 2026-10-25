@@ -47,6 +47,7 @@ import {
   UserPlus,
   LinkSimple,
   DownloadSimple,
+  Globe,
 } from "@phosphor-icons/react";
 
 type StudioTab = "canvas" | "scanner" | "simulator" | "docs" | "versions" | "team";
@@ -110,7 +111,9 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
     });
 
   const { nodes, edges, setNodes, setEdges, live } = useProjectGraph(currentProject.slug);
-  const { reload: reloadProjects } = useWorkspace();
+  const { reload: reloadProjects, error: workspaceError, clearError } = useWorkspace();
+  // Mode API : projet public ouvert sans en être membre (lecture seule, ni équipe, ni déploiement).
+  const visitor = Boolean(live && currentProject.visitor);
   const [shareOpen, setShareOpen] = useState(false);
   // Monte à chaque lien créé : la liste des liens actifs de l'onglet Équipe se relit.
   const [linksVersion, setLinksVersion] = useState(0);
@@ -357,14 +360,18 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
                 <span className="hidden md:inline">Partager</span>
               </Button>
             )}
-            <Button href="/reviews" variant="secondary" size="sm">
-              <GitPullRequest size={14} />
-              <span className="hidden md:inline">Créer une revue</span>
-            </Button>
-            <Button href={`/deploy?project=${currentProject.slug}`} size="sm">
-              <PlugsConnected size={14} />
-              <span className="hidden sm:inline">Déployer</span>
-            </Button>
+            {!visitor && (
+              <>
+                <Button href="/reviews" variant="secondary" size="sm">
+                  <GitPullRequest size={14} />
+                  <span className="hidden md:inline">Créer une revue</span>
+                </Button>
+                <Button href={`/deploy?project=${currentProject.slug}`} size="sm">
+                  <PlugsConnected size={14} />
+                  <span className="hidden sm:inline">Déployer</span>
+                </Button>
+              </>
+            )}
           </>
         }
       />
@@ -417,6 +424,23 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
           })}
         </div>
 
+        {workspaceError && (
+          <div
+            role="alert"
+            className="flex flex-shrink-0 items-start justify-between gap-3 rounded-lg border border-danger bg-surface px-3 py-2 text-sm text-danger"
+          >
+            <span>{workspaceError}</span>
+            <button type="button" onClick={clearError} className="flex-shrink-0 font-medium underline">
+              Fermer
+            </button>
+          </div>
+        )}
+        {visitor && (
+          <p role="note" className="flex flex-shrink-0 items-center gap-2 rounded-lg bg-sunken px-3 py-2 text-sm text-ink-2">
+            <Globe size={16} className="flex-shrink-0" />
+            Projet public : vous le consultez en lecture seule. Pour partir de cette architecture, créez le vôtre.
+          </p>
+        )}
 
         {/* ONGLET 1 : ARCHITECTURE (TABLEAU BLANC) */}
         {activeTab === "canvas" && (
@@ -855,7 +879,12 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
         {/* ===================================================================== */}
         {/* ONGLET 6 : ÉQUIPE & COLLABORATEURS DU PROJET (COMME SUR GITHUB)       */}
         {/* ===================================================================== */}
-        {activeTab === "team" && live && (
+        {activeTab === "team" && visitor && (
+          <div className="rounded-xl border border-edge bg-surface p-5 text-sm text-ink-3">
+            L&apos;équipe d&apos;un projet public n&apos;est visible que de ses membres.
+          </div>
+        )}
+        {activeTab === "team" && live && !visitor && (
           <LiveTeamPanel
             projectId={currentProject.id}
             canvasId={live.canvasId}

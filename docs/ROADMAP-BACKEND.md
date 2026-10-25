@@ -260,8 +260,9 @@ Tranches : **T1** indispensable, **T2** important, **T3** à couper en premier.
 | | `POST /auth/logout` | session | → `204` | T1 |
 | | `GET /me` | session | → `{id, login, displayName, avatarUrl, isGuest}` | T1 |
 | Projets | `GET /projects` | session | → projets dont je suis membre | T1 |
+| | `GET /projects/public` | session | → galerie : projets publics de comptes GitHub (`?limit=`, 24 par défaut, 50 au plus) | T3 |
 | | `POST /projects` | session | `{name, description?, visibility?}` → `201` (avec un canvas vide) | T1 |
-| | `GET/PATCH /projects/{id}` | membre ; `PATCH` : `MAINTAINER`+ | nom, description, visibilité | T1 |
+| | `GET/PATCH /projects/{id}` | membre, ou toute personne connectée si le projet est public (lecture seule) ; `PATCH` : `MAINTAINER`+, la visibilité `OWNER` | nom, description, visibilité | T1 |
 | | `DELETE /projects/{id}` | `OWNER` | → `204` | T2 |
 | | `GET/PUT/DELETE /projects/{id}/members[/{userId}]` | `MAINTAINER`+ | membres et rôles | T3 |
 | Canvas | `GET /projects/{id}/canvases`, `POST /projects/{id}/canvases` | membre ; `WRITE`+ | → canvas | T1 |
@@ -294,7 +295,7 @@ Réseau interne uniquement, jamais routée par Caddy, jeton de service `Authoriz
 | realtime → backend | `PUT /internal/canvases/{id}/state` | `{state: "<base64>"}` → `204` ; l'état Yjs est un binaire de quelques dizaines de Ko (JSON avec base64 : plus simple à déboguer que de l'`octet-stream`) |
 | backend → realtime | `GET {REALTIME_INTERNAL_URL}/internal/canvases/{id}/snapshot` | → instantané JSON du contrat, construit depuis le document Yjs |
 | backend → realtime | `POST {REALTIME_INTERNAL_URL}/internal/canvases/{id}/restore` | instantané JSON → remplace le contenu du document en transaction, `204` |
-| backend → realtime | `POST {REALTIME_INTERNAL_URL}/internal/canvases/{id}/close` | ferme les connexions ouvertes sur ce canvas (projet supprimé), `204` ; avec le corps `{"userId": "…"}` (membre retiré ou parti), ferme seulement celles de cette personne et refuse les tickets qu'elle détient déjà |
+| backend → realtime | `POST {REALTIME_INTERNAL_URL}/internal/canvases/{id}/close` | ferme les connexions ouvertes sur ce canvas (projet supprimé), `204` ; avec le corps `{"userId": "…"}` (membre retiré ou parti), ferme seulement celles de cette personne et refuse les tickets qu'elle détient déjà ; avec `{"exceptUserIds": ["…"]}` (projet public repassé en privé), celles de tous sauf ces membres |
 | supervision → realtime | `GET /health` (sans jeton) | `200 {"status":"UP"}`, `503` pendant l'arrêt |
 
 `REALTIME_INTERNAL_URL` (par exemple `http://realtime:1234`) est à ajouter à `.env.example`.

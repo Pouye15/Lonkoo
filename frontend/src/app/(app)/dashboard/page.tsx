@@ -20,6 +20,7 @@ import { ARCHITECTURE_REVIEWS } from "@/lib/lonkoo-data";
 import { IS_LIVE_API, messageOf } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { initialsOf, useSession } from "@/lib/session";
+import { canChangeVisibility, visibilityHint } from "@/lib/public-projects";
 import { slugify, useWorkspace } from "@/lib/workspace";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
@@ -110,7 +111,7 @@ function NewProjectModal({ open, onClose }: { open: boolean; onClose: () => void
             {(
               [
                 { value: "private", label: "Privé", hint: "Réservé à votre équipe", icon: LockKey },
-                { value: "public", label: "Public", hint: "Visible par la communauté", icon: Globe },
+                { value: "public", label: "Public", hint: "Consultable en lecture seule par toute personne connectée", icon: Globe },
               ] as const
             ).map(({ value, label, hint, icon: Icon }) => {
               const selected = visibility === value;
@@ -346,8 +347,9 @@ export default function DashboardPage() {
                           <button
                             type="button"
                             onClick={() => toggleVisibility(project.id)}
-                            title="Basculer entre public et privé"
-                            className="inline-flex items-center gap-1 rounded-md bg-subtle px-2 py-0.5 text-xs font-medium text-ink-2 transition-colors hover:bg-strong"
+                            disabled={IS_LIVE_API && !canChangeVisibility(project.role)}
+                            title={visibilityHint(project.visibility, !IS_LIVE_API || canChangeVisibility(project.role))}
+                            className="inline-flex items-center gap-1 rounded-md bg-subtle px-2 py-0.5 text-xs font-medium text-ink-2 transition-colors hover:bg-strong disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:bg-subtle"
                           >
                             <Visibility size={12} />
                             {project.visibility === "public" ? "Public" : "Privé"}

@@ -10,7 +10,8 @@
  *       POST /internal/canvases/{id}/restore   -> remplace le contenu en transaction
  *       POST /internal/canvases/{id}/close     -> ferme les connexions ouvertes sur ce canvas ;
  *                                                 avec `{"userId": "..."}`, seulement celles de cette personne
- *                                                 (socket comprise), dont les tickets déjà émis sont refusés
+ *                                                 (socket comprise), dont les tickets déjà émis sont refusés ;
+ *                                                 avec `{"exceptUserIds": [...]}`, celles de tous sauf ces membres
  *   - GET /health (sans jeton) : 200 en service, 503 pendant l'arrêt.
  *
  * Arrêt propre (SIGTERM, SIGINT) : plus de nouvelle connexion, connexions fermées, tous les
@@ -54,6 +55,9 @@ const INTERNAL_CLOSE_PATH = new RegExp(`^/internal/canvases/(${UUID})/close$`, '
 
 /** Identifiant de personne accepté dans une demande de fermeture (un UUID du backend en production). */
 const USER_ID = /^[0-9A-Za-z_-]{1,64}$/;
+
+/** Nombre maximal de membres dans une demande « tous sauf ceux-ci » (un projet n'en a que quelques-uns). */
+const MAX_KEPT_USERS = 1000;
 
 /** Fermeture « accès refusé » (code 4403, comme `Forbidden` de Hocuspocus). */
 const FORBIDDEN = { code: 4403, reason: 'Forbidden' };
@@ -181,37 +185,50 @@ export function createCanvasServer({
   let shutdownPromise = null;
 
   /**
-   * Accès retirés (`canvas:personne` -> instant du retrait). Un ticket est un JWT valable 5 minutes que le
-   * serveur ne revérifie pas auprès du backend : sans cette mémoire, une personne retirée pourrait se
-   * reconnecter avec le ticket qu'elle détient déjà. Elle est perdue à l'arrêt du serveur, ce qui est sans
-   * conséquence : toutes les connexions tombent aussi, et au retour un ticket neuf est exigé du backend.
+   * Accès retirés : clé `canvas:personne` (cette personne) ou `canvas:*` (tout le monde sauf `keep`, quand un projet
+   * public repasse en privé), valeur : instant du retrait. Un ticket est un JWT valable 5 minutes que le serveur ne
+   * revérifie pas auprès du backend : sans cette mémoire, qui a perdu l'accès pourrait se reconnecter avec le ticket
+   * qu'il détient déjà. Elle est perdue à l'arrêt du serveur, ce qui est sans conséquence : toutes les connexions
+   * tombent aussi, et au retour un ticket neuf est exigé du backend.
    */
   const revocations = new Map();
 
-  function revokeAccess(documentName, userId) {
+  function remember(key, keep) {
     const now = Date.now();
-    for (const [key, at] of revocations) {
-      if (now - at > revocationMemoryMs) revocations.delete(key);
+    for (const [other, entry] of revocations) {
+      if (now - entry.at > revocationMemoryMs) revocations.delete(other);
     }
-    revocations.set(`${documentName}:${userId}`, now);
+    revocations.set(key, { at: now, keep });
+  }
+
+  function revokeAccess(documentName, userId) {
+    remember(`${documentName}:${userId}`, null);
+  }
+
+  function revokeAllExcept(documentName, keepUserIds) {
+    remember(`${documentName}:*`, new Set(keepUserIds));
   }
 
   /** Vrai si ce ticket a été émis (à la seconde près) avant ou pendant le retrait de l'accès. */
   function isRevoked(documentName, userId, issuedAtSeconds) {
-    const at = revocations.get(`${documentName}:${userId}`);
-    if (at === undefined || Date.now() - at > revocationMemoryMs) return false;
-    return !Number.isFinite(issuedAtSeconds) || issuedAtSeconds <= Math.floor(at / 1000);
+    const now = Date.now();
+    for (const entry of [revocations.get(`${documentName}:${userId}`), revocations.get(`${documentName}:*`)]) {
+      if (!entry || now - entry.at > revocationMemoryMs || entry.keep?.has(userId)) continue;
+      if (!Number.isFinite(issuedAtSeconds) || issuedAtSeconds <= Math.floor(entry.at / 1000)) return true;
+    }
+    return false;
   }
 
   /**
-   * Ferme les connexions d'une personne à un document, socket comprise : fermer seulement la connexion au
-   * document laisserait la socket ouverte, et un client mal intentionné pourrait continuer d'y écrire.
+   * Ferme les connexions à un document de toute personne pour qui `shouldClose(identifiant)` est vrai, socket
+   * comprise : fermer seulement la connexion au document laisserait la socket ouverte, et un client mal
+   * intentionné pourrait continuer d'y écrire.
    */
-  function disconnectUser(documentName, userId) {
+  function disconnectWhere(documentName, shouldClose) {
     const document = hocuspocus.documents.get(documentName);
     if (!document) return;
     for (const connection of [...document.connections.keys()]) {
-      if (connection.context?.user?.id !== userId) continue;
+      if (!shouldClose(connection.context?.user?.id)) continue;
       connection.close(FORBIDDEN);
       connection.webSocket.close(FORBIDDEN.code, FORBIDDEN.reason);
     }
@@ -281,20 +298,33 @@ export function createCanvasServer({
       return;
     }
     if (isClose) {
-      // Canvas supprimé : tous les clients sont déconnectés. Accès d'une personne retiré : seulement les siens,
-      // et ses tickets déjà émis ne rouvrent plus rien.
+      // Canvas supprimé : tous les clients sont déconnectés. Accès d'une personne retiré (`userId`) : seulement les
+      // siens. Projet repassé en privé (`exceptUserIds`) : tous sauf les membres listés. Dans les deux cas, les
+      // tickets déjà émis aux personnes sorties ne rouvrent plus rien.
+      const documentName = closeMatch[1];
       const body = await readJsonBody(request, maxMessageBytes);
       if (body === null || typeof body !== 'object' || Array.isArray(body)) {
         throw new HttpError(400, 'corps JSON invalide');
       }
-      if (body.userId === undefined) {
-        hocuspocus.closeConnections(closeMatch[1]);
-      } else {
+      if (body.userId !== undefined && body.exceptUserIds !== undefined) {
+        throw new HttpError(400, 'userId et exceptUserIds sont exclusifs');
+      }
+      if (body.exceptUserIds !== undefined) {
+        const keep = body.exceptUserIds;
+        if (!Array.isArray(keep) || keep.length > MAX_KEPT_USERS || !keep.every((id) => typeof id === 'string' && USER_ID.test(id))) {
+          throw new HttpError(400, 'exceptUserIds invalide');
+        }
+        revokeAllExcept(documentName, keep);
+        const kept = new Set(keep);
+        disconnectWhere(documentName, (id) => !kept.has(id));
+      } else if (body.userId !== undefined) {
         if (typeof body.userId !== 'string' || !USER_ID.test(body.userId)) {
           throw new HttpError(400, 'userId invalide');
         }
-        revokeAccess(closeMatch[1], body.userId);
-        disconnectUser(closeMatch[1], body.userId);
+        revokeAccess(documentName, body.userId);
+        disconnectWhere(documentName, (id) => id === body.userId);
+      } else {
+        hocuspocus.closeConnections(documentName);
       }
       response.writeHead(204);
       response.end();

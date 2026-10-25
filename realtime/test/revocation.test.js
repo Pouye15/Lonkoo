@@ -122,3 +122,60 @@ test("une demande de fermeture mal formée est refusée sans rien fermer", async
     client.provider.destroy();
   });
 });
+
+test("repasser un projet en privé coupe les visiteurs et refuse leurs tickets, pas ceux des membres", async () => {
+  await withServer({ seed }, async ({ port, wsUrl }) => {
+    const memberTicket = await signTicket({ userId: 'membre' });
+    const visitorTicket = await signTicket({ userId: 'visiteur', role: 'READ' });
+    const member = await connect(wsUrl, memberTicket);
+    const visitor = await connect(wsUrl, visitorTicket);
+    await waitForSync(member.provider);
+    await waitForSync(visitor.provider);
+
+    assert.equal((await close(port, { exceptUserIds: ['membre'] })).status, 204);
+
+    await waitFor(() => visitor.seen.socketCloseCodes.includes(4403));
+    assert.deepEqual(member.seen.socketCloseCodes, [], 'la socket du membre reste ouverte');
+    assert.equal(member.seen.closed, 0);
+    await waitFor(() => visitor.seen.authFailures > 0, 8000);
+
+    // L'ancien ticket du visiteur ne rouvre rien ; celui du membre sert toujours.
+    const replay = await connect(wsUrl, visitorTicket);
+    await waitFor(() => replay.seen.authFailures > 0, 8000);
+    const member2 = await connect(wsUrl, memberTicket);
+    await waitForSync(member2.provider);
+    assert.equal(member2.seen.authFailures, 0);
+
+    // Le projet redevient public plus tard : un ticket émis après le passage en privé est accepté.
+    await sleep(1100);
+    const back = await connect(wsUrl, await signTicket({ userId: 'visiteur', role: 'READ' }));
+    await waitForSync(back.provider);
+    assert.equal(back.seen.authFailures, 0);
+
+    for (const client of [member, visitor, replay, member2, back]) client.provider.destroy();
+  });
+});
+
+test("sans aucun membre à garder, la fermeture sort tout le monde", async () => {
+  await withServer({ seed }, async ({ port, wsUrl }) => {
+    const client = await connect(wsUrl, await signTicket({ userId: 'visiteur' }));
+    await waitForSync(client.provider);
+    assert.equal((await close(port, { exceptUserIds: [] })).status, 204);
+    await waitFor(() => client.seen.socketCloseCodes.includes(4403));
+    client.provider.destroy();
+  });
+});
+
+test("la liste des membres à garder doit être bien formée, et exclut userId", async () => {
+  await withServer({ seed }, async ({ port }) => {
+    for (const body of [
+      { exceptUserIds: 'membre' },
+      { exceptUserIds: [42] },
+      { exceptUserIds: ['a b'] },
+      { exceptUserIds: Array.from({ length: 1001 }, (_, i) => `u${i}`) },
+      { exceptUserIds: ['a'], userId: 'b' },
+    ]) {
+      assert.equal((await close(port, body)).status, 400, JSON.stringify(body).slice(0, 60));
+    }
+  });
+});

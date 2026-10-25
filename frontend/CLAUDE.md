@@ -78,7 +78,7 @@ Six onglets compacts (une seule ligne, défilement horizontal si l'écran est é
 Le graphe vient de `useProjectGraph` (`src/lib/project-graph.ts`) : conservé par projet dans le navigateur en mode simulé, document Yjs partagé en mode API. Le tableau blanc est identique dans les deux cas : il reçoit et rend des tableaux.
 
 ### 3.6. Communauté (`/palabre`, `/palabre/[slug]`)
-Architectures publiées, profils d'architectes, abonnements ; suivre / se désabonner ; fork complet ou partiel d'un modèle ; notes et commentaires. Données fictives.
+Architectures publiées, profils d'architectes, abonnements ; suivre / se désabonner ; fork complet ou partiel d'un modèle ; notes et commentaires. Données fictives, **sauf** la section « Galerie publique » en tête de page (mode API) : les vrais projets publics de comptes GitHub (`GET /projects/public`, `components/community/PublicGallery.tsx`). « Consulter » ouvre le projet en lecture seule dans le studio (`/studio?project=<identifiant>`) : un projet public d'une autre personne est gardé hors de « mes projets » (`visitor` dans `lib/workspace.tsx`), sans « Déployer » ni « Créer une revue », avec un bandeau « lecture seule ». Seul le propriétaire peut passer un projet en public ou en privé (le bouton de la liste des projets est inactif pour les autres). Le fork d'un projet public n'existe pas encore.
 
 ### 3.7. Revues (`/reviews`)
 Propositions de modification d'architecture (différentiel, vérification de cohérence, approbations, fusion) et salons de discussion d'équipe. Données fictives.

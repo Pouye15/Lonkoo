@@ -139,6 +139,8 @@ export interface WorkspaceProject {
   canvasId?: string;
   /** Mode API : rôle de l'utilisateur dans le projet. */
   role?: GitHubRole;
+  /** Mode API : projet public ouvert sans en être membre (lecture seule, hors de « mes projets »). */
+  visitor?: boolean;
 }
 
 export interface AISuggestion {

@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.lonkoo.backend.model.CurrentUser;
@@ -21,6 +22,7 @@ import com.lonkoo.backend.web.CreateProjectRequest;
 import com.lonkoo.backend.web.ForbiddenException;
 import com.lonkoo.backend.web.PatchProjectRequest;
 import com.lonkoo.backend.web.ProjectResponse;
+import com.lonkoo.backend.web.PublicProjectResponse;
 
 import jakarta.validation.Valid;
 
@@ -40,6 +42,13 @@ public class ProjectController {
     @GetMapping("/projects")
     List<ProjectResponse> list(Authentication authentication) {
         return projectService.listProjects(currentUser(authentication));
+    }
+
+    /** Galerie : les projets publics des comptes GitHub, du plus récemment modifié au plus ancien. */
+    @GetMapping("/projects/public")
+    List<PublicProjectResponse> gallery(Authentication authentication, @RequestParam(defaultValue = "24") int limit) {
+        currentUser(authentication);
+        return projectService.listPublicProjects(limit);
     }
 
     @PostMapping("/projects")

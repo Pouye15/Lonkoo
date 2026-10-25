@@ -109,8 +109,8 @@ export interface ProjectGraph {
 /* ------------------------------------------------------------------ */
 
 function useLiveGraph(slug: string): ProjectGraph {
-  const { projects } = useWorkspace();
-  const project = projects.find((p) => p.slug === slug);
+  const { allProjects } = useWorkspace();
+  const project = allProjects.find((p) => p.slug === slug);
   const projectId = project?.id;
   const canvasId = project?.canvasId ?? null;
 

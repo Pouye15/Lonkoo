@@ -3,6 +3,8 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PublicGallery } from "@/components/community/PublicGallery";
+import { IS_LIVE_API } from "@/lib/api";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass, selectClass, textareaClass } from "@/components/ui/Field";
@@ -174,6 +176,7 @@ export default function CommunityTemplatesPage() {
         }
       />
       <div className="max-w-6xl mx-auto space-y-6">
+        {IS_LIVE_API && <PublicGallery />}
         {/* Barre de Navigation Communautaire & Recherche */}
         <div className="bg-surface rounded-xl p-3.5 border border-edge flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
           {/* Sélecteur de vue : Architectures / Profils / Abonnements */}

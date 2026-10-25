@@ -8,7 +8,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpTimeoutException;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -114,6 +116,22 @@ public class RealtimeSnapshotClient {
         HttpResponse<String> response = send(request, "fermeture des connexions d'une personne");
         if (response.statusCode() != 204) {
             throw unexpectedStatus(response.statusCode(), "fermeture des connexions d'une personne");
+        }
+    }
+
+    /**
+     * Coupe les connexions de tous ceux qui ne sont pas dans {@code keepUserIds} et fait refuser les tickets qu'ils
+     * détiennent (un projet public repasse en privé : les visiteurs sortent, les membres restent).
+     */
+    public void closeConnectionsExcept(UUID canvasId, Collection<UUID> keepUserIds) {
+        String ids = keepUserIds.stream().map(id -> "\"" + id + "\"").collect(Collectors.joining(","));
+        HttpRequest request = request(canvasId, "close")
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"exceptUserIds\":[" + ids + "]}"))
+                .build();
+        HttpResponse<String> response = send(request, "fermeture des connexions des visiteurs");
+        if (response.statusCode() != 204) {
+            throw unexpectedStatus(response.statusCode(), "fermeture des connexions des visiteurs");
         }
     }
 

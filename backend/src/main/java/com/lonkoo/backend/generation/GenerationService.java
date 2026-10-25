@@ -162,10 +162,10 @@ public class GenerationService {
     /* Lecture                                                              */
     /* ------------------------------------------------------------------ */
 
-    /** La génération, lisible par quiconque voit son canvas (404 sinon). */
+    /** La génération, lisible par les membres du projet (404 sinon : un projet public ne montre pas ses générations). */
     GenerationRow row(UUID id) {
         GenerationRow row = repository.find(id).orElseThrow(() -> new NotFoundException("Génération introuvable"));
-        canvasAccessService.requireRead(row.canvasId());
+        canvasAccessService.requireMemberRead(row.canvasId());
         return row;
     }
 
@@ -189,7 +189,7 @@ public class GenerationService {
     }
 
     public List<GenerationResponse> list(UUID canvasId) {
-        canvasAccessService.requireRead(canvasId);
+        canvasAccessService.requireMemberRead(canvasId);
         return repository.listByCanvas(canvasId, 20).stream().map(row -> GenerationResponse.of(row, null)).toList();
     }
 

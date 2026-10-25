@@ -11,6 +11,7 @@ import {
   type ApiRole,
 } from "@/lib/api";
 import { initialsOf } from "@/lib/initials";
+import { canChangeVisibility, isProjectId } from "@/lib/public-projects";
 import { WORKSPACE_PROJECTS, type GitHubRole, type WorkspaceProject } from "@/lib/lonkoo-data";
 
 /**
@@ -222,7 +223,7 @@ function toProject(api: ApiProject, previous?: WorkspaceProject): WorkspaceProje
     visibility: api.visibility,
     branch: "main",
     gitTag: "",
-    githubRepo: `${me?.login ?? "lonkoo"}/${slugify(api.name) || "projet"}`,
+    githubRepo: `${api.ownerLogin || me?.login || "lonkoo"}/${slugify(api.name) || "projet"}`,
     stack: [],
     aiScore: 0,
     updatedAt: relativeTime(api.updatedAt),
@@ -282,15 +283,43 @@ export async function loadProjects(): Promise<void> {
     const list = await apiFetch<ApiProject[]>("/api/projects");
     if (token !== loadToken) return;
     const before = new Map(state.projects.map((project) => [project.id, project]));
-    const projects = list.map((api) => toProject(api, before.get(api.id)));
-    const wanted = pendingProject ? projects.find((p) => matches(p, pendingProject as string)) : undefined;
+    const mine = list.map((api) => toProject(api, before.get(api.id)));
+    // Les projets publics ouverts sans en être membre ne sont pas dans cette liste : on les garde tant qu'on est là.
+    const visited = state.projects.filter((p) => p.visitor && !mine.some((m) => m.id === p.id));
+    const projects = [...mine, ...visited];
+    const requested = pendingProject;
+    const wanted = requested ? projects.find((p) => matches(p, requested)) : undefined;
     pendingProject = null;
     const activeSlug =
-      wanted?.slug ?? (projects.some((p) => p.slug === state.activeSlug) ? state.activeSlug : (projects[0]?.slug ?? ""));
+      wanted?.slug ?? (projects.some((p) => p.slug === state.activeSlug) ? state.activeSlug : (mine[0]?.slug ?? ""));
     commit({ projects, activeSlug, status: "ready", error: null });
-    await Promise.allSettled(projects.slice(0, MAX_CANVAS_LOOKUPS).map((project) => resolveCanvasOf(project)));
+    // Un lien direct vers un projet public (fiche de la galerie) : il n'est pas dans la liste, on va le lire.
+    if (requested && !wanted && isProjectId(requested)) void visitPublic(requested);
+    await Promise.allSettled(mine.slice(0, MAX_CANVAS_LOOKUPS).map((project) => resolveCanvasOf(project)));
   } catch (error) {
     if (token === loadToken) commit({ ...state, status: "error", error: messageOf(error) });
+  }
+}
+
+const visiting = new Set<string>();
+
+/**
+ * Mode API : ouvre un projet public dont la personne n'est pas membre (lien d'une fiche de la galerie), en lecture
+ * seule. Il reste hors de « mes projets » (voir {@link useWorkspace}) ; s'il est privé ou inconnu, le serveur répond 404.
+ */
+async function visitPublic(id: string): Promise<void> {
+  if (visiting.has(id)) return;
+  visiting.add(id);
+  try {
+    const api = await apiFetch<ApiProject>(`/api/projects/${id}`);
+    if (state.projects.some((p) => p.id === api.id)) return;
+    const project: WorkspaceProject = { ...toProject(api), role: "Read", visitor: true };
+    commit({ ...state, projects: [...state.projects, project], activeSlug: project.slug, error: null });
+    void resolveCanvasOf(project).catch(() => undefined);
+  } catch (error) {
+    commit({ ...state, error: messageOf(error) });
+  } finally {
+    visiting.delete(id);
   }
 }
 
@@ -322,6 +351,10 @@ async function createLive(input: NewProjectInput): Promise<WorkspaceProject> {
 async function toggleVisibilityLive(id: string): Promise<void> {
   const current = state.projects.find((project) => project.id === id);
   if (!current) return;
+  if (!canChangeVisibility(current.role)) {
+    commit({ ...state, error: "Seul le propriétaire du projet peut changer sa visibilité." });
+    return;
+  }
   const visibility = current.visibility === "public" ? "private" : "public";
   patchProject(id, { visibility });
   try {
@@ -339,14 +372,19 @@ async function toggleVisibilityLive(id: string): Promise<void> {
 export function useWorkspace() {
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
+  // Les projets publics ouverts sans en être membre ne sont jamais dans « mes projets » (liste, sélecteur, compteurs),
+  // mais ils peuvent être le projet actif.
+  const mine = snapshot.projects.filter((project) => !project.visitor);
   const activeProject =
-    snapshot.projects.find((project) => project.slug === snapshot.activeSlug) ?? snapshot.projects[0] ?? null;
+    snapshot.projects.find((project) => project.slug === snapshot.activeSlug) ?? mine[0] ?? null;
 
   const setActiveProjectSlug = useCallback((key: string) => {
     const target = state.projects.find((project) => matches(project, key));
     if (!target) {
       // La liste n'est peut-être pas encore arrivée (lien direct vers un projet) : on s'en souvient.
       if (IS_LIVE_API && state.status !== "ready") pendingProject = key;
+      // Liste lue et projet absent : si c'est un identifiant, peut-être un projet public d'une autre personne.
+      else if (IS_LIVE_API && isProjectId(key)) void visitPublic(key);
       return;
     }
     pendingProject = null;
@@ -403,7 +441,9 @@ export function useWorkspace() {
   }, []);
 
   return {
-    projects: snapshot.projects,
+    projects: mine,
+    /** Avec les projets publics ouverts sans en être membre : pour retrouver un projet par son nom court. */
+    allProjects: snapshot.projects,
     activeProject,
     status: snapshot.status,
     error: snapshot.error,

@@ -70,6 +70,7 @@ class AccessMatrixIntegrationTest extends AbstractPostgresIntegrationTest {
     private static final List<Route> ROUTES = List.of(
             new Route("lire un projet", HttpMethod.GET, "/api/projects/{project}", null, Role.READ, 200),
             new Route("modifier un projet", HttpMethod.PATCH, "/api/projects/{project}", "{\"description\":\"maj\"}", Role.MAINTAINER, 200),
+            new Route("changer la visibilité", HttpMethod.PATCH, "/api/projects/{project}", "{\"visibility\":\"public\"}", Role.OWNER, 200),
             new Route("supprimer un projet", HttpMethod.DELETE, "/api/projects/{project}", null, Role.OWNER, 204),
             new Route("lister les membres", HttpMethod.GET, "/api/projects/{project}/members", null, Role.READ, 200),
             new Route("retirer un membre", HttpMethod.DELETE, "/api/projects/{project}/members/{victim}", null, Role.MAINTAINER, 204),
@@ -170,6 +171,8 @@ class AccessMatrixIntegrationTest extends AbstractPostgresIntegrationTest {
         }
 
         assertThat(count("select count(*) from projects where id = ?", UUID.fromString(world.project()))).as("projet gardé").isEqualTo(1);
+        assertThat(count("select count(*) from projects where id = ? and visibility = 'private'", UUID.fromString(world.project())))
+                .as("projet resté privé").isEqualTo(1);
         assertThat(count("select count(*) from projects where id = ? and description = 'maj'", UUID.fromString(world.project())))
                 .as("projet non modifié").isZero();
         assertThat(count("select count(*) from canvases where project_id = ?", UUID.fromString(world.project()))).as("aucun canvas ajouté").isEqualTo(1);

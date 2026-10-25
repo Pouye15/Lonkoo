@@ -27,6 +27,7 @@ import com.lonkoo.backend.web.ForbiddenException;
 import com.lonkoo.backend.web.NotFoundException;
 import com.lonkoo.backend.web.PatchProjectRequest;
 import com.lonkoo.backend.web.ProjectResponse;
+import com.lonkoo.backend.web.PublicProjectResponse;
 
 /**
  * Projets, canvas et contrôle d'appartenance. Les accès aux canvas sont par
@@ -43,6 +44,7 @@ public class ProjectService {
             rs.getString("description"),
             rs.getString("visibility"),
             rs.getObject("owner_id", UUID.class),
+            rs.getString("owner_login"),
             rs.getObject("created_at", OffsetDateTime.class).toInstant(),
             rs.getObject("updated_at", OffsetDateTime.class).toInstant());
 
@@ -71,8 +73,9 @@ public class ProjectService {
 
     public List<ProjectResponse> listProjects(CurrentUser user) {
         return jdbcClient.sql("""
-                select p.*
+                select p.*, u.login as owner_login
                 from projects p
+                join users u on u.id = p.owner_id
                 join project_members pm on pm.project_id = p.id
                 where pm.user_id = ?
                 order by p.updated_at desc
@@ -83,6 +86,30 @@ public class ProjectService {
                 .stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    /**
+     * La galerie publique : les projets publics dont l'auteur a un compte GitHub. Un projet public d'invité reste
+     * consultable par son lien mais n'y figure pas : sans compte, n'importe qui pourrait y publier sans rendre de comptes.
+     */
+    public List<PublicProjectResponse> listPublicProjects(int limit) {
+        return jdbcClient.sql("""
+                select p.id, p.name, p.description, p.updated_at, coalesce(u.display_name, u.login) as owner_name, u.login
+                from projects p
+                join users u on u.id = p.owner_id
+                where p.visibility = 'public' and not u.is_guest
+                order by p.updated_at desc
+                limit ?
+                """)
+                .param(Math.max(1, Math.min(limit, 50)))
+                .query((rs, rowNum) -> new PublicProjectResponse(
+                        rs.getObject("id", UUID.class),
+                        rs.getString("name"),
+                        rs.getString("description"),
+                        rs.getString("owner_name"),
+                        rs.getString("login"),
+                        rs.getObject("updated_at", OffsetDateTime.class).toInstant()))
+                .list();
     }
 
     @Transactional
@@ -129,38 +156,79 @@ public class ProjectService {
         return toResponse(requireProject(projectId));
     }
 
-    @Transactional
+    /**
+     * Modifie le projet. Le nom et la description demandent d'être MAINTAINER ; la visibilité, seulement
+     * propriétaire (un projet public se lit en entier : la publier est le choix de son propriétaire). Quand un
+     * projet public repasse en privé, ceux qui le consultaient sans en être membres sont déconnectés, après la
+     * transaction : une panne du temps réel ne défait pas le changement.
+     */
     public ProjectResponse patchProject(CurrentUser user, UUID projectId, PatchProjectRequest request) {
-        requireManager(user.id(), projectId);
-
         // Champ absent (null) = inchangé.
         String name = request.name();
         String description = request.description();
         String visibility = request.visibility() != null ? normalizeVisibility(request.visibility()) : null;
 
-        jdbcClient.sql("""
-                update projects
-                set name = coalesce(?, name),
-                    description = coalesce(?, description),
-                    visibility = coalesce(?, visibility),
-                    updated_at = now()
-                where id = ?
-                """)
-                .param(name)
-                .param(description)
-                .param(visibility)
-                .param(projectId)
-                .update();
+        boolean[] madePrivate = {false};
+        ProjectResponse response = transactions.execute(status -> {
+            Role role = requireManager(user.id(), projectId);
+            if (visibility != null && role != Role.OWNER) {
+                throw new ForbiddenException("Seul le propriétaire change la visibilité : rôle " + role);
+            }
+            String before = requireProject(projectId).visibility();
 
-        // Une ligne de journal par nature de changement (valeurs de l'énumération, jamais de texte libre).
-        if (visibility != null) {
-            auditService.record(user.id(), "project.visibility", "project:" + projectId,
-                    "{\"visibility\":\"" + visibility + "\"}");
+            jdbcClient.sql("""
+                    update projects
+                    set name = coalesce(?, name),
+                        description = coalesce(?, description),
+                        visibility = coalesce(?, visibility),
+                        updated_at = now()
+                    where id = ?
+                    """)
+                    .param(name)
+                    .param(description)
+                    .param(visibility)
+                    .param(projectId)
+                    .update();
+
+            // Une ligne de journal par nature de changement (valeurs de l'énumération, jamais de texte libre).
+            if (visibility != null) {
+                auditService.record(user.id(), "project.visibility", "project:" + projectId,
+                        "{\"visibility\":\"" + visibility + "\"}");
+                madePrivate[0] = "public".equals(before) && "private".equals(visibility);
+            }
+            if (name != null || description != null) {
+                auditService.record(user.id(), "project.updated", "project:" + projectId, null);
+            }
+            return toResponse(requireProject(projectId));
+        });
+
+        if (madePrivate[0]) {
+            disconnectVisitors(projectId);
         }
-        if (name != null || description != null) {
-            auditService.record(user.id(), "project.updated", "project:" + projectId, null);
+        return response;
+    }
+
+    /**
+     * Après le passage en privé : coupe les connexions de qui n'est pas membre et fait refuser leurs tickets. Les
+     * membres, eux, restent connectés. Sans effet pour la base : seuls les nouveaux accès étaient déjà refusés.
+     */
+    private void disconnectVisitors(UUID projectId) {
+        List<UUID> members = jdbcClient.sql("select user_id from project_members where project_id = ?")
+                .param(projectId)
+                .query(UUID.class)
+                .list();
+        List<UUID> canvasIds = jdbcClient.sql("select id from canvases where project_id = ?")
+                .param(projectId)
+                .query(UUID.class)
+                .list();
+        for (UUID canvasId : canvasIds) {
+            try {
+                realtimeSnapshotClient.closeConnectionsExcept(canvasId, members);
+            } catch (RuntimeException e) {
+                log.warn("Projet repassé en privé, mais les visiteurs du canvas {} n'ont pas pu être déconnectés : {}",
+                        canvasId, e.getMessage());
+            }
         }
-        return toResponse(requireProject(projectId));
     }
 
     /**
@@ -238,17 +306,31 @@ public class ProjectService {
     }
 
     private Project requireProject(UUID projectId) {
-        return jdbcClient.sql("select * from projects where id = ?")
+        return jdbcClient.sql("""
+                select p.*, u.login as owner_login
+                from projects p
+                join users u on u.id = p.owner_id
+                where p.id = ?
+                """)
                 .param(projectId)
                 .query(PROJECT_MAPPER)
                 .optional()
                 .orElseThrow(() -> new NotFoundException("Projet introuvable"));
     }
 
+    /**
+     * Le rôle de la personne sur le projet : celui de son appartenance ; pour un projet public, READ à qui n'en est
+     * pas membre (les contrôles de rôle donnent alors 403, pas 404, sur un projet qu'elle voit) ; 404 sinon.
+     */
     private Role requireMember(UUID userId, UUID projectId) {
-        return jdbcClient.sql("select role from project_members where project_id = ? and user_id = ?")
-                .param(projectId)
+        return jdbcClient.sql("""
+                select coalesce(pm.role, case when p.visibility = 'public' then 'READ' end)
+                from projects p
+                left join project_members pm on pm.project_id = p.id and pm.user_id = ?
+                where p.id = ?
+                """)
                 .param(userId)
+                .param(projectId)
                 .query(String.class)
                 .optional()
                 .map(Role::valueOf)
@@ -291,6 +373,6 @@ public class ProjectService {
 
     private ProjectResponse toResponse(Project p) {
         return new ProjectResponse(p.id(), p.name(), p.description(), p.visibility(),
-                p.ownerId(), p.createdAt(), p.updatedAt());
+                p.ownerId(), p.ownerLogin(), p.createdAt(), p.updatedAt());
     }
 }

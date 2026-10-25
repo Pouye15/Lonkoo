@@ -27,10 +27,20 @@ public class CanvasAccessService {
         this.jdbcClient = jdbcClient;
     }
 
-    /** Contrôle l'accès en lecture (tous les rôles). */
+    /**
+     * Contrôle l'accès en lecture (tous les rôles). Un projet public se lit en lecture seule (rôle READ) pour toute
+     * personne connectée qui n'en est pas membre : un membre garde son propre rôle, même plus haut.
+     */
     public CanvasAccess requireRead(UUID canvasId) {
-        CanvasAccess access = accessOf(canvasId);
-        return access;
+        return accessOf(canvasId, true);
+    }
+
+    /**
+     * Contrôle l'accès en lecture réservé aux membres : ce que la publication d'un projet ne rend pas public (projets
+     * générés, dépôt GitHub et déploiements, dont les noms ne doivent pas fuir d'un projet « public »).
+     */
+    public CanvasAccess requireMemberRead(UUID canvasId) {
+        return accessOf(canvasId, false);
     }
 
     /** Contrôle l'accès en écriture (WRITE et plus). */
@@ -52,18 +62,21 @@ public class CanvasAccessService {
     }
 
     /**
-     * Lit le rôle de l'utilisateur courant sur le canvas, ou lève un 404.
+     * Lit le rôle de l'utilisateur courant sur le canvas, ou lève un 404. Avec {@code publicRead}, un projet public
+     * donne le rôle READ à qui n'en est pas membre.
      */
-    private CanvasAccess accessOf(UUID canvasId) {
+    private CanvasAccess accessOf(UUID canvasId, boolean publicRead) {
         CurrentUser user = currentUser();
         String roleName = jdbcClient.sql("""
-                select pm.role
+                select coalesce(pm.role, case when ? and p.visibility = 'public' then 'READ' end)
                 from canvases c
-                join project_members pm on pm.project_id = c.project_id
-                where c.id = ? and pm.user_id = ?
+                join projects p on p.id = c.project_id
+                left join project_members pm on pm.project_id = c.project_id and pm.user_id = ?
+                where c.id = ?
                 """)
-                .param(canvasId)
+                .param(publicRead)
                 .param(user.id())
+                .param(canvasId)
                 .query(String.class)
                 .optional()
                 .orElseThrow(() -> new NotFoundException("Canvas introuvable ou non visible"));

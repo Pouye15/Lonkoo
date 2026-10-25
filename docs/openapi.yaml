@@ -14,7 +14,8 @@ info:
     Conventions : une route protégée sans session valide répond 401 ; un projet
     ou un canvas que l'appelant ne peut pas voir répond 404 (jamais 403, pour ne
     pas révéler son existence) ; un rôle insuffisant sur une ressource visible
-    répond 403. Les routes marquées `x-implemented: false` sont décrites pour le
+    répond 403. Un projet public se lit en lecture seule par toute personne
+    connectée ; ses écritures répondent alors 403 (le projet est visible). Les routes marquées `x-implemented: false` sont décrites pour le
     contrat mais ne sont pas encore codées.
 servers:
   - url: /api
@@ -207,10 +208,38 @@ paths:
         "409":
           $ref: "#/components/responses/LimitReached"
 
+  /projects/public:
+    get:
+      tags: [Projets]
+      summary: Galerie publique (projets publics de comptes GitHub)
+      description: |
+        Du plus récemment modifié au plus ancien. Un projet public d'invité reste consultable par son lien
+        (`GET /projects/{projectId}`) mais ne figure pas dans la galerie. Une fiche ne donne ni les membres ni
+        l'identifiant de l'auteur.
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: "Nombre de fiches (24 par défaut, entre 1 et 50 ; une valeur hors de cet intervalle est ramenée à la borne)."
+          schema:
+            type: integer
+            default: 24
+      responses:
+        "200":
+          description: Fiches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PublicProject"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /projects/{projectId}:
     get:
       tags: [Projets]
-      summary: Détail d'un projet
+      summary: Détail d'un projet (membre, ou toute personne connectée si le projet est public)
       parameters:
         - $ref: "#/components/parameters/ProjectId"
       responses:
@@ -224,7 +253,12 @@ paths:
           description: Projet inexistant ou non visible
     patch:
       tags: [Projets]
-      summary: Modifie un projet (MAINTAINER et plus)
+      summary: Modifie un projet (MAINTAINER et plus ; la visibilité, OWNER seulement)
+      description: |
+        Le nom et la description demandent d'être MAINTAINER. Changer `visibility` demande d'être OWNER (403
+        sinon, et rien n'est modifié, pas même le nom envoyé avec). Quand un projet public repasse en privé, les
+        personnes qui le consultaient sans en être membres sont déconnectées du temps réel et leurs tickets
+        refusés ; les membres restent connectés.
       parameters:
         - $ref: "#/components/parameters/ProjectId"
       requestBody:
@@ -1354,9 +1388,30 @@ components:
           nullable: true
           description: Nom de l'auteur du lien, absent si son compte a disparu.
 
+    PublicProject:
+      type: object
+      required: [id, name, ownerName, ownerLogin, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        ownerName:
+          type: string
+          description: Nom affiché de l'auteur, ou son identifiant GitHub à défaut.
+        ownerLogin:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+
     Project:
       type: object
-      required: [id, name, visibility, ownerId, createdAt, updatedAt]
+      required: [id, name, visibility, ownerId, ownerLogin, createdAt, updatedAt]
       properties:
         id:
           type: string
@@ -1368,9 +1423,17 @@ components:
         visibility:
           type: string
           enum: [private, public]
+          description: |
+            `private` : visible des seuls membres. `public` : toute personne connectée (invité compris) lit le
+            projet, son canvas, ses versions et le temps réel **en lecture seule** ; elle n'est pas membre, ne voit
+            ni l'équipe, ni les générations, ni les dépôts GitHub, et ne peut rien modifier. Seul le propriétaire
+            change cette valeur.
         ownerId:
           type: string
           format: uuid
+        ownerLogin:
+          type: string
+          description: Identifiant du propriétaire (celui du compte GitHub, ou de l'invité).
         createdAt:
           type: string
           format: date-time
