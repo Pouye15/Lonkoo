@@ -45,14 +45,14 @@ Le détail du backend (lots, ordre de travail, contrats, risques, ordre de coupe
 - [x] Temps réel : serveur Hocuspocus, présence, curseurs, synchronisation, chargement et sauvegarde via le backend — *Pouye, 19/10* **Fait.** Y compris la coupure des connexions d'une personne retirée.
 - [x] Temps réel : ticket court délivré par le backend, vérifié à la connexion, contrôle d'accès par canvas — *Pouye, 19/10* **Fait.** Ticket de 5 minutes ; accès retirés refusés par le serveur temps réel.
 - [x] Backend : squelette Spring Boot (Log4j2, Spring Data JDBC, Flyway, `/actuator/health`) — *Pouye, 17/10* **Fait.**
-- [x] Backend : connexion GitHub côté serveur, projets, canvas, droits d'accès — *Pouye, 20/10* **Fait.** Connexion GitHub essayée seulement contre un faux GitHub (constat A-08).
+- [x] Backend : connexion GitHub côté serveur, projets, canvas, droits d'accès — *Pouye, 20/10* **Fait.** Connexion GitHub essayée contre un faux GitHub, puis contre le vrai le 25/10 (constat A-08).
 - [x] Backend : compte invité éphémère avec une copie du modèle d'exemple (`docs/exemples/`) — *Pouye, 20/10* **Fait.**
 - [x] Backend : instantanés nommés (versions) et restauration — *Pouye, 21/10* **Fait.**
 - [ ] IA : esquisse d'architecture depuis un cahier des charges, sortie validée par le schéma — *Ngom, 21/10* **Partiel.** Route, contrôle d'accès et validation de la sortie faits (25/10, `backend/.../ai/`) ; l'agent reste à brancher.
 - [ ] IA : audit d'architecture (points de défaillance unique, failles, surcoûts), consultatif — *Ngom, 21/10* **Partiel.** Route, contrôle d'accès et validation faits (25/10) ; l'agent reste à brancher. L'onglet « Analyse IA » de l'interface affiche des données de démonstration.
 - [ ] IA : quota par utilisateur, plafond de coût, délai maximal, démo enregistrée de secours — *Ngom avec Pouye, 21/10* **Partiel.** Plafond de taille du texte fait ; quota par personne (table `ai_usage`, migrations V20 à V29), plafond de coût et délai : à faire avec l'agent.
 - [x] Génération du projet de démarrage depuis un instantané : entités du schéma, docker-compose, README avec schémas Mermaid, `openapi.yaml` — *Gaye, 21/10* **Fait.**
-- [x] Envoi sur GitHub : création du dépôt et commit initial avec la session de l'utilisateur — *Gaye, 21/10* **Fait.** Essayé seulement contre un faux GitHub (constat A-08).
+- [x] Envoi sur GitHub : création du dépôt et commit initial avec la session de l'utilisateur — *Gaye, 21/10* **Fait.** Essayé contre un faux GitHub, puis contre le vrai le 25/10 avec un dépôt privé (constat A-08).
 - [x] Déploiement des applications générées sur le VPS, avec suivi de l'état (si trop risqué au 21/10 : plan B de `docs/DEPLOIEMENT.md`) — *Gaye, 22/10* **Fait.** Le backend lance le workflow du dépôt (`workflow_dispatch`) et suit son état ; mode manuel de repli. Jamais joué sur un serveur.
 - [x] Sécurité de base : jetons non stockés, aucun secret dans les journaux, journal des actions, validation des identifiants du générateur — *Diagne avec Pouye, 22/10* **Fait.**
 - [x] Tests : trois tests de fumée et un test de bout en bout (`docs/architecture.md`) — *Diagne, 22/10* **Fait.** Parcours automatiques dans `e2e/` (25/10), à rejouer sur la production.

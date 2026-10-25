@@ -69,4 +69,4 @@ Pour vérifier sans passer par le navigateur : ouvrir `/api/auth/github/login`, 
 
 ## 5. Ce que j'ai besoin de savoir ensuite
 
-Rien de secret : une fois l'application de développement créée et le `.env` rempli, on peut tester la connexion de bout en bout en local. Le code de la connexion (lot R4) et ses tests contre un faux GitHub n'en dépendent pas : ils peuvent commencer avant.
+Rien de secret : une fois l'application de développement créée et le `.env` rempli, on peut tester la connexion de bout en bout en local. Le code de la connexion (lot R4) et ses tests contre un faux GitHub n'en dépendent pas : ils peuvent commencer avant. La connexion réelle a été essayée le 25/10 avec l'URL de rappel `http://localhost:3000/api/auth/github/callback` : elle fonctionne.

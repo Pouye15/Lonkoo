@@ -25,7 +25,7 @@ Lonkoo est un studio collaboratif où une équipe de développeurs conçoit l'ar
 |---|---|
 | Studio collaboratif en temps réel (curseurs, présence, lecture seule), versions nommées, comparaison, restauration, exports Mermaid, JSON, SVG, PNG | Fait, testé |
 | Comptes (invité éphémère, GitHub), projets, équipe et rôles, liens de partage révocables, projets publics en lecture seule et galerie | Fait, testé |
-| Génération du projet, envoi sur GitHub, déploiement | Fait et testé contre un **faux GitHub** ; **pas encore essayé contre le vrai GitHub ni sur un serveur** |
+| Génération du projet, envoi sur GitHub, déploiement | Fait et testé contre un **faux GitHub**, puis essayé une fois contre le **vrai GitHub** le 25/10 (connexion, dépôt privé, envoi, lancement et suivi du workflow) ; **pas encore sur un serveur** : le workflow a échoué comme prévu, faute de serveur et de secrets |
 | Copilote IA (esquisse, complétion, audit) | Point de raccordement prêt (`AiClient`, trois routes validées) ; **l'agent reste à brancher**. `AI_PROVIDER=fake` renvoie des réponses figées étiquetées `demo`. L'onglet « Analyse IA » affiche des données de démonstration |
 | Communauté : profils, revues, commentaires, Fork | Maquette (seule la galerie publique est réelle) |
 | Mise en ligne (compose de production, Caddy, pipeline, sauvegarde) | Écrite et répétée hors serveur sur la branche `feature/r7-mise-en-ligne` ; **le serveur reste à acheter et à régler** |
