@@ -275,7 +275,7 @@ Tranches : **T1** indispensable, **T2** important, **T3** à couper en premier.
 | | `POST /canvases/{id}/versions` | `WRITE`+ | `{name, message?}` → `201` ; `422` si invalide | T1 |
 | | `GET /canvases/{id}/versions/{versionId}` | membre | → instantané | T1 |
 | | `POST /canvases/{id}/versions/{versionId}/restore` | `WRITE`+ | → `204` | T1 |
-| IA (contrat seulement, § 9) | `POST /canvases/{id}/ai/sketch`, `/ai/audit`, `/ai/complete` | membre ; quotas | `501` tant que non implémenté | — |
+| IA (point de raccordement, § 9) | `POST /canvases/{id}/ai/sketch`, `/ai/complete` (`WRITE`+), `/ai/audit` (membre) | droit sur le canvas ; quota à poser | une proposition validée, ou des remarques ; `501` tant qu'aucun fournisseur n'est branché | fait le 25/10 |
 | Génération | `POST /canvases/{id}/generate` | `WRITE`+ | `{versionId?, target}` → `202 {generationId}` | T2 |
 | | `GET /generations/{id}` | membre | état, liste de fichiers | T2 |
 | | `POST /generations/{id}/push-github` | session GitHub | `{repoName}` → `202` | T2 |
@@ -435,10 +435,10 @@ Le front importé est une maquette navigable : toutes les données viennent de `
 
 Ce que le backend fournit à Ngom, pour que l'IA se branche sans toucher au reste :
 
-- [ ] `AiClient` : interface unique derrière laquelle vit le fournisseur (`architecture.md`), avec une **implémentation factice** (réponses figées) pour que le front avance sans clé d'API.
-- [ ] Routes `POST /canvases/{id}/ai/sketch`, `/ai/audit`, `/ai/complete` déclarées dans `openapi.yaml`, répondant `501` (`AI_NOT_IMPLEMENTED`) jusqu'à l'implémentation.
-- [ ] `CanvasValidator` (WP7) et `CanvasSnapshotService` (WP7) exposés comme services réutilisables : l'IA reçoit l'instantané courant et **toute sortie est validée** avant d'être renvoyée comme proposition.
-- [ ] `CanvasAccessService` (WP5) appliqué aux routes IA ; plages de migration `V20` à `V29` réservées pour `ai_usage` (quota par utilisateur et par jour).
+- [x] `AiClient` : interface unique derrière laquelle vit le fournisseur (`architecture.md`), avec une **implémentation factice** (réponses figées, étiquetées `demo`) pour que le front avance sans clé d'API : `AI_PROVIDER=fake`. Fait le 25/10 (`backend/.../ai/`). Brancher un vrai fournisseur : une classe qui implémente `AiClient`, activée par `lonkoo.ai.provider=<nom>`, rien d'autre à changer.
+- [x] Routes `POST /canvases/{id}/ai/sketch`, `/ai/audit`, `/ai/complete` : contrat complet dans `openapi.yaml`, `501` (`AI_NOT_IMPLEMENTED`) tant qu'aucun fournisseur n'est branché (après le contrôle d'accès), un journal d'audit par appel sans le texte saisi, plafond du texte (`AI_MAX_INPUT_CHARS`).
+- [x] `CanvasValidator` (WP7) et la lecture de l'instantané courant réutilisés : l'IA reçoit l'instantané courant et **toute sortie est validée** avant d'être renvoyée comme proposition (une proposition invalide donne 502 et n'est pas renvoyée ; les remarques d'audit sur un bloc absent sont écartées et comptées).
+- [ ] `CanvasAccessService` (WP5) appliqué aux routes IA : **fait** (écrire demande `WRITE`, l'audit demande d'être membre pour qu'un visiteur d'un projet public ne déclenche pas d'appel payant). **Reste, à Ngom :** le quota par utilisateur et par jour (`AI_DAILY_QUOTA`), qui demande une table `ai_usage` dans la plage `V20` à `V29`.
 - [ ] Configuration `AI_*` déjà dans `.env.example`, ignorée par le contrôle de démarrage tant que `AI_ENABLED` vaut `false`.
 - [ ] Application d'un patch : passe par le serveur temps réel (`openDirectConnection`, comme la restauration), pas par une écriture directe en base.
 - [ ] Hors périmètre ici : le serveur MCP décrit dans `frontend/AGENT.md` (outils `lonkoo_get_architecture`, `lonkoo_apply_patch`, etc.) ; il s'appuiera sur `GET /canvases/{id}/snapshot` et sur l'application de patch ci-dessus.

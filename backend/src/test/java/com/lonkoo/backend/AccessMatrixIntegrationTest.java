@@ -85,7 +85,11 @@ class AccessMatrixIntegrationTest extends AbstractPostgresIntegrationTest {
             new Route("enregistrer une version", HttpMethod.POST, "/api/canvases/{canvas}/versions", "{\"name\":\"v2\"}", Role.WRITE, 201),
             new Route("lire une version", HttpMethod.GET, "/api/canvases/{canvas}/versions/{version}", null, Role.READ, 200),
             new Route("restaurer une version", HttpMethod.POST, "/api/canvases/{canvas}/versions/{version}/restore", null, Role.WRITE, 204),
-            new Route("instantané courant", HttpMethod.GET, "/api/canvases/{canvas}/snapshot", null, Role.READ, 200));
+            new Route("instantané courant", HttpMethod.GET, "/api/canvases/{canvas}/snapshot", null, Role.READ, 200),
+            // Sans fournisseur d'IA branché, tout appelant autorisé reçoit 501 : le contrôle d'accès passe avant.
+            new Route("esquisse IA", HttpMethod.POST, "/api/canvases/{canvas}/ai/sketch", "{\"brief\":\"Une boutique en ligne\"}", Role.WRITE, 501),
+            new Route("complétion IA", HttpMethod.POST, "/api/canvases/{canvas}/ai/complete", "{}", Role.WRITE, 501),
+            new Route("audit IA", HttpMethod.POST, "/api/canvases/{canvas}/ai/audit", null, Role.READ, 501));
 
     /**
      * Un projet, son canvas, une version, un lien de partage, un lecteur à retirer (« victim »), et trois sessions :

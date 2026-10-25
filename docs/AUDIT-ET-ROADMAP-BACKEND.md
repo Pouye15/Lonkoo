@@ -50,7 +50,7 @@ Les sondes sont jetables : le test de chaîne est à recréer en test permanent 
 | WP10 Tests et conformité | partiel | R5, R11 |
 | WP11 Images et pipeline | partiel : Dockerfiles backend et temps réel écrits, jamais construits | R7 |
 | WP12 Branchement du front | **fait le 21/10** pour les projets, le canvas partagé, la lecture seule, le partage et les versions (mode `NEXT_PUBLIC_API_MODE=live`) ; reste l'éditeur d'entités et de champs, la liste des membres | R9 |
-| WP13 Raccordement IA | non commencé | R12 (optionnel) |
+| WP13 Raccordement IA | fait le 25/10 : `AiClient`, agent factice, trois routes | quota par personne (table `ai_usage`, plage V20 à V29), agent réel (Ngom) |
 
 ## 4. Ce qui est solide (vérifié)
 
@@ -281,7 +281,7 @@ Fondations fournies par le backend : instantané validé (WP7), jeton GitHub de 
 
 #### R12 — Raccordement de l'agent IA, WP13 (Pouye ; 1,5 h ; optionnel, coupé en premier)
 
-- [ ] `AiClient` factice et routes `POST /canvases/{id}/ai/sketch`, `/ai/audit`, `/ai/complete` répondant 501. **L'agent lui-même n'entre pas dans cette feuille de route.**
+- [x] `AiClient` factice et routes `POST /canvases/{id}/ai/sketch`, `/ai/audit`, `/ai/complete`. **Fait le 25/10**, au-delà du 501 prévu : sans fournisseur (`AI_PROVIDER` absent ou `change-me`), 501 `AI_NOT_IMPLEMENTED` après le contrôle d'accès ; avec `AI_PROVIDER=fake`, des réponses figées étiquetées `demo: true` ; dans tous les cas, toute proposition est validée contre le contrat du canvas (502 sinon), l'audit écarte les remarques sur des blocs absents, et chaque appel laisse une ligne au journal sans le texte saisi. Preuve : 23 tests (non branché, agent factice, agent simulé qui renvoie un canvas invalide, une réponse vide ou une panne) et six mutations du service. **L'agent lui-même n'entre pas dans cette feuille de route** ; reste le quota par personne et par jour.
 
 ### 6.4 Décisions à prendre
 
