@@ -134,6 +134,10 @@ public class GithubOAuthService {
         GithubUser githubUser = githubApiClient.fetchUser(accessToken);
         CurrentUser user = accountService.signIn(githubUser, sessionUserId);
 
+        // Le jeton de la session qui va être fermée (une personne qui se reconnecte, par exemple pour autoriser le
+        // déploiement) est oublié tout de suite : sans cela il resterait en mémoire, sans session, jusqu'au ménage horaire.
+        githubSession.clear();
+
         // Session neuve (anti-fixation), puis jeton dans cette session seulement.
         SessionSecurityContextRepository.login(request, user);
         githubSession.store(accessToken);

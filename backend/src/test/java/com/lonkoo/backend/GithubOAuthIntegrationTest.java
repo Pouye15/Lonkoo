@@ -257,6 +257,22 @@ class GithubOAuthIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(count("select count(*) from projects where owner_id = ?", first.userId)).isEqualTo(1);
     }
 
+    @Test
+    void signingInAgainForgetsTheTokenOfTheSessionThatIsClosed() throws Exception {
+        long githubId = newGithubId();
+        SignedIn first = signIn(null, GITHUB.register(githubId, "revenant", "Revenant", null));
+        String firstSession = first.session.getId();
+        assertThat(tokens.get(firstSession)).as("jeton de la première session").isPresent();
+
+        // Même compte, nouvelle connexion (par exemple l'autorisation de déploiement) : la première session est fermée.
+        String secondCode = GITHUB.register(githubId, "revenant", "Revenant", null);
+        SignedIn second = signIn(first.session, secondCode);
+
+        assertThat(second.session.getId()).isNotEqualTo(firstSession);
+        assertThat(tokens.get(firstSession)).as("le jeton de la session fermée n'attend plus en mémoire").isEmpty();
+        assertThat(tokens.get(second.session.getId())).contains(GITHUB.tokenFor(secondCode));
+    }
+
     // ------------------------------------------------------------------ Autorisations de déploiement
 
     @Test
