@@ -387,6 +387,9 @@ jobs:
           [ "$before" = "$after" ] && [ "$before" -ge 2 ] || fail "projets avant : $before, après redémarrage : $after"
           code="$(c -o /dev/null -w '%{http_code}' "$base/api/actuator/health")"
           [ "$code" = "200" ] || fail "santé après redémarrage : $code"
+          # Les sessions sont en base (V13) : l'invité de tout à l'heure est toujours connecté après le redémarrage.
+          code="$(c -b "$jar" -o /dev/null -w '%{http_code}' "$base/api/me")"
+          [ "$code" = "200" ] || fail "la session d'un invité n'a pas survécu au redémarrage : $code (200 attendu)"
 
           echo "== Sauvegarde, puis restauration testée"
           export APP_DIR="$PWD" BACKUP_DIR="$RUNNER_TEMP/sauvegardes"
