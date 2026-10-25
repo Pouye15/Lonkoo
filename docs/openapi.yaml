@@ -957,8 +957,9 @@ paths:
         Crée un dépôt sur le compte GitHub connecté puis y pousse tout le projet en un seul commit. Le travail est
         asynchrone : la réponse est l'état de la génération, et `push.status` (`RUNNING`, puis `DONE` ou `FAILED`
         avec `push.error`) se lit par `GET /generations/{generationId}`. Rôle d'écriture sur le canvas requis, et une
-        connexion GitHub (un invité reçoit 403 « Connexion GitHub requise »). Le jeton GitHub reste dans la session
-        du serveur : il n'est ni stocké ni renvoyé.
+        connexion GitHub (un invité reçoit 403 « Connexion GitHub requise »). Le jeton GitHub reste en mémoire du
+        serveur : il n'est ni stocké en base ni renvoyé (après un redémarrage du serveur, la personne reste
+        connectée mais doit reconnecter GitHub).
 
         Le fichier de workflow `.github/workflows/…` n'est envoyé que si la connexion a l'autorisation `workflow`
         (sinon `push.warnings` l'explique et `push.workflowSent` vaut `false`). Un dépôt privé demande l'autorisation
@@ -1204,7 +1205,9 @@ components:
       type: apiKey
       in: cookie
       name: JSESSIONID
-      description: Session serveur ouverte par `/auth/guest` ou `/join/{token}` (puis par la connexion GitHub).
+      description: |
+        Session serveur ouverte par `/auth/guest` ou `/join/{token}` (puis par la connexion GitHub). Elle est gardée en
+        base : un redémarrage ou un déploiement du serveur ne déconnecte personne (24 h d'inactivité au plus).
 
   responses:
     BadRequest:

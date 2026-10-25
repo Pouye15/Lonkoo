@@ -1,5 +1,6 @@
 package com.lonkoo.backend;
 
+import com.lonkoo.backend.security.GithubTokenStore;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -31,7 +32,9 @@ import tools.jackson.databind.JsonNode;
  */
 class GithubPushIntegrationTest extends AbstractPostgresIntegrationTest {
 
-    private static final String TOKEN_ATTRIBUTE = "lonkoo.githubToken";
+    /** Le jeton GitHub n'est pas un attribut de session : il vit dans le magasin en mémoire du serveur. */
+    @Autowired
+    private GithubTokenStore tokens;
     private static final FakeRealtimeServer REALTIME = FakeRealtimeServer.start();
     private static final FakeGithubApiServer GITHUB = FakeGithubApiServer.start();
 
@@ -71,7 +74,7 @@ class GithubPushIntegrationTest extends AbstractPostgresIntegrationTest {
                 .get("generationId").asText();
         JsonNode state = await(owner, id, false);
         assertThat(state.get("status").asText()).as(state.toString()).isEqualTo("DONE");
-        owner.setAttribute(TOKEN_ATTRIBUTE, GITHUB.token);
+        tokens.put(owner.getId(), GITHUB.token);
         return new Setup(owner, project, canvas, id, state);
     }
 
@@ -251,14 +254,14 @@ class GithubPushIntegrationTest extends AbstractPostgresIntegrationTest {
     @Test
     void aRevokedTokenIsReportedAndTheProjectStaysPushable() throws Exception {
         Setup setup = generated();
-        setup.owner().setAttribute(TOKEN_ATTRIBUTE, "gho_revoque");
+        tokens.put(setup.owner().getId(), "gho_revoque");
 
         JsonNode failed = pushed(setup, null);
         assertThat(failed.get("status").asText()).isEqualTo("FAILED");
         assertThat(failed.get("error").asText()).contains("reconnectez-vous");
         assertThat(GITHUB.callsTo("POST", "/user/repos")).isEmpty();
 
-        setup.owner().setAttribute(TOKEN_ATTRIBUTE, GITHUB.token);
+        tokens.put(setup.owner().getId(), GITHUB.token);
         assertThat(pushed(setup, null).get("status").asText()).isEqualTo("DONE");
     }
 
@@ -331,7 +334,7 @@ class GithubPushIntegrationTest extends AbstractPostgresIntegrationTest {
     @Test
     void aGuestWithoutGithubIsToldToSignIn() throws Exception {
         Setup setup = generated();
-        setup.owner().removeAttribute(TOKEN_ATTRIBUTE);
+        tokens.remove(setup.owner().getId());
 
         MockHttpServletResponse response = push(setup, null);
 
@@ -347,9 +350,9 @@ class GithubPushIntegrationTest extends AbstractPostgresIntegrationTest {
     void accessIsCheckedBeforeAnythingAboutGithub() throws Exception {
         Setup setup = generated();
         MockHttpSession stranger = newGuest();
-        stranger.setAttribute(TOKEN_ATTRIBUTE, GITHUB.token);
+        tokens.put(stranger.getId(), GITHUB.token);
         MockHttpSession reader = newGuest();
-        reader.setAttribute(TOKEN_ATTRIBUTE, GITHUB.token);
+        tokens.put(reader.getId(), GITHUB.token);
         jdbc.sql("insert into project_members (project_id, user_id, role) values (?, ?, 'READ')")
                 .param(UUID.fromString(setup.project())).param(userId(reader)).update();
         String url = "/api/generations/" + setup.generation() + "/push-github";

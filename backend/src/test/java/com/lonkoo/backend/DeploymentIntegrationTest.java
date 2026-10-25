@@ -1,5 +1,6 @@
 package com.lonkoo.backend;
 
+import com.lonkoo.backend.security.GithubTokenStore;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -33,7 +34,9 @@ import tools.jackson.databind.JsonNode;
  */
 class DeploymentIntegrationTest extends AbstractPostgresIntegrationTest {
 
-    private static final String TOKEN_ATTRIBUTE = "lonkoo.githubToken";
+    /** Le jeton GitHub n'est pas un attribut de session : il vit dans le magasin en mémoire du serveur. */
+    @Autowired
+    private GithubTokenStore tokens;
     private static final FakeRealtimeServer REALTIME = FakeRealtimeServer.start();
     private static final FakeGithubApiServer GITHUB = FakeGithubApiServer.start();
 
@@ -85,7 +88,7 @@ class DeploymentIntegrationTest extends AbstractPostgresIntegrationTest {
         String generation = JSON.readTree(call(post("/api/canvases/" + canvas + "/generate").session(owner)).getContentAsString())
                 .get("generationId").asText();
         awaitGeneration(owner, generation, false);
-        owner.setAttribute(TOKEN_ATTRIBUTE, GITHUB.token);
+        tokens.put(owner.getId(), GITHUB.token);
         String repo = null;
         if (pushed) {
             String name = "projet-" + UUID.randomUUID().toString().substring(0, 8);
@@ -278,7 +281,7 @@ class DeploymentIntegrationTest extends AbstractPostgresIntegrationTest {
     @Test
     void theManualModeNeedsNoGithubConnectionAndNoCall() throws Exception {
         Project project = generated(true);
-        project.owner().removeAttribute(TOKEN_ATTRIBUTE);
+        tokens.remove(project.owner().getId());
         GITHUB.calls.clear();
 
         JsonNode created = deploy(project, "{\"mode\":\"manual\"}");
@@ -294,7 +297,7 @@ class DeploymentIntegrationTest extends AbstractPostgresIntegrationTest {
     @Test
     void aRevokedTokenFailsTheLaunchClearly() throws Exception {
         Project project = generated(true);
-        project.owner().setAttribute(TOKEN_ATTRIBUTE, "gho_revoque");
+        tokens.put(project.owner().getId(), "gho_revoque");
 
         JsonNode failed = launched(project, deploy(project, null).get("id").asText());
 
@@ -341,7 +344,7 @@ class DeploymentIntegrationTest extends AbstractPostgresIntegrationTest {
     @Test
     void aGuestWithoutGithubIsToldToSignInUnlessHeDeploysHimself() throws Exception {
         Project project = generated(true);
-        project.owner().removeAttribute(TOKEN_ATTRIBUTE);
+        tokens.remove(project.owner().getId());
 
         MockHttpServletResponse response = call(post("/api/generations/" + project.generation() + "/deploy").session(project.owner()));
 
@@ -354,9 +357,9 @@ class DeploymentIntegrationTest extends AbstractPostgresIntegrationTest {
         Project project = generated(true);
         String id = deploy(project, "{\"mode\":\"manual\"}").get("id").asText();
         MockHttpSession stranger = newGuest();
-        stranger.setAttribute(TOKEN_ATTRIBUTE, GITHUB.token);
+        tokens.put(stranger.getId(), GITHUB.token);
         MockHttpSession reader = newGuest();
-        reader.setAttribute(TOKEN_ATTRIBUTE, GITHUB.token);
+        tokens.put(reader.getId(), GITHUB.token);
         UUID readerId = UUID.fromString(JSON.readTree(call(get("/api/me").session(reader)).getContentAsString()).get("id").asText());
         jdbc.sql("insert into project_members (project_id, user_id, role) values (?, ?, 'READ')")
                 .param(UUID.fromString(project.projectId())).param(readerId).update();
@@ -475,7 +478,7 @@ class DeploymentIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(none.get("connected").asBoolean()).isFalse();
         assertThat(none.get("expired").asBoolean()).isFalse();
 
-        session.setAttribute(TOKEN_ATTRIBUTE, GITHUB.token);
+        tokens.put(session.getId(), GITHUB.token);
         GITHUB.scopes = "public_repo, read:user";
         JsonNode basic = JSON.readTree(call(get("/api/github/status").session(session)).getContentAsString());
         assertThat(basic.get("connected").asBoolean()).isTrue();
@@ -496,12 +499,12 @@ class DeploymentIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(unknown.get("connected").asBoolean()).isTrue();
         assertThat(unknown.get("canDeploy").isNull()).isTrue();
 
-        session.setAttribute(TOKEN_ATTRIBUTE, "gho_revoque");
+        tokens.put(session.getId(), "gho_revoque");
         JsonNode expired = JSON.readTree(call(get("/api/github/status").session(session)).getContentAsString());
         assertThat(expired.get("connected").asBoolean()).isFalse();
         assertThat(expired.get("expired").asBoolean()).isTrue();
 
-        session.setAttribute(TOKEN_ATTRIBUTE, GITHUB.token);
+        tokens.put(session.getId(), GITHUB.token);
         GITHUB.dropConnections = true;
         assertThat(call(get("/api/github/status").session(session)).getStatus()).isEqualTo(503);
         assertThat(call(get("/api/github/status")).getStatus()).isEqualTo(401);

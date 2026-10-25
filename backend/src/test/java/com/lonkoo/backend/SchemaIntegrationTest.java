@@ -20,7 +20,7 @@ class SchemaIntegrationTest extends AbstractPostgresIntegrationTest {
     void allMigrationsAreApplied() {
         List<String> versions = jdbc.sql("select version from flyway_schema_history where success order by installed_rank")
                 .query(String.class).list();
-        assertThat(versions).containsExactly("1", "2", "3", "10", "11", "12");
+        assertThat(versions).containsExactly("1", "2", "3", "10", "11", "12", "13");
     }
 
     @Test
@@ -32,6 +32,8 @@ class SchemaIntegrationTest extends AbstractPostgresIntegrationTest {
                 "canvases_par_projet",
                 "share_links_par_canvas",
                 "share_links_identifiant",
+                "spring_session_ix1",
+                "spring_session_ix2",
                 "audit_log_par_cible",
                 "canvas_versions_par_canvas",
                 "generations_par_canvas",

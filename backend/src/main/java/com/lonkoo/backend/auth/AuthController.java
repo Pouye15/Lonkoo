@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.lonkoo.backend.model.CurrentUser;
+import com.lonkoo.backend.security.GithubTokenStore;
 import com.lonkoo.backend.security.SessionSecurityContextRepository;
 import com.lonkoo.backend.support.AuditService;
 import com.lonkoo.backend.support.GuestRateLimiter;
@@ -27,11 +28,14 @@ public class AuthController {
     private final GuestService guestService;
     private final GuestRateLimiter rateLimiter;
     private final AuditService auditService;
+    private final GithubTokenStore githubTokens;
 
-    public AuthController(GuestService guestService, GuestRateLimiter rateLimiter, AuditService auditService) {
+    public AuthController(GuestService guestService, GuestRateLimiter rateLimiter, AuditService auditService,
+            GithubTokenStore githubTokens) {
         this.guestService = guestService;
         this.rateLimiter = rateLimiter;
         this.auditService = auditService;
+        this.githubTokens = githubTokens;
     }
 
     @PostMapping("/auth/guest")
@@ -68,6 +72,7 @@ public class AuthController {
         }
         HttpSession session = request.getSession(false);
         if (session != null) {
+            githubTokens.remove(session.getId());
             session.invalidate();
         }
         return ResponseEntity.noContent().build();

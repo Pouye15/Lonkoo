@@ -1,5 +1,7 @@
 package com.lonkoo.backend;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import com.lonkoo.backend.security.GithubTokenStore;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -26,7 +28,9 @@ import tools.jackson.databind.JsonNode;
  */
 class DeploymentRefreshThrottleIntegrationTest extends AbstractPostgresIntegrationTest {
 
-    private static final String TOKEN_ATTRIBUTE = "lonkoo.githubToken";
+    /** Le jeton GitHub n'est pas un attribut de session : il vit dans le magasin en mémoire du serveur. */
+    @Autowired
+    private GithubTokenStore tokens;
     private static final long INTERVAL_MILLIS = 400;
     private static final FakeRealtimeServer REALTIME = FakeRealtimeServer.start();
     private static final FakeGithubApiServer GITHUB = FakeGithubApiServer.start();
@@ -69,7 +73,7 @@ class DeploymentRefreshThrottleIntegrationTest extends AbstractPostgresIntegrati
                 .get(0).get("id").asText();
         String generation = JSON.readTree(call(post("/api/canvases/" + canvas + "/generate").session(owner)).getContentAsString())
                 .get("generationId").asText();
-        owner.setAttribute(TOKEN_ATTRIBUTE, GITHUB.token);
+        tokens.put(owner.getId(), GITHUB.token);
         awaitDone(owner, generation, false);
         call(post("/api/generations/" + generation + "/push-github").session(owner));
         assertThat(awaitDone(owner, generation, true).get("push").get("status").asText()).isEqualTo("DONE");

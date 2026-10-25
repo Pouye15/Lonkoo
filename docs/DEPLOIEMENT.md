@@ -73,7 +73,7 @@ But : valider le domaine, le certificat, le pare-feu et le pipeline avant d'écr
 ## Avant la soumission
 
 - [ ] Parcours complet testé sur l'adresse de production, avec un navigateur sans session.
-- [ ] Le serveur a été redémarré une fois : tout repart seul, les données sont conservées.
+- [ ] Le serveur a été redémarré une fois : tout repart seul, les données sont conservées, et une personne connectée l'est toujours (les sessions sont en base ; seul le jeton GitHub est perdu : reconnecter GitHub avant un envoi).
 - [ ] Sauvegarde `pg_dump` quotidienne en place et une restauration testée.
 - [ ] Secrets de production différents de ceux de développement ; aucune valeur `change-me`.
 - [ ] Journaux relus : aucun secret ni jeton.

@@ -32,6 +32,14 @@ EXCEPTIONS = {
         "EPL 2.0 ou GPL 2 avec exception Classpath, présent dans toute application Spring Boot ; "
         "question posée à l'organisateur (docs/QUESTIONS-ORGANISATEUR.md)"
     ),
+    "org.springframework.session:spring-session-core": (
+        "le POM annonce « Broadcom Foundation License » (nom sans texte ni adresse) ; le jar embarque "
+        "META-INF/LICENSE.txt, qui est la licence Apache 2.0 (vérifié le 2026-10-24, voir docs/LICENCES-TIERCES.md)"
+    ),
+    "org.springframework.session:spring-session-jdbc": (
+        "le POM annonce « Broadcom Foundation License » (nom sans texte ni adresse) ; le jar embarque "
+        "META-INF/LICENSE.txt, qui est la licence Apache 2.0 (vérifié le 2026-10-24, voir docs/LICENCES-TIERCES.md)"
+    ),
 }
 
 DEPENDENCY = re.compile(r"^\s*([^:\s]+):([^:\s]+):jar:([^:\s]+):")

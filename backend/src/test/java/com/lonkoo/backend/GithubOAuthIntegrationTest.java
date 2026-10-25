@@ -1,5 +1,6 @@
 package com.lonkoo.backend;
 
+import com.lonkoo.backend.security.GithubTokenStore;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -46,7 +47,9 @@ class GithubOAuthIntegrationTest extends AbstractPostgresIntegrationTest {
 
     private static final String CLIENT_ID = "id-application-de-test";
     private static final String CLIENT_SECRET = "mot-de-passe-application-test";
-    private static final String TOKEN_ATTRIBUTE = "lonkoo.githubToken";
+    /** Le jeton GitHub n'est pas un attribut de session : il vit dans le magasin en mémoire du serveur. */
+    @Autowired
+    private GithubTokenStore tokens;
     private static final FakeGithub GITHUB = FakeGithub.start();
 
     @DynamicPropertySource
@@ -109,7 +112,9 @@ class GithubOAuthIntegrationTest extends AbstractPostgresIntegrationTest {
 
         assertThat(session.getId()).as("session neuve (fixation)").isNotEqualTo(loginSession.getId());
         assertThat(loginSession.isInvalid()).isTrue();
-        assertThat(session.getAttribute(TOKEN_ATTRIBUTE)).isEqualTo(GITHUB.tokenFor(code));
+        assertThat(tokens.get(session.getId())).as("le jeton est dans le magasin en mémoire").contains(GITHUB.tokenFor(code));
+        assertThat(java.util.Collections.list(session.getAttributeNames()).stream().map(session::getAttribute).toList())
+                .as("et jamais dans la session, qui est enregistrée en base").doesNotContain(GITHUB.tokenFor(code));
         mockMvc.perform(get("/api/me").session(session))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.login").value("octocat"))

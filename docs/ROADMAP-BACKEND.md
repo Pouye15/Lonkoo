@@ -138,7 +138,7 @@ Convention : `[ ]` à faire, responsable et jour entre parenthèses (proposition
 ### WP4a — Session et invité (Pouye, J0, 3 h)
 
 - [ ] `POST /api/auth/guest` : crée un invité éphémère (24 h), un projet « Démo » et un canvas dont `seed_snapshot` est le modèle `docs/exemples/marketplace-mobile.canvas.json` (copie placée dans les ressources du backend et **validée au démarrage** contre le schéma).
-- [ ] Session serveur en mémoire, cookie `HttpOnly`, `Secure` (hors dev), `SameSite=Lax`. **Pas de Spring Session JDBC** : il écrirait le jeton GitHub en base, ce que la décision du 16/10 interdit.
+- [ ] Session serveur, cookie `HttpOnly`, `Secure` (hors dev), `SameSite=Lax`. *Décision du 16/10 : sessions en mémoire, car Spring Session JDBC aurait écrit le jeton GitHub en base. **Révisée le 24/10** : les sessions sont en base (Spring Session JDBC, migration V13) et le jeton GitHub n'est plus un attribut de session mais vit dans `GithubTokenStore`, en mémoire du serveur : la règle de fond (jamais de jeton en base) est gardée, et un redémarrage ne déconnecte plus personne.*
 - [ ] `GET /api/me`, `POST /api/auth/logout`.
 - [ ] Protection contre les requêtes intersites : pour `POST`, `PUT`, `PATCH` et `DELETE`, refuser si l'en-tête `Origin` (ou à défaut `Referer`) n'est pas celui de `APP_PUBLIC_URL`.
 - [ ] Limite d'usage par adresse sur `/auth/guest` (par exemple 20 par heure, compteur en mémoire) ; derrière Caddy, activer `server.forward-headers-strategy` pour lire la vraie adresse.
@@ -149,7 +149,7 @@ Convention : `[ ]` à faire, responsable et jour entre parenthèses (proposition
 ### WP4b — Connexion GitHub (Pouye, J1, 3 h)
 
 - [ ] Flux OAuth côté serveur : `GET /api/auth/github/login` (paramètre `state` conservé en session), `GET /api/auth/github/callback` (vérifie `state`, échange le code, lit `GET /user`, crée ou met à jour `users`, ouvre la session, redirige vers `APP_PUBLIC_URL/dashboard`).
-- [ ] Le jeton GitHub reste **dans la session uniquement** (jamais en base, jamais dans les journaux) ; il est exposé aux services de génération par une interface (`GithubSession.token()`).
+- [ ] Le jeton GitHub reste **en mémoire du serveur uniquement** (jamais en base, jamais dans les journaux, jamais un attribut de la session qui, elle, est en base) ; il est exposé aux services de génération par une interface (`GithubSession.token()`).
 - [ ] Choix d'implémentation (30 min au plus) : soit `oauth2Login` de Spring Security avec adresses personnalisées sous `/api`, soit échange manuel avec `RestClient` (environ 100 lignes, aucune dépendance supplémentaire). Dans les deux cas, ne rediriger que vers des adresses fixes (pas de redirection ouverte).
 - [ ] Un invité qui se connecte avec GitHub **rattache** son compte (ses projets sont conservés) au lieu d'en créer un second.
 - [ ] Journal d'audit : `login.github`.
@@ -221,7 +221,7 @@ Le backend fournit à Gaye : l'instantané validé (WP7), l'accès au jeton GitH
 - [ ] **Un test de bout en bout** (Playwright, Apache 2.0) sur l'adresse de production.
 - [ ] Tests d'accès de WP9 ; tests du validateur et du contrat d'API.
 - [ ] Audit des licences Maven (rapport de la CI), SBOM npm et Maven, mise à jour de `docs/LICENCES-TIERCES.md`.
-- [ ] Sauvegarde `pg_dump` quotidienne et **restauration testée** ; redémarrage du serveur : tout repart seul, les données sont conservées (les sessions sont perdues, c'est voulu).
+- [ ] Sauvegarde `pg_dump` quotidienne et **restauration testée** ; redémarrage du serveur : tout repart seul, les données sont conservées (les sessions sont en base : personne n'est déconnecté ; seul le jeton GitHub est perdu, il faut reconnecter GitHub avant un envoi).
 
 ### WP11 — Dockerfiles, compose de production, pipeline (Gaye et Diagne ; Pouye fournit les images, J0 à J2)
 

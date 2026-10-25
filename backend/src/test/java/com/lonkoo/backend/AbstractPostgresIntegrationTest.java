@@ -40,6 +40,11 @@ abstract class AbstractPostgresIntegrationTest {
         }
     }
 
+    /** Adresse JDBC de la base partagée, pour un test qui démarre l'application lui-même. */
+    static String jdbcUrl() {
+        return POSTGRES.getJdbcUrl("postgres", "postgres");
+    }
+
     @DynamicPropertySource
     static void datasourceProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", () -> POSTGRES.getJdbcUrl("postgres", "postgres"));

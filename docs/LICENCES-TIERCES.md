@@ -29,6 +29,7 @@ La colonne « Vérifié » se coche seulement après avoir lu la licence dans le
 | Spring Boot (starters, Spring Framework 7.0.9, Spring Security) | 4.1.1 | Apache 2.0 | Oui | Backend | Maven | [x] |
 | Apache Log4j2 (log4j-core, log4j-slf4j2-impl) | 2.25.5 | Apache 2.0 | Oui | Journaux (remplace Logback) | Maven | [x] |
 | Flyway (flyway-core, flyway-database-postgresql) | 12.4.0 | Apache 2.0 | Oui | Migrations SQL | Maven | [x] |
+| Spring Session (spring-session-core, spring-session-jdbc, avec les modules `spring-boot-session*` de Spring Boot) | 4.1.1 | Apache 2.0 (le POM écrit « Broadcom Foundation License », sans texte ; le jar embarque la licence Apache 2.0 : voir section 2) | Oui | Sessions en base | Maven | [x] |
 | Pilote JDBC PostgreSQL | 42.7.13 | BSD-2-Clause | Oui | Accès à la base | Maven | [x] |
 | Hibernate Validator | 9.1.3.Final | Apache 2.0 | Oui | Validation des requêtes (pas d'ORM Hibernate) | Maven | [x] |
 | networknt json-schema-validator | 3.0.8 | Apache 2.0 | Oui | Validation des instantanés de canvas | Maven | [x] |
@@ -47,6 +48,7 @@ La colonne « Vérifié » se coche seulement après avoir lu la licence dans le
 | OpenJDK | GPL 2 avec exception Classpath | Question posée à l'organisateur. Usage courant, à confirmer |
 | Next.js : sharp / @img/sharp-libvips-* | LGPL-3.0-or-later, installé en dépendance optionnelle de `next` ; fait échouer le contrôle de licences | Fait : `frontend/stubs/sharp` (paquet privé, version 0.35.5) déclaré comme **workspace npm** (`"workspaces": ["stubs/sharp"]`) : il satisfait la plage demandée par `next`, donc npm le lie au lieu de télécharger sharp et libvips ; `images: { unoptimized: true }` dans `next.config.ts`. Vérifié le 2026-10-20 : `npm ci` n'installe aucun `@img/*`. Ne pas utiliser `overrides` avec `file:` : le chemin est résolu depuis `node_modules/next` et `npm ci` échoue. Si `next` change la plage de `sharp`, relever la version du stub (la CI le signale) |
 | jakarta.annotation-api | EPL 2.0 ou GPL 2 avec exception Classpath, présent dans toute application Spring Boot | Question à l'organisateur (voir QUESTIONS-ORGANISATEUR.md) |
+| spring-session-core, spring-session-jdbc 4.1.1 | Le POM déclare « Broadcom Foundation License », un nom que le contrôle ne reconnaît pas et qui ne renvoie à aucun texte | Vérifié le 2026-10-24 : `META-INF/LICENSE.txt` de chaque jar est le texte intégral de la licence Apache 2.0 ; le même éditeur déclare Apache 2.0 pour les autres bibliothèques Spring. Consigné comme exception dans `scripts/check_licenses_maven.py`. À confirmer avec l'organisateur si le doute persiste (il suffirait alors de retirer `spring-boot-starter-session-jdbc` : sessions en mémoire, à nouveau) |
 | tldraw | Licence propre, clé exigée en production | Ne pas utiliser |
 | PlantUML | Plusieurs licences au choix, la version GPL est la plus complète | Si utilisé, télécharger la version MIT ou Apache |
 | Jakarta EE (certaines API) | Double licence EPL 2.0 ou GPL 2 avec exception Classpath | Vérifier dans le rapport de licences |
