@@ -11,6 +11,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import com.lonkoo.backend.web.TooManyRequestsException;
+
 /**
  * Limite simple par adresse sur la création d'invités ({@code POST /auth/guest}
  * et jonction anonyme par lien). Par défaut 20 par heure, compteur en mémoire
@@ -45,6 +47,36 @@ public class GuestRateLimiter {
             hits.addLast(now);
             return true;
         }
+    }
+
+    /** Dans combien de temps une place se libère pour cette adresse (au moins une seconde). */
+    public Duration retryAfter(String address) {
+        Deque<Instant> hits = hitsByAddress.get(address);
+        if (hits == null) {
+            return Duration.ofSeconds(1);
+        }
+        synchronized (hits) {
+            Instant oldest = hits.peekFirst();
+            if (oldest == null) {
+                return Duration.ofSeconds(1);
+            }
+            Duration wait = Duration.between(Instant.now(), oldest.plus(WINDOW));
+            return wait.isNegative() || wait.isZero() ? Duration.ofSeconds(1) : wait;
+        }
+    }
+
+    /**
+     * Le refus à renvoyer quand {@link #allow} a dit non : un 429 qui dit quand réessayer et rappelle qu'une connexion
+     * GitHub n'est pas concernée (plusieurs personnes derrière une même adresse, par exemple un Wi-Fi partagé, se
+     * partagent la limite).
+     */
+    public TooManyRequestsException refusal(String address) {
+        Duration wait = retryAfter(address);
+        long minutes = Math.max(1, (wait.toSeconds() + 59) / 60);
+        return new TooManyRequestsException(
+                "Trop d'espaces de démonstration ont été ouverts depuis cette adresse. Réessayez dans " + minutes
+                        + (minutes > 1 ? " minutes" : " minute") + ", ou connectez-vous avec GitHub : cette limite ne s'y applique pas.",
+                wait);
     }
 
     /** Oublie les adresses sans appel depuis plus d'une heure. */

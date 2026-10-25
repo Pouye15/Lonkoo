@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, WarningCircle } from "@phosphor-icons/react";
-import { ApiError, IS_LIVE_API, apiFetch, type ApiJoin } from "@/lib/api";
+import { ApiError, IS_LIVE_API, apiFetch, messageOf, type ApiJoin } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { loadProjects } from "@/lib/workspace";
 import { Button } from "@/components/ui/Button";
@@ -31,7 +31,7 @@ function join(token: string): Promise<ApiJoin> {
 function messageFor(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status === 404) return "Ce lien de partage est inconnu ou a expiré. Demandez-en un nouveau à la personne qui vous l'a envoyé.";
-    if (error.status === 429) return "Trop d'espaces ont été ouverts depuis cette adresse. Réessayez dans une heure.";
+    if (error.status === 429) return messageOf(error);
     if (error.status === 0) return "Le serveur est injoignable. Réessayez dans un instant.";
     return error.message;
   }

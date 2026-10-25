@@ -23,7 +23,6 @@ import com.lonkoo.backend.web.JoinResponse;
 import com.lonkoo.backend.web.ShareLinkRequest;
 import com.lonkoo.backend.web.ShareLinkResponse;
 import com.lonkoo.backend.web.ShareLinkSummary;
-import com.lonkoo.backend.web.TooManyRequestsException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -83,7 +82,7 @@ public class ShareController {
 
     private CurrentUser newGuest(HttpServletRequest request) {
         if (!rateLimiter.allow(request.getRemoteAddr())) {
-            throw new TooManyRequestsException("Trop d'invités créés depuis cette adresse");
+            throw rateLimiter.refusal(request.getRemoteAddr());
         }
         return guestService.createGuestUser();
     }

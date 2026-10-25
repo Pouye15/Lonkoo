@@ -1235,7 +1235,14 @@ components:
           schema:
             $ref: "#/components/schemas/Problem"
     TooManyRequests:
-      description: Limite d'usage par adresse atteinte
+      description: |
+        Limite d'invités par adresse atteinte (20 par heure par défaut, réglable). `Retry-After` donne le délai en
+        secondes ; le `detail`, en français, le dit en minutes et rappelle qu'une connexion GitHub n'est pas concernée.
+      headers:
+        Retry-After:
+          description: Secondes avant qu'une place se libère pour cette adresse.
+          schema:
+            type: integer
       content:
         application/problem+json:
           schema:

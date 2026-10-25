@@ -42,7 +42,7 @@ public class AuthController {
     ResponseEntity<MeResponse> guest(HttpServletRequest request) {
         String address = request.getRemoteAddr();
         if (!rateLimiter.allow(address)) {
-            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).build();
+            throw rateLimiter.refusal(address);
         }
 
         CurrentUser user = guestService.createGuest();

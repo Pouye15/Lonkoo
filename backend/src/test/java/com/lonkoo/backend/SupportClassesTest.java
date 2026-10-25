@@ -28,6 +28,23 @@ class SupportClassesTest {
     }
 
     @Test
+    void aRefusalSaysWhenToTryAgainAndPointsToGithub() {
+        GuestRateLimiter limiter = new GuestRateLimiter(1);
+        limiter.allow("a");
+        assertThat(limiter.allow("a")).isFalse();
+
+        Duration wait = limiter.retryAfter("a");
+        assertThat(wait).isPositive().isLessThanOrEqualTo(Duration.ofHours(1)).isGreaterThan(Duration.ofMinutes(58));
+
+        var refusal = limiter.refusal("a");
+        assertThat(refusal.getStatusCode().value()).isEqualTo(429);
+        assertThat(refusal.getBody().getDetail()).contains("60 minutes").contains("GitHub");
+        assertThat(refusal.getHeaders().getFirst("Retry-After")).isNotNull()
+                .satisfies(seconds -> assertThat(Long.parseLong(seconds)).isBetween(3500L, 3600L));
+        assertThat(limiter.retryAfter("inconnue")).as("une adresse sans refus : une seconde").isEqualTo(Duration.ofSeconds(1));
+    }
+
+    @Test
     void rateLimiterForgetsIdleAddresses() {
         GuestRateLimiter limiter = new GuestRateLimiter(5);
         limiter.allow("a");

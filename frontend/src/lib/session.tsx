@@ -143,6 +143,15 @@ const apiAdapter: SessionAdapter = {
   },
   async guest() {
     const response = await fetch("/api/auth/guest", { method: "POST", headers: JSON_HEADERS, body: "{}" });
+    if (response.status === 429) {
+      // Limite d'invités par adresse (un Wi-Fi partagé, par exemple) : le serveur écrit combien de temps attendre.
+      const detail = await response.json().then((problem: { detail?: unknown }) => problem.detail, () => undefined);
+      throw new Error(
+        typeof detail === "string"
+          ? detail
+          : "Trop d'espaces de démonstration ont été ouverts depuis cette adresse. Réessayez plus tard, ou connectez-vous avec GitHub.",
+      );
+    }
     if (!response.ok) throw new Error(`Impossible d'ouvrir l'espace de démonstration (${response.status})`);
     return toSessionUser(await response.json());
   },

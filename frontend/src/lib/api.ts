@@ -38,7 +38,8 @@ export function messageOf(error: unknown): string {
         ? `Le canvas ne respecte pas le contrat : ${error.errors.slice(0, 3).join(" ; ")}${error.errors.length > 3 ? " …" : ""}`
         : error.message;
     case 429:
-      return "Trop de demandes. Réessayez dans un instant.";
+      // Le serveur dit quand réessayer (et propose GitHub) : on le montre tel quel quand il l'a écrit.
+      return error.message && error.message !== error.title ? error.message : "Trop de demandes. Réessayez dans un instant.";
     case 502:
     case 503:
     case 504:

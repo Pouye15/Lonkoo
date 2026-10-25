@@ -35,7 +35,12 @@ class RealServerIntegrationTest extends AbstractPostgresIntegrationTest {
         // proxy de confiance.
         assertThat(postGuest("203.0.113.7").statusCode()).isEqualTo(201);
         assertThat(postGuest("203.0.113.7").statusCode()).isEqualTo(201);
-        assertThat(postGuest("203.0.113.7").statusCode()).isEqualTo(429);
+        HttpResponse<String> refused = postGuest("203.0.113.7");
+        assertProblem(refused, 429);
+        assertThat(JSON.readTree(refused.body()).get("detail").asText()).as("dit quand réessayer et propose GitHub")
+                .contains("minutes").contains("GitHub");
+        assertThat(Long.parseLong(refused.headers().firstValue("Retry-After").orElseThrow())).as("Retry-After en secondes")
+                .isBetween(1L, 3600L);
 
         // Un autre visiteur derrière le même proxy n'est pas touché.
         assertThat(postGuest("203.0.113.8").statusCode()).isEqualTo(201);

@@ -34,11 +34,11 @@ EXCEPTIONS = {
     ),
     "org.springframework.session:spring-session-core": (
         "le POM annonce « Broadcom Foundation License » (nom sans texte ni adresse) ; le jar embarque "
-        "META-INF/LICENSE.txt, qui est la licence Apache 2.0 (vérifié le 2026-10-24, voir docs/LICENCES-TIERCES.md)"
+        "META-INF/LICENSE.txt, qui est la licence Apache 2.0 (vérifié le 2026-10-25, voir docs/LICENCES-TIERCES.md)"
     ),
     "org.springframework.session:spring-session-jdbc": (
         "le POM annonce « Broadcom Foundation License » (nom sans texte ni adresse) ; le jar embarque "
-        "META-INF/LICENSE.txt, qui est la licence Apache 2.0 (vérifié le 2026-10-24, voir docs/LICENCES-TIERCES.md)"
+        "META-INF/LICENSE.txt, qui est la licence Apache 2.0 (vérifié le 2026-10-25, voir docs/LICENCES-TIERCES.md)"
     ),
 }
 

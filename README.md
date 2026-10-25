@@ -114,7 +114,7 @@ cd realtime && npm test
 | Temps réel : `../.env: not found` | `.env` absent à la racine du dépôt |
 | L'interface propose des projets simulés, sans erreur | `frontend/.env.local` absent : mode démonstration |
 | `/api` répond 404 depuis l'interface | Interface lancée avec `npm start` au lieu de `npm run dev` |
-| Trop de demandes (429) en essayant sans compte | Limite d'invités par adresse : relevez `GUEST_RATE_LIMIT_PER_HOUR` dans `.env` |
+| Trop de demandes (429) en essayant sans compte | Limite d'invités par adresse (le message dit combien de temps attendre ; une connexion GitHub n'est pas concernée) : relevez `GUEST_RATE_LIMIT_PER_HOUR` dans `.env` |
 | GitHub injoignable (503) sur Windows | Réglage du certificat (voir l'étape Backend) |
 
 ## Équipe
