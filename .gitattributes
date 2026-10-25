@@ -1,0 +1,2 @@
+# Les scripts shell restent en LF, même sur un poste Windows : un retour chariot (\r) casse « bash script.sh ».
+*.sh text eol=lf
