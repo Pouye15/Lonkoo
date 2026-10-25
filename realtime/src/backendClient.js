@@ -49,5 +49,21 @@ export function createBackendClient(baseUrl, serviceToken, { timeoutMs = 5000 } 
     }
   }
 
-  return { getState, putState };
+  /**
+   * Rôle que chacune de ces personnes a maintenant sur le canvas : `{ "<id>": "<rôle>" }`, sans entrée pour qui n'a
+   * plus accès. Sert à couper les connexions de qui a perdu l'accès (retrait, projet repassé en privé).
+   */
+  async function getAccess(canvasId, userIds) {
+    const res = await call(`/internal/canvases/${canvasId}/access`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userIds }),
+    });
+    if (!res.ok) {
+      throw new BackendError(`Backend getAccess ${res.status}`, res.status);
+    }
+    return (await res.json()).roles ?? {};
+  }
+
+  return { getState, putState, getAccess };
 }

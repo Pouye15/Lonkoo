@@ -295,6 +295,7 @@ Réseau interne uniquement, jamais routée par Caddy, jeton de service `Authoriz
 | realtime → backend | `PUT /internal/canvases/{id}/state` | `{state: "<base64>"}` → `204` ; l'état Yjs est un binaire de quelques dizaines de Ko (JSON avec base64 : plus simple à déboguer que de l'`octet-stream`) |
 | backend → realtime | `GET {REALTIME_INTERNAL_URL}/internal/canvases/{id}/snapshot` | → instantané JSON du contrat, construit depuis le document Yjs |
 | backend → realtime | `POST {REALTIME_INTERNAL_URL}/internal/canvases/{id}/restore` | instantané JSON → remplace le contenu du document en transaction, `204` |
+| realtime → backend | `POST /internal/canvases/{id}/access` | `{userIds: ["…"]}` → `{roles: {"<id>": "<rôle>"}}` : le rôle actuel de chaque personne (même règle que pour un ticket, projet public compris), sans entrée pour qui n'a plus accès ; appelé toutes les 30 s pour chaque canvas ouvert, le serveur temps réel coupe alors les connexions des personnes absentes (filet de sécurité de `close`) |
 | backend → realtime | `POST {REALTIME_INTERNAL_URL}/internal/canvases/{id}/close` | ferme les connexions ouvertes sur ce canvas (projet supprimé), `204` ; avec le corps `{"userId": "…"}` (membre retiré ou parti), ferme seulement celles de cette personne et refuse les tickets qu'elle détient déjà ; avec `{"exceptUserIds": ["…"]}` (projet public repassé en privé), celles de tous sauf ces membres |
 | supervision → realtime | `GET /health` (sans jeton) | `200 {"status":"UP"}`, `503` pendant l'arrêt |
 

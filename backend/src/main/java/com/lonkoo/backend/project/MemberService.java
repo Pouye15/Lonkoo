@@ -136,8 +136,9 @@ public class MemberService {
      * Le retrait est déjà fait en base (un nouveau ticket de connexion est refusé dès maintenant) ; ceci coupe les
      * connexions déjà ouvertes de cette personne, et fait refuser par le serveur temps réel les tickets qu'elle
      * détient encore (5 minutes de validité). Les autres membres ne sont pas touchés.
-     * Une panne du temps réel ne défait pas le retrait : dans ce cas, la personne garde sa connexion ouverte
-     * (et ses tickets) au plus 5 minutes, et le journal le signale.
+     * Une panne du temps réel ne défait pas le retrait : le journal le signale, et le serveur temps réel revérifie de
+     * lui-même les accès de toutes les connexions ouvertes (toutes les 30 secondes) et coupe celle-ci à la prochaine
+     * vérification. Un ticket encore valable ne rouvre alors un accès que le temps d'une vérification.
      */
     private void closeConnections(UUID projectId, UUID memberId) {
         List<UUID> canvasIds = jdbcClient.sql("select id from canvases where project_id = ?")

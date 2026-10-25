@@ -89,7 +89,7 @@ Publique, sous `/api` :
 | IA | `POST /canvases/{id}/ai/sketch`, `/ai/audit`, `/ai/complete` |
 | Génération | `POST /canvases/{id}/generate`, `POST /generations/{id}/push-github`, `POST /generations/{id}/deploy`, `GET /deployments/{id}` |
 
-Interne, réservée au serveur temps réel (non routée par Caddy, jeton de service) : `GET` et `PUT /internal/canvases/{id}/state`.
+Interne, réservée au serveur temps réel (non routée par Caddy, jeton de service) : `GET` et `PUT /internal/canvases/{id}/state`, et `POST /internal/canvases/{id}/access` (`{userIds}` → `{roles}` : le rôle que chacun a maintenant, sans entrée pour qui n'a plus accès ; le serveur temps réel l'appelle toutes les 30 secondes pour couper les connexions de qui a perdu l'accès, même si la demande de fermeture du backend ne l'a pas atteint).
 
 Écrire ces routes dans `openapi.yaml` avant le premier code des deux côtés.
 

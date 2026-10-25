@@ -164,6 +164,8 @@ function rejectUpgrade(socket, status, message) {
  * @param {number} [options.backendTimeoutMs]        Délai maximal d'un appel au backend (5 s).
  * @param {number} [options.revocationMemoryMs]      Durée pendant laquelle un accès retiré est retenu (10 min :
  *                                                   un ticket vit 5 min, il n'a plus d'effet après).
+ * @param {number} [options.accessCheckIntervalMs]   Intervalle de revérification des accès des personnes connectées
+ *                                                   auprès du backend (30 s ; 0 pour ne pas le faire).
  */
 export function createCanvasServer({
   backendUrl,
@@ -177,6 +179,7 @@ export function createCanvasServer({
   shutdownRetryDelaysMs = [500],
   backendTimeoutMs = 5000,
   revocationMemoryMs = 10 * 60 * 1000,
+  accessCheckIntervalMs = 30 * 1000,
 }) {
   const backend = createBackendClient(backendUrl, serviceToken, { timeoutMs: backendTimeoutMs });
   const verifyTicket = createTicketVerifier(ticketSecret);
@@ -233,6 +236,34 @@ export function createCanvasServer({
       connection.webSocket.close(FORBIDDEN.code, FORBIDDEN.reason);
     }
   }
+
+  /**
+   * Revérifie auprès du backend l'accès de toutes les personnes connectées et coupe celles qui l'ont perdu. C'est le
+   * filet de sécurité de la fermeture demandée par le backend (retrait d'un membre, projet repassé en privé) : si cette
+   * demande ne nous a pas atteints, la connexion ouverte ne reste pas valable au-delà d'un intervalle. Une panne du
+   * backend ne coupe personne : on réessaie à l'intervalle suivant.
+   */
+  let checkingAccess = false;
+  async function checkAccess() {
+    if (checkingAccess || shuttingDown) return;
+    checkingAccess = true;
+    try {
+      for (const [documentName, document] of [...hocuspocus.documents]) {
+        const userIds = [...new Set([...document.connections.keys()].map((c) => c.context?.user?.id).filter(Boolean))];
+        if (userIds.length === 0) continue;
+        try {
+          const roles = await backend.getAccess(documentName, userIds);
+          disconnectWhere(documentName, (id) => id !== undefined && !Object.hasOwn(roles, id));
+        } catch (err) {
+          console.warn(`[realtime] accès du canvas ${documentName} non revérifiés : ${err.message}`);
+        }
+      }
+    } finally {
+      checkingAccess = false;
+    }
+  }
+  const accessTimer = accessCheckIntervalMs > 0 ? setInterval(checkAccess, accessCheckIntervalMs) : null;
+  accessTimer?.unref();
 
   /** Enregistre l'état Yjs d'un document auprès du backend, avec de nouvelles tentatives si besoin. */
   async function persist(documentName, document, retryDelaysMs) {
@@ -427,6 +458,7 @@ export function createCanvasServer({
   });
 
   function stop() {
+    clearInterval(accessTimer);
     return new Promise((resolve) => {
       // Les connexions encore ouvertes (client qui n'a pas répondu à la fermeture) ne doivent pas bloquer l'arrêt.
       wss.clients.forEach((client) => client.terminate());

@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Base64;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -13,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -34,6 +36,10 @@ import tools.jackson.databind.json.JsonMapper;
  * <ul>
  *   <li>{@code GET /internal/canvases/{id}/state} &rarr; {@code {state: base64|null, seed: {...}|null}}</li>
  *   <li>{@code PUT /internal/canvases/{id}/state} &rarr; {@code {state: base64}} &rarr; {@code 204}</li>
+ *   <li>{@code POST /internal/canvases/{id}/access} &rarr; {@code {userIds: [...]}} &rarr; {@code {roles: {id: role}}} :
+ *       le rôle que chacune de ces personnes a <em>maintenant</em> sur le canvas (les autres sont absentes). Le serveur
+ *       temps réel s'en sert pour couper les connexions de qui a perdu l'accès, même si la demande de fermeture
+ *       du backend ne l'a pas atteint.</li>
  * </ul>
  */
 @RestController
@@ -114,6 +120,48 @@ public class InternalStateController {
         }
 
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    /** Nombre maximal de personnes dans une demande (un canvas n'en réunit que quelques-unes à la fois). */
+    private static final int MAX_ACCESS_CHECK = 1000;
+
+    @PostMapping("/canvases/{canvasId}/access")
+    Map<String, Map<String, String>> checkAccess(
+            @PathVariable UUID canvasId,
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody AccessCheckRequest body) {
+        requireServiceToken(authorization);
+        List<UUID> userIds = body.userIds();
+        if (userIds == null || userIds.size() > MAX_ACCESS_CHECK) {
+            throw new BadRequestException("userIds attendu, " + MAX_ACCESS_CHECK + " au plus");
+        }
+
+        Map<String, String> roles = new LinkedHashMap<>();
+        if (!userIds.isEmpty()) {
+            // Même règle que pour délivrer un ticket (CanvasAccessService) : le rôle de membre, sinon READ si le projet
+            // est public. Un invité dont la durée de vie est échue n'a plus rien, même avant la purge planifiée.
+            jdbcClient.sql("""
+                    select u.id, coalesce(pm.role, case when p.visibility = 'public' then 'READ' end) as role
+                    from canvases c
+                    join projects p on p.id = c.project_id
+                    join users u on u.id in (:ids)
+                    left join project_members pm on pm.project_id = c.project_id and pm.user_id = u.id
+                    where c.id = :canvas
+                      and (not u.is_guest or u.expires_at is null or u.expires_at > now())
+                    """)
+                    .param("ids", userIds)
+                    .param("canvas", canvasId)
+                    .query((rs, rowNum) -> Map.entry(rs.getObject("id", UUID.class).toString(),
+                            rs.getString("role") == null ? "" : rs.getString("role")))
+                    .list()
+                    .stream()
+                    .filter(entry -> !entry.getValue().isEmpty())
+                    .forEach(entry -> roles.put(entry.getKey(), entry.getValue()));
+        }
+        return Map.of("roles", roles);
+    }
+
+    record AccessCheckRequest(List<UUID> userIds) {
     }
 
     private void requireServiceToken(String authorization) {

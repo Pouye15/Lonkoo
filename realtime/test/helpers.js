@@ -26,8 +26,30 @@ export function createFakeBackend({ seed = null, state = null } = {}) {
   let putCount = 0;
   /** Comportements modifiables par un test : pannes d'écriture et réponse à la lecture de l'état. */
   const behaviour = { putFailuresLeft: 0, putFailureStatus: 503, stateStatus: 200, putDelayMs: 0 };
+  /**
+   * Revérification des accès (`POST .../access`) : par défaut tout le monde garde l'accès en écriture ; un test peut
+   * retirer des personnes (`access.revoked`) ou faire échouer la route (`access.status`).
+   */
+  const access = { status: 200, revoked: new Set(), calls: 0 };
   const server = http.createServer((req, res) => {
     lastAuthorization = req.headers.authorization ?? null;
+    if (req.method === 'POST' && /^\/internal\/canvases\/[^/]+\/access$/.test(req.url)) {
+      let body = '';
+      req.on('data', (chunk) => {
+        body += chunk;
+      });
+      req.on('end', () => {
+        access.calls += 1;
+        if (access.status !== 200) {
+          res.writeHead(access.status).end();
+          return;
+        }
+        const roles = {};
+        for (const id of JSON.parse(body).userIds) if (!access.revoked.has(id)) roles[id] = 'WRITE';
+        res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ roles }));
+      });
+      return;
+    }
     if (!/^\/internal\/canvases\/[^/]+\/state$/.test(req.url)) {
       res.writeHead(404).end();
       return;
@@ -67,6 +89,7 @@ export function createFakeBackend({ seed = null, state = null } = {}) {
     stored: () => stored,
     putCount: () => putCount,
     behaviour,
+    access,
     lastAuthorization: () => lastAuthorization,
     stop: () => new Promise((resolve) => server.close(resolve)),
   };
