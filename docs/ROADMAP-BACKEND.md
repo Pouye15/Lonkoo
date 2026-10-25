@@ -275,7 +275,7 @@ Tranches : **T1** indispensable, **T2** important, **T3** à couper en premier.
 | | `POST /canvases/{id}/versions` | `WRITE`+ | `{name, message?}` → `201` ; `422` si invalide | T1 |
 | | `GET /canvases/{id}/versions/{versionId}` | membre | → instantané | T1 |
 | | `POST /canvases/{id}/versions/{versionId}/restore` | `WRITE`+ | → `204` | T1 |
-| IA (point de raccordement, § 9) | `POST /canvases/{id}/ai/sketch`, `/ai/complete` (`WRITE`+), `/ai/audit` (membre) | droit sur le canvas ; quota à poser | une proposition validée, ou des remarques ; `501` tant qu'aucun fournisseur n'est branché | fait le 25/10 |
+| IA (point de raccordement, § 9) | `POST /canvases/{id}/ai/sketch`, `/ai/complete` (`WRITE`+), `/ai/audit` (membre) | droit sur le canvas ; quota d'appels par jour (429) | une proposition validée, ou des remarques ; `501` tant qu'aucun fournisseur n'est branché | fait le 25/10 |
 | Génération | `POST /canvases/{id}/generate` | `WRITE`+ | `{versionId?, target}` → `202 {generationId}` | T2 |
 | | `GET /generations/{id}` | membre | état, liste de fichiers | T2 |
 | | `POST /generations/{id}/push-github` | session GitHub | `{repoName}` → `202` | T2 |
@@ -401,14 +401,14 @@ create table audit_log (
 );
 ```
 
-`V10` : `generations`, `deployments` (Gaye). `V20` : `ai_usage` (Ngom).
+`V10` : `generations`, `deployments` (Gaye). `V20` : `ai_usage` (fait le 25/10 par Pouye, le quota de l'IA ; la suite de la plage, `V21` à `V29`, reste à Ngom).
 
 ### 7.5 Variables d'environnement à ajouter à `.env.example`
 
 | Variable | Rôle |
 |---|---|
 | `REALTIME_INTERNAL_URL` | adresse du serveur temps réel vue depuis le backend (`http://realtime:1234`) |
-| `AI_ENABLED` | `false` par défaut ; tant que l'IA n'est pas prête, le contrôle des valeurs `change-me` ignore `AI_*` |
+| `AI_ENABLED` | **Jamais créée** : l'interrupteur est `AI_PROVIDER` (`off`, `fake` ou le nom d'un fournisseur) ; le contrôle de démarrage de `ConfigurationCheck` ne regarde pas les variables `AI_*` (à étendre quand un vrai fournisseur sera branché : en profil `prod`, refuser une clé ou un modèle `change-me`) |
 | `SPRING_PROFILES_ACTIVE` | `dev` ou `prod` |
 | `GUEST_TTL_HOURS` | durée de vie d'un invité (24 par défaut) |
 | `MAX_PROJECTS_PER_GUEST`, `MAX_PROJECTS_PER_ACCOUNT` | projets créés par invité (20) et par compte GitHub (100) ; au-delà, 409 « Limite atteinte » |
@@ -439,8 +439,8 @@ Ce que le backend fournit à Ngom, pour que l'IA se branche sans toucher au rest
 - [x] `AiClient` : interface unique derrière laquelle vit le fournisseur (`architecture.md`), avec une **implémentation factice** (réponses figées, étiquetées `demo`) pour que le front avance sans clé d'API : `AI_PROVIDER=fake`. Fait le 25/10 (`backend/.../ai/`). Brancher un vrai fournisseur : une classe qui implémente `AiClient`, activée par `lonkoo.ai.provider=<nom>`, rien d'autre à changer.
 - [x] Routes `POST /canvases/{id}/ai/sketch`, `/ai/audit`, `/ai/complete` : contrat complet dans `openapi.yaml`, `501` (`AI_NOT_IMPLEMENTED`) tant qu'aucun fournisseur n'est branché (après le contrôle d'accès), un journal d'audit par appel sans le texte saisi, plafond du texte (`AI_MAX_INPUT_CHARS`).
 - [x] `CanvasValidator` (WP7) et la lecture de l'instantané courant réutilisés : l'IA reçoit l'instantané courant et **toute sortie est validée** avant d'être renvoyée comme proposition (une proposition invalide donne 502 et n'est pas renvoyée ; les remarques d'audit sur un bloc absent sont écartées et comptées).
-- [ ] `CanvasAccessService` (WP5) appliqué aux routes IA : **fait** (écrire demande `WRITE`, l'audit demande d'être membre pour qu'un visiteur d'un projet public ne déclenche pas d'appel payant). **Reste, à Ngom :** le quota par utilisateur et par jour (`AI_DAILY_QUOTA`), qui demande une table `ai_usage` dans la plage `V20` à `V29`.
-- [ ] Configuration `AI_*` déjà dans `.env.example`, ignorée par le contrôle de démarrage tant que `AI_ENABLED` vaut `false`.
+- [x] `CanvasAccessService` (WP5) appliqué aux routes IA : **fait** (écrire demande `WRITE`, l'audit demande d'être membre pour qu'un visiteur d'un projet public ne déclenche pas d'appel payant). Le quota d'appels par jour est **fait** (25/10) : `AiQuota`, table `ai_usage` (migration V20), 30 par compte GitHub, 5 par invité, 500 pour tout le service, 429 avec `Retry-After`.
+- [ ] Configuration `AI_*` déjà dans `.env.example` (fournisseur, clé, modèle, quotas, délai, taille). **Aujourd'hui le backend ne lit que** `AI_PROVIDER`, `AI_MAX_INPUT_CHARS` et les trois quotas ; `AI_API_KEY`, `AI_MODEL` et `AI_TIMEOUT_SECONDS` seront lus par le client du fournisseur (à brancher, à Ngom), qui complétera aussi le compose de production (`infra/docker-compose.prod.yml`) et le contrôle de démarrage.
 - [ ] Application d'un patch : passe par le serveur temps réel (`openDirectConnection`, comme la restauration), pas par une écriture directe en base.
 - [ ] Hors périmètre ici : le serveur MCP décrit dans `frontend/AGENT.md` (outils `lonkoo_get_architecture`, `lonkoo_apply_patch`, etc.) ; il s'appuiera sur `GET /canvases/{id}/snapshot` et sur l'application de patch ci-dessus.
 

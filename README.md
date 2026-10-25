@@ -30,6 +30,8 @@ Lonkoo est un studio collaboratif où une équipe de développeurs conçoit l'ar
 | Communauté : profils, revues, commentaires, Fork | Maquette (seule la galerie publique est réelle) |
 | Mise en ligne (compose de production, Caddy, pipeline, sauvegarde) | Écrite et répétée hors serveur (dossier `infra/`, `docs/DEPLOIEMENT.md`) ; **le serveur reste à acheter et à régler** |
 
+**Reprendre le travail** (ce qui reste avant la démo, qui fait quoi, comment démarrer, les règles) : [docs/PASSATION-RESTE-A-FAIRE.md](docs/PASSATION-RESTE-A-FAIRE.md).
+
 ## Architecture
 
 Voir [docs/architecture.md](docs/architecture.md). Format du canvas : [docs/schema-canvas.md](docs/schema-canvas.md). Mise en ligne : [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md). Feuille de route du backend : [docs/ROADMAP-BACKEND.md](docs/ROADMAP-BACKEND.md).
@@ -44,7 +46,7 @@ Voir [docs/architecture.md](docs/architecture.md). Format du canvas : [docs/sche
 | `infra/` | Docker Compose, scripts de déploiement |
 | `e2e/` | Parcours de bout en bout dans un vrai navigateur (voir [e2e/README.md](e2e/README.md)) |
 | `scripts/` | Contrôles de licences, génération et vérification du SBOM, contrat du canvas |
-| `docs/` | Architecture, contrat du canvas, déploiement, déclarations de conformité, backlog, SBOM (`docs/sbom/`) |
+| `docs/` | Architecture, contrat du canvas, déploiement, déclarations de conformité, backlog, SBOM (`docs/sbom/`), passation |
 
 ## Démarrer en local
 

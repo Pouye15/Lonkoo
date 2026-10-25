@@ -50,12 +50,29 @@ Contre un serveur en ligne : `E2E_BASE_URL=https://lonkoo.example.com npm run e2
 | `E2E_HEADED=1` | montre le navigateur |
 | `E2E_SHOTS` | dossier des captures d'écran (`e2e/captures`, ignoré par git, par défaut) |
 
+## Le parcours manuel : le vrai GitHub
+
+`manuel/github-reel.mjs` n'est **pas** lancé par `npm run e2e` : il crée un dépôt sur un vrai compte GitHub et demande
+qu'une personne se connecte elle-même dans la fenêtre qui s'ouvre (il ne lit jamais une page de github.com).
+
+```bash
+cd e2e
+E2E_BASE_URL=https://votre-adresse npm run github-reel      # E2E_VISIBILITY=public, E2E_REPO_NAME=… facultatifs
+```
+
+Il enchaîne : invité, génération du projet d'exemple, connexion GitHub réelle (autorisations `read:user repo workflow`),
+création du dépôt, envoi des fichiers, lancement du workflow de déploiement, suivi de l'exécution jusqu'à son verdict.
+Sur un dépôt neuf, **le workflow échoue** à l'étape « Vérifier les secrets » (aucun secret `SYSTALINK_*`) : c'est le
+résultat attendu, il prouve la chaîne. À faire une fois sur l'adresse de production (application OAuth de production), puis
+**supprimer le dépôt de test** (Settings, Delete this repository). Essai à blanc sans fenêtre : `E2E_HEADED=0
+E2E_LOGIN_TIMEOUT_SECONDS=8` (il s'arrête à l'écran de connexion).
+
 ## Ce qu'ils ne font pas
 
-- Pas de connexion GitHub : elle demande un vrai compte et une application OAuth. À essayer à la main (voir
-  [../docs/GITHUB-OAUTH.md](../docs/GITHUB-OAUTH.md)).
+- Pas de connexion GitHub : elle demande un vrai compte et une application OAuth (voir
+  [../docs/GITHUB-OAUTH.md](../docs/GITHUB-OAUTH.md)). Elle a son propre parcours, **manuel**, plus bas.
 - Pas de génération, d'envoi sur GitHub ni de déploiement : ils passent par GitHub, et sont couverts par les tests du
-  backend contre un faux GitHub.
+  backend contre un faux GitHub, et, pour le vrai GitHub, par le parcours manuel plus bas.
 - Pas de redémarrage du serveur : le test `PersistentSessionsIntegrationTest` du backend démarre deux fois l'application.
 - Ils utilisent les textes de l'interface (« Partager », « Équipe du projet », « Retirer »…) : un changement de libellé
   peut les faire échouer sans que rien ne soit cassé. Le message d'échec dit quelle vérification, et la capture d'écran du

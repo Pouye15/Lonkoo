@@ -18,8 +18,8 @@ import tools.jackson.databind.JsonNode;
  * clé dans la configuration du serveur (jamais envoyée au navigateur), ne rien journaliser du contenu, et signaler une
  * panne du fournisseur par {@link AiUnavailableException}. Pour brancher un fournisseur : écrire une classe qui implémente
  * cette interface, l'activer par {@code lonkoo.ai.provider=<nom>} (voir {@link FakeAiClient} pour l'exemple), et ne rien
- * changer d'autre. Le quota par personne et par jour ({@code AI_DAILY_QUOTA}) n'est pas encore posé : il demande une
- * table, dans la plage de migrations réservée à l'IA (V20 à V29).</p>
+ * changer d'autre. Le quota d'appels par jour (par personne, par invité, pour tout le service) est déjà compté par
+ * {@link AiService} avant l'appel à cette interface ({@link AiQuota}) : une implémentation n'a pas à le compter.</p>
  */
 public interface AiClient {
 
