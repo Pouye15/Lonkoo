@@ -59,8 +59,8 @@ Le format du canvas est défini dans [schema-canvas.md](schema-canvas.md) et [ca
 
 | Sujet | Responsable | Échéance | Critères |
 |---|---|---|---|
-| Fournisseur et modèle d'IA | Serine Fallou Ngom | 2026-10-17 | Sortie JSON contrainte par `canvas.schema.json`, clé côté serveur, quota par utilisateur et plafond de coût, délai maximal, conditions d'utilisation vérifiées, démo enregistrée si l'IA est indisponible. Un seul fournisseur, derrière une interface `AiClient`. |
-| Exposition des applications générées (sous-domaine par projet ou ports) | Gnatam Gaye | Après le test du VPS (2026-10-18) | Un sous-domaine par projet exige un DNS joker ; sinon des ports publics pour la démo. Voir [DEPLOIEMENT.md](DEPLOIEMENT.md). |
+| Fournisseur et modèle d'IA | Serine Fallou Ngom | 2026-10-17 (dépassée ; le point de raccordement `AiClient` est prêt depuis le 25/10, sans fournisseur) | Sortie JSON contrainte par `canvas.schema.json`, clé côté serveur, quota par utilisateur et plafond de coût, délai maximal, conditions d'utilisation vérifiées, démo enregistrée si l'IA est indisponible. Un seul fournisseur, derrière une interface `AiClient`. |
+| ~~Exposition des applications générées (sous-domaine par projet ou ports)~~ | Gnatam Gaye | Sans objet depuis le lot R8 (25/10) | L'application générée est déployée sur le serveur de la personne, par le workflow de son dépôt : c'est elle qui choisit son adresse. Seule l'adresse de Lonkoo lui-même reste à choisir ([DEPLOIEMENT.md](DEPLOIEMENT.md), étape 0). |
 | Réponses de l'organisateur | Mouhamadoul Moustapha Diagne | Dès l'envoi | Voir [QUESTIONS-ORGANISATEUR.md](QUESTIONS-ORGANISATEUR.md). |
 
 ## Flux principaux
@@ -100,11 +100,13 @@ Interne, réservée au serveur temps réel (non routée par Caddy, jeton de serv
 | `users` | Identifiant GitHub, login, indicateur invité |
 | `projects`, `project_members` | Projets et droits d'accès (rôle) |
 | `canvases` | Canvas d'un projet |
+| `share_links` | Liens de partage : empreinte SHA-256 du jeton (jamais le jeton), canvas, rôle, expiration, auteur |
 | `canvas_states` | État courant Yjs (binaire) et date |
 | `canvas_versions` | Instantané JSONB, nom, auteur, date |
 | `generations`, `deployments` | Génération, dépôt créé, état et adresse du déploiement |
+| `spring_session`, `spring_session_attributes` | Sessions HTTP (l'utilisateur connecté et l'état de la connexion GitHub, jamais le jeton GitHub) |
 | `audit_log` | Action, auteur, cible, date. Jamais de jeton ni de contenu sensible |
-| `ai_usage` | Appels par utilisateur et par jour (quota) |
+| `ai_usage` | **Prévue, pas encore créée** : appels par utilisateur et par jour (quota de l'IA), dans la plage de migrations V20 à V29 réservée à l'IA |
 
 Les migrations Flyway sont dans `backend/src/main/resources/db/migration`. Une sauvegarde `pg_dump` quotidienne est prévue en production.
 

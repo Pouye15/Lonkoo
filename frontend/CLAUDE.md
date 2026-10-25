@@ -19,7 +19,7 @@ Le front vit dans le monorepo (voir le `README.md` racine). Les documents partag
 
 Les tâches de finition du 20/10 sont faites : landing page refaite dans l'esprit d'une landing SaaS moderne (la maquette Dribbble citée n'est pas consultable automatiquement : la direction s'inspire des conventions du genre), thème sombre, pages de connexion, navigation et barre latérale par projet, tableau blanc façon draw.io, suppression des étiquettes décoratives de version.
 
-Reste à faire côté front (voir `../docs/ROADMAP-BACKEND.md`) :
+État côté front (le reste à faire de l'ensemble du projet est dans `../docs/AUDIT-ET-ROADMAP-BACKEND.md`) :
 
 - **API branchée (lot R9, 21/10)** : avec `NEXT_PUBLIC_API_MODE=live` (lu au build), `session.tsx`, `workspace.tsx` et `project-graph.ts` parlent à l'API et au document Yjs partagé ; sans, les données simulées du navigateur restent le comportement par défaut (la CI construit sans la variable). Voir § 3.5, § 3.10 et « Mode API » ci-dessous.
 - **Modèle de blocs aligné sur le contrat** (décision D2, `../docs/PROPOSITION-MODELE-DE-BLOCS.md`) : 9 types dont `generic` (passerelle, cache, IA, utilisateur, bloc libre) ; la forme dessinée et tout champ propre au front vont dans la clé `ui` du document, hors contrat. La proposition et l'ajout du type `generic` au schéma attendent la relecture de l'équipe (pull request).
@@ -69,7 +69,7 @@ Six onglets compacts (une seule ligne, défilement horizontal si l'écran est é
    - **Boîte à outils** (dock, en bas au centre, réductible) : onglets *Composants* (cliquer ou **glisser** sur le canevas) et *Stack technique* (propriétés du bloc sélectionné).
    - **Exporter** (en-tête du Studio) : code Mermaid (`flowchart LR`, copiable avec ses balises de code), spécification JSON du contrat (en mode API, l'instantané du serveur), image SVG et image PNG (fond blanc, résolution doublée). Le texte saisi par l'utilisateur est échappé dans chaque format.
    - **Propriétés** (bouton de la barre d'outils, panneau à droite qui réduit le tableau sans le recouvrir) : les champs du contrat propres au type du bloc sélectionné (tables et champs, endpoints, pages, topics…). C'est ce qui permet de générer les entités et les contrôleurs du projet.
-2. **Analyse IA** : topologie, points uniques de défaillance, cohérence de stack ; correctifs applicables en un clic. *Maquette : l'IA réelle est un autre chantier.*
+2. **Analyse IA** : topologie, points uniques de défaillance, cohérence de stack ; correctifs applicables en un clic. *Maquette : l'IA réelle est un autre chantier.* Le backend expose désormais les routes `/api/canvases/{id}/ai/*` (501 sans fournisseur ; réponses figées étiquetées `demo` avec `AI_PROVIDER=fake`) : le front ne les appelle pas encore.
 3. **Simulateur** : trafic de 1 000 à 20 000 req/s, charge et latence par bloc, ajout de répliques.
 4. **Documentation** : synthèse, ADR et contrats générés à partir du graphe.
 5. **Versions** : historique des versions et création d'une release (tag Git).

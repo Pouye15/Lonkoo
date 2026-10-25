@@ -8,7 +8,9 @@ Le détail du backend (lots, ordre de travail, contrats, risques, ordre de coupe
 
 **Responsables (proposition du 2026-10-16, à valider en équipe) :** Diagne = qualité, sécurité, démo ; Fall = interface et canvas ; Gaye = génération et déploiement ; Ngom = IA ; Pouye = backend et temps réel. Un élément « en binôme » nomme les deux personnes : la seconde relit et peut reprendre.
 
-## Jalons
+> **Plan d'origine du 16/10 ; l'échéance est maintenant le 20 novembre 2026** (heure et autres dates à confirmer). Les dates cibles ci-dessous sont celles de ce plan, aujourd'hui dépassées. Les cases cochées sont ce qui est **fait et vérifié au 25/10** ; une mention « Partiel » dit ce qui manque. L'état détaillé et le reste à faire sont dans [AUDIT-ET-ROADMAP-BACKEND.md](AUDIT-ET-ROADMAP-BACKEND.md) (section « Situation au 25/10 »).
+
+## Jalons (plan d'origine, dépassé)
 
 | Date | Jalon |
 |---|---|
@@ -33,42 +35,42 @@ Le détail du backend (lots, ordre de travail, contrats, risques, ordre de coupe
 ## Contrats (avant d'écrire le code qui en dépend)
 
 - [x] Contrat du canvas : `docs/schema-canvas.md` et `docs/canvas.schema.json` — *fait le 16/10, relecture par Fall, Pouye, Ngom, Gaye*
-- [ ] `openapi.yaml` de l'API publique et de l'API interne (routes de `docs/architecture.md`) — *Pouye avec Fall, 17/10*
-- [ ] Choix du fournisseur et du modèle d'IA, noté dans `docs/architecture.md` et `docs/IA.md` — *Ngom, 17/10*
+- [x] `openapi.yaml` de l'API publique et de l'API interne (routes de `docs/architecture.md`) — *Pouye avec Fall, 17/10* **Fait.** `docs/openapi.yaml`, validé en CI, complété à chaque lot.
+- [ ] Choix du fournisseur et du modèle d'IA, noté dans `docs/architecture.md` et `docs/IA.md` — *Ngom, 17/10* **Partiel.** Le point de raccordement `AiClient` est prêt (25/10) ; le fournisseur reste à choisir et à noter dans `architecture.md` et `IA.md`.
 
 ## Indispensable
 
-- [ ] Frontend : canvas React Flow avec les 8 types de blocs du contrat, dont les blocs locaux (paiement mobile, messagerie SMS / USSD / WhatsApp, facturation), génériques et sans logo de marque — *Fall, 20/10*
-- [ ] Export du schéma en JSON (instantané conforme au contrat) et en Mermaid — *Fall, 21/10*
-- [ ] Temps réel : serveur Hocuspocus, présence, curseurs, synchronisation, chargement et sauvegarde via le backend — *Pouye, 19/10*
-- [ ] Temps réel : ticket court délivré par le backend, vérifié à la connexion, contrôle d'accès par canvas — *Pouye, 19/10*
-- [ ] Backend : squelette Spring Boot (Log4j2, Spring Data JDBC, Flyway, `/actuator/health`) — *Pouye, 17/10*
-- [ ] Backend : connexion GitHub côté serveur, projets, canvas, droits d'accès — *Pouye, 20/10*
-- [ ] Backend : compte invité éphémère avec une copie du modèle d'exemple (`docs/exemples/`) — *Pouye, 20/10*
-- [ ] Backend : instantanés nommés (versions) et restauration — *Pouye, 21/10*
-- [ ] IA : esquisse d'architecture depuis un cahier des charges, sortie validée par le schéma — *Ngom, 21/10*
-- [ ] IA : audit d'architecture (points de défaillance unique, failles, surcoûts), consultatif — *Ngom, 21/10*
-- [ ] IA : quota par utilisateur, plafond de coût, délai maximal, démo enregistrée de secours — *Ngom avec Pouye, 21/10*
-- [ ] Génération du projet de démarrage depuis un instantané : entités du schéma, docker-compose, README avec schémas Mermaid, `openapi.yaml` — *Gaye, 21/10*
-- [ ] Envoi sur GitHub : création du dépôt et commit initial avec la session de l'utilisateur — *Gaye, 21/10*
-- [ ] Déploiement des applications générées sur le VPS, avec suivi de l'état (si trop risqué au 21/10 : plan B de `docs/DEPLOIEMENT.md`) — *Gaye, 22/10*
-- [ ] Sécurité de base : jetons non stockés, aucun secret dans les journaux, journal des actions, validation des identifiants du générateur — *Diagne avec Pouye, 22/10*
-- [ ] Tests : trois tests de fumée et un test de bout en bout (`docs/architecture.md`) — *Diagne, 22/10*
-- [ ] Compte de démonstration utilisable sans inscription, première page claire en 30 secondes — *Diagne avec Fall, 22/10*
+- [x] Frontend : canvas React Flow avec les 8 types de blocs du contrat, dont les blocs locaux (paiement mobile, messagerie SMS / USSD / WhatsApp, facturation), génériques et sans logo de marque — *Fall, 20/10* **Fait.** Tableau blanc propre au projet, 9 types de blocs dont `generic` (voir `frontend/CLAUDE.md`).
+- [x] Export du schéma en JSON (instantané conforme au contrat) et en Mermaid — *Fall, 21/10* **Fait.** Mermaid, JSON, SVG et PNG.
+- [x] Temps réel : serveur Hocuspocus, présence, curseurs, synchronisation, chargement et sauvegarde via le backend — *Pouye, 19/10* **Fait.** Y compris la coupure des connexions d'une personne retirée.
+- [x] Temps réel : ticket court délivré par le backend, vérifié à la connexion, contrôle d'accès par canvas — *Pouye, 19/10* **Fait.** Ticket de 5 minutes ; accès retirés refusés par le serveur temps réel.
+- [x] Backend : squelette Spring Boot (Log4j2, Spring Data JDBC, Flyway, `/actuator/health`) — *Pouye, 17/10* **Fait.**
+- [x] Backend : connexion GitHub côté serveur, projets, canvas, droits d'accès — *Pouye, 20/10* **Fait.** Connexion GitHub essayée seulement contre un faux GitHub (constat A-08).
+- [x] Backend : compte invité éphémère avec une copie du modèle d'exemple (`docs/exemples/`) — *Pouye, 20/10* **Fait.**
+- [x] Backend : instantanés nommés (versions) et restauration — *Pouye, 21/10* **Fait.**
+- [ ] IA : esquisse d'architecture depuis un cahier des charges, sortie validée par le schéma — *Ngom, 21/10* **Partiel.** Route, contrôle d'accès et validation de la sortie faits (25/10, `backend/.../ai/`) ; l'agent reste à brancher.
+- [ ] IA : audit d'architecture (points de défaillance unique, failles, surcoûts), consultatif — *Ngom, 21/10* **Partiel.** Route, contrôle d'accès et validation faits (25/10) ; l'agent reste à brancher. L'onglet « Analyse IA » de l'interface affiche des données de démonstration.
+- [ ] IA : quota par utilisateur, plafond de coût, délai maximal, démo enregistrée de secours — *Ngom avec Pouye, 21/10* **Partiel.** Plafond de taille du texte fait ; quota par personne (table `ai_usage`, migrations V20 à V29), plafond de coût et délai : à faire avec l'agent.
+- [x] Génération du projet de démarrage depuis un instantané : entités du schéma, docker-compose, README avec schémas Mermaid, `openapi.yaml` — *Gaye, 21/10* **Fait.**
+- [x] Envoi sur GitHub : création du dépôt et commit initial avec la session de l'utilisateur — *Gaye, 21/10* **Fait.** Essayé seulement contre un faux GitHub (constat A-08).
+- [x] Déploiement des applications générées sur le VPS, avec suivi de l'état (si trop risqué au 21/10 : plan B de `docs/DEPLOIEMENT.md`) — *Gaye, 22/10* **Fait.** Le backend lance le workflow du dépôt (`workflow_dispatch`) et suit son état ; mode manuel de repli. Jamais joué sur un serveur.
+- [x] Sécurité de base : jetons non stockés, aucun secret dans les journaux, journal des actions, validation des identifiants du générateur — *Diagne avec Pouye, 22/10* **Fait.**
+- [x] Tests : trois tests de fumée et un test de bout en bout (`docs/architecture.md`) — *Diagne, 22/10* **Fait.** Parcours automatiques dans `e2e/` (25/10), à rejouer sur la production.
+- [ ] Compte de démonstration utilisable sans inscription, première page claire en 30 secondes — *Diagne avec Fall, 22/10* **Partiel.** L'invité sans inscription est fait ; « première page claire en 30 secondes » reste à juger.
 
 ## Important
 
-- [ ] Comparaison visuelle de deux versions (ajouts en vert, suppressions en rouge, modifications en orange)
-- [ ] IA : complétion de sous-graphe sur un bloc sélectionné
-- [ ] Génération des DTO et des contrôleurs
-- [ ] Partage en lecture seule par lien, copie d'un canvas
-- [ ] Export SVG et PNG
+- [x] Comparaison visuelle de deux versions (ajouts en vert, suppressions en rouge, modifications en orange) **Fait.**
+- [ ] IA : complétion de sous-graphe sur un bloc sélectionné **Partiel.** Route et validation faites (25/10) ; l'agent reste à brancher.
+- [ ] Génération des DTO et des contrôleurs **Partiel.** Entités et contrôleurs générés ; pas de DTO.
+- [ ] Partage en lecture seule par lien, copie d'un canvas **Partiel.** Lien en lecture seule fait (révocable) ; la copie d'un canvas (Fork) n'existe pas.
+- [x] Export SVG et PNG **Fait.**
 
 ## À couper ou à reporter (dans cet ordre si le calendrier glisse)
 
-- [ ] Annuler / rétablir
+- [x] Annuler / rétablir **Fait.** Dans le tableau blanc.
 - [ ] Commentaires ancrés sur un bloc
-- [ ] Galerie publique de modèles
+- [ ] Galerie publique de modèles **Partiel.** La galerie des projets publics de comptes GitHub est faite (25/10) ; les modèles et le Fork non.
 - [ ] SystaDrive (introuvable dans l'offre publique)
 - [ ] Dimensionnement automatique des instances (garder au plus une recommandation simple)
 - [ ] Branches d'expérimentation (garder les instantanés)
@@ -78,7 +80,7 @@ Le détail du backend (lots, ordre de travail, contrats, risques, ordre de coupe
 ## Qualité et conformité (en continu)
 
 - [ ] Tenir `docs/IA.md` et `docs/LICENCES-TIERCES.md` à jour dans chaque pull request — *tous*
-- [ ] Rendre bloquant le contrôle de licences Maven dès que le `pom.xml` existe — *Pouye, dès le premier `pom.xml`*
+- [x] Rendre bloquant le contrôle de licences Maven dès que le `pom.xml` existe — *Pouye, dès le premier `pom.xml`* **Fait.**
 - [x] Produire un SBOM (npm et Maven) pour la déclaration des composants — *Diagne, 23/10* : fait le 25/10, `docs/sbom/` (CycloneDX 1.6, vérifié par la CI)
 - [ ] Audit complet des licences (22 et 23 octobre), y compris les images Docker — *Diagne*
 - [ ] Sauvegarde quotidienne de PostgreSQL et restauration testée — *Gaye, 22/10*
@@ -86,4 +88,4 @@ Le détail du backend (lots, ordre de travail, contrats, risques, ordre de coupe
 - [ ] Démo de secours enregistrée — *Diagne, 23/10*
 - [ ] Rédiger les déclarations de soumission (titularité de chaque membre, composants, IA) — *Diagne, chacun pour la sienne, 23/10*
 - [ ] Nettoyer les textes de travail avant la soumission (`LICENSE`, `[à préciser]`, notes internes) — *Diagne, 23/10*
-- [ ] Rappel : voter, les 5 membres, du 25 octobre 18 h au 26 octobre 23 h 59 — *tous*
+- [ ] Rappel : voter, les 5 membres, pendant la période de vote des pairs (dates à confirmer) — *tous*

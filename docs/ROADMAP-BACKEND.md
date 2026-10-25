@@ -1,8 +1,8 @@
 # Feuille de route du backend
 
-> Dernière mise à jour : 2026-10-20 (J-4 avant la soumission visée du samedi 24 octobre, midi).
+> Plan établi le 2026-10-20 (J-4 avant la soumission alors visée du samedi 24 octobre, midi). **L'échéance de soumission est désormais le 20 novembre 2026** (l'heure exacte et les nouvelles dates du vote des pairs, de la campagne et du jury sont **à confirmer** auprès de l'organisateur). Les dates et le « Plan jour par jour » ci-dessous sont celles du plan d'origine.
 >
-> **État au 21/10 et reste à faire : voir [AUDIT-ET-ROADMAP-BACKEND.md](AUDIT-ET-ROADMAP-BACKEND.md).** Le « point de situation » du § 2 et les cases des lots ci-dessous datent du 20/10 ; ce document reste la référence des contrats (§ 7) et des décisions (§ 11).
+> **État d'avancement et reste à faire : voir [AUDIT-ET-ROADMAP-BACKEND.md](AUDIT-ET-ROADMAP-BACKEND.md), section « Situation au 25/10 ».** Le § 1 (« En bref »), le « point de situation » du § 2, le plan du § 5 et les cases des lots ci-dessous datent du 20/10 et **ne sont pas tenus à jour** ; ce document reste la référence des contrats (§ 7), du raccordement de l'IA (§ 9) et des décisions (§ 11).
 >
 > **Périmètre :** API Spring Boot, serveur temps réel (Hocuspocus), base PostgreSQL, Dockerfiles et déploiement de Lonkoo, branchement du front.
 > **Hors périmètre : l'agent IA** (Serine Fallou Ngom). Seuls ses points de raccordement sont prévus (§ 9).
@@ -10,7 +10,7 @@
 > Les dates et priorités viennent de [BACKLOG-INITIAL.md](BACKLOG-INITIAL.md), les choix techniques de [architecture.md](architecture.md). Les écarts et décisions à confirmer sont au § 11.
 > Ce document décrit l'état du dépôt `Pouye15/Lonkoo` (branches `main` et `chore/structure`). Si du travail existe ailleurs (VPS, pipeline, branches locales), le § 2 est à corriger.
 
-## 1. En bref
+## 1. En bref (situation du 20/10, historique)
 
 1. **Le backend et le temps réel n'existent pas encore** (`backend/` et `realtime/` ne contiennent que `.gitkeep`), alors que le backlog prévoyait le squelette le 17/10 et le temps réel le 19/10. Il reste environ 35 heures de travail utile avant le gel du 23/10 (estimation à 10 h par jour) : le plan est donc construit autour d'**une tranche verticale** livrée d'abord (invité, projet, canvas, temps réel, version), puis élargie.
 2. **Chemin critique :** contrat d'API, squelette, connexion invité, canvas, ticket temps réel, serveur Hocuspocus, versions. La connexion GitHub, les liens de partage et la sécurité transverse se font en parallèle ou juste après.
@@ -18,7 +18,7 @@
 4. **Trois décisions à prendre aujourd'hui** (§ 11) : qui convertit Yjs en JSON (le JVM ne sait pas lire l'état Yjs), comment le front adopte les 8 types de blocs du contrat, comment deux jurés éditent le même canvas sans compte (liens de partage).
 5. **Ordre de coupe** si le temps manque : membres et rôles fins, comparaison visuelle de versions, partage en lecture seule, déploiement des applications générées (plan B du déploiement). Le parcours invité, canvas, temps réel, version, génération et GitHub ne se coupe pas.
 
-## 2. Point de situation au 20/10
+## 2. Point de situation au 20/10 (historique)
 
 | Élément | État dans le dépôt | Prévu au backlog | Écart |
 |---|---|---|---|
@@ -57,7 +57,7 @@
 - Ordre conseillé : (1) fusionner `chore/structure` dans `main` (aujourd'hui `main` ne contient que le commit initial) ; (2) une pull request `backend` vers `main` pour l'import du front et ses finitions : volumineuse mais lisible commit par commit, à faire relire par Fall ; (3) ensuite un lot du § 6 par branche `feature/backend-<lot>` créée depuis `main`, avec une pull request de moins de 300 lignes quand c'est possible.
 - Pour renvoyer les évolutions du front vers `Gnatam/Lonkoo-frontend` si l'équipe le souhaite : `git subtree push --prefix=frontend origin <branche>`. Sinon ce dépôt devient la seule source du front (décision de l'équipe).
 
-## 5. Plan jour par jour
+## 5. Plan jour par jour (plan d'origine du 20 au 24/10, dépassé)
 
 Durées en heures de travail focalisé, avec assistance IA, hors pauses ; marge de 30 % non incluse. Total pour le backend (Pouye) : environ 37 h.
 

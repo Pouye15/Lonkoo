@@ -5,7 +5,7 @@ Deux déploiements différents, à ne pas confondre :
 | | Quoi | Qui le fait | Comment |
 |---|---|---|---|
 | **A** | Lonkoo lui-même (recevabilité du concours : projet en ligne) | GitHub Actions | Construction des images, envoi sur le VPS par SSH, `docker compose up -d` |
-| **B** | Les applications générées par les utilisateurs (fonction du produit) | Le backend de Lonkoo | SSH vers un hôte dédié, `docker compose` avec un gabarit fixe |
+| **B** | Les applications générées par les utilisateurs (fonction du produit) | Le backend de Lonkoo (déclenchement et suivi), puis GitHub Actions | Lonkoo lance le workflow `deploy-systalink.yml` du dépôt de la personne (`workflow_dispatch`, avec son jeton) ; ce workflow se connecte en SSH au serveur de la personne avec les secrets de **son** dépôt et lance `docker compose` (mode manuel de repli) |
 
 Le déploiement A passe en premier : sans lui, le projet n'est pas noté. Le B se construit ensuite sur la même base.
 
@@ -28,7 +28,7 @@ Source : pages publiques de Systalink, lues le 16/10/2026. À revérifier au mom
 Conséquences pour nous :
 
 - **Taille du serveur.** Le Starter (2 Go) est trop juste pour PostgreSQL, Spring Boot, Next.js, le serveur temps réel et Caddy ensemble, et une construction d'image Next.js dépasse facilement 2 Go. **Estimation de l'équipe, à confirmer par un essai** : prendre le **Business (2 vCPU, 8 Go)**. Si les remises s'appliquent à ce produit : 31 486 FCFA/mois deviennent environ 18 900 FCFA (-40 %) ou 9 400 FCFA (-70 %). L'application des remises au Serveur Cloud, et à Dakar, n'est pas confirmée.
-- **Option MCP.** Elle est pensée pour des agents IA et ne dit pas qu'elle lance un `docker compose` arbitraire. Notre décision reste **SSH puis `docker compose`** (voir `architecture.md`). Le MCP pourra servir pour la création du serveur et la supervision, à tester seulement si la documentation montre un gain.
+- **Option MCP.** Elle est pensée pour des agents IA et ne dit pas qu'elle lance un `docker compose` arbitraire. Notre décision reste **le workflow GitHub Actions qui se connecte en SSH puis lance `docker compose`** (voir `architecture.md`). Le MCP pourra servir pour la création du serveur et la supervision, à tester seulement si la documentation montre un gain.
 - **À valider avant d'acheter** (questions dans `QUESTIONS-ORGANISATEUR.md`) : accès root ou sudo en SSH, Docker autorisé, ville du datacenter, application des remises.
 
 ## Étape 0 : acheter et préparer (une personne, à faire en premier)
@@ -64,10 +64,12 @@ But : valider le domaine, le certificat, le pare-feu et le pipeline avant d'écr
 
 ## Étape 4 : déploiement B (applications générées)
 
+Le projet généré contient son propre workflow `.github/workflows/deploy-systalink.yml`. Lonkoo le lance dans le dépôt GitHub de la personne et suit son exécution ; **le serveur de Lonkoo ne se connecte à aucune machine** et ne détient aucune clé : l'hôte et la clé SSH sont des secrets du dépôt de la personne. Sans les autorisations GitHub nécessaires (`repo` et `workflow`) ou sans le fichier, le déploiement passe en **mode manuel** : Lonkoo affiche les étapes à suivre soi-même.
+
 - Le gabarit `docker-compose` généré est fixe ; seuls les identifiants validés du schéma y sont insérés.
 - Chaque application : limites de mémoire et de processeur, pas de mode privilégié, pas de montage de l'hôte, réseau dédié, `restart: unless-stopped`.
 - Exposition : un sous-domaine par projet derrière Caddy (exige un DNS joker pour le certificat) ou une plage de ports publics pour la démo. **À décider après l'étape 2**, selon ce que permet le DNS de Systalink.
-- Le backend suit l'état (conteneur démarré, santé de l'application) et l'affiche à l'utilisateur.
+- Le backend suit l'exécution du workflow (en attente, en cours, déployé, échoué) et l'affiche à l'utilisateur ; il n'appelle jamais l'adresse publique saisie, il l'affiche seulement.
 - Plan B si cette fonction n'est pas prête au gel du périmètre : la génération et l'envoi sur GitHub restent, et l'interface affiche les commandes de déploiement à exécuter à la main.
 
 ## Avant la soumission

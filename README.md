@@ -12,10 +12,23 @@ Lonkoo est un studio collaboratif où une équipe de développeurs conçoit l'ar
 
 1. Créer un canvas partagé et y inviter son équipe.
 2. Concevoir l'architecture à plusieurs (curseurs, sélection et modifications en direct).
-3. Demander de l'aide à l'IA (esquisse, complétion, audit).
+3. Demander de l'aide à l'IA (esquisse, complétion, audit) : point de raccordement prêt, agent à brancher (voir « État d'avancement »).
 4. Enregistrer une version nommée de l'architecture.
 5. Générer le projet de démarrage et le pousser sur GitHub.
 6. Déployer sur Systalink et ouvrir l'application en ligne.
+
+## État d'avancement (25 octobre 2026)
+
+Échéance de soumission : **20 novembre 2026** (heure à confirmer). Détail, constats et reste à faire : [docs/AUDIT-ET-ROADMAP-BACKEND.md](docs/AUDIT-ET-ROADMAP-BACKEND.md).
+
+| Fonction | État |
+|---|---|
+| Studio collaboratif en temps réel (curseurs, présence, lecture seule), versions nommées, comparaison, restauration, exports Mermaid, JSON, SVG, PNG | Fait, testé |
+| Comptes (invité éphémère, GitHub), projets, équipe et rôles, liens de partage révocables, projets publics en lecture seule et galerie | Fait, testé |
+| Génération du projet, envoi sur GitHub, déploiement | Fait et testé contre un **faux GitHub** ; **pas encore essayé contre le vrai GitHub ni sur un serveur** |
+| Copilote IA (esquisse, complétion, audit) | Point de raccordement prêt (`AiClient`, trois routes validées) ; **l'agent reste à brancher**. `AI_PROVIDER=fake` renvoie des réponses figées étiquetées `demo`. L'onglet « Analyse IA » affiche des données de démonstration |
+| Communauté : profils, revues, commentaires, Fork | Maquette (seule la galerie publique est réelle) |
+| Mise en ligne (compose de production, Caddy, pipeline, sauvegarde) | Écrite et répétée hors serveur sur la branche `feature/r7-mise-en-ligne` ; **le serveur reste à acheter et à régler** |
 
 ## Architecture
 
@@ -29,7 +42,9 @@ Voir [docs/architecture.md](docs/architecture.md). Format du canvas : [docs/sche
 | `backend/` | API et logique métier (Spring Boot) |
 | `realtime/` | Serveur de collaboration en temps réel (Hocuspocus, Yjs) |
 | `infra/` | Docker Compose, scripts de déploiement |
-| `docs/` | Architecture, contrat du canvas, déploiement, déclarations de conformité, backlog |
+| `e2e/` | Parcours de bout en bout dans un vrai navigateur (voir [e2e/README.md](e2e/README.md)) |
+| `scripts/` | Contrôles de licences, génération et vérification du SBOM, contrat du canvas |
+| `docs/` | Architecture, contrat du canvas, déploiement, déclarations de conformité, backlog, SBOM (`docs/sbom/`) |
 
 ## Démarrer en local
 
@@ -102,6 +117,7 @@ Le secret de l'application OAuth n'est pas dans le dépôt. Chacun crée la sien
 cd backend && ./mvnw test                   # PostgreSQL embarqué : Docker n'est pas nécessaire
 cd frontend && npm test && npm run lint && npm run typecheck
 cd realtime && npm test
+cd e2e && npm ci && npm run install-browser && npm run e2e   # parcours dans un vrai navigateur, contre l'application qui tourne (e2e/README.md)
 ```
 
 ### Si ça ne démarre pas
@@ -130,6 +146,7 @@ cd realtime && npm test
 ## Conformité au règlement CADev
 
 - Composants tiers et licences : [docs/LICENCES-TIERCES.md](docs/LICENCES-TIERCES.md)
+- Inventaire des composants livrés (SBOM CycloneDX) : [docs/sbom/](docs/sbom/README.md)
 - Usage de l'intelligence artificielle : [docs/IA.md](docs/IA.md)
 - Déclarations de soumission : [docs/DECLARATIONS-SOUMISSION.md](docs/DECLARATIONS-SOUMISSION.md)
 

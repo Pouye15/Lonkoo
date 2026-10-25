@@ -1,7 +1,7 @@
 # Liste de contrôle de la soumission CADev 2026
 
-**Date limite : dimanche 25 octobre 2026, 17 h 00 (heure de Dakar, GMT). Aucune soumission après cette heure.**
-Visez le **samedi 24 octobre** pour garder une marge.
+**Date limite : 20 novembre 2026** (échéance déplacée). **L'heure exacte est à confirmer** auprès de l'organisateur : l'ancienne échéance était le dimanche 25 octobre, 17 h 00, heure de Dakar (GMT). Aucune soumission après l'heure limite.
+Visez la veille pour garder une marge.
 
 ## Recevabilité (sans ces points, le projet n'est pas noté)
 
@@ -21,7 +21,8 @@ Visez le **samedi 24 octobre** pour garder une marge.
 
 ## Avant de cliquer sur « Soumettre »
 
-- [ ] Parcours complet testé de bout en bout sur l'adresse de production.
+- [ ] Parcours complet testé de bout en bout sur l'adresse de production : à la main, et par le parcours automatique (`cd e2e && E2E_BASE_URL=<adresse> npm run e2e`, voir `e2e/README.md`).
+- [ ] `docs/sbom/` à jour (`python3 scripts/make_sbom.py --verify`), la CI le vérifie.
 - [ ] Compte de démonstration disponible, sans inscription.
 - [ ] Première page claire en 30 secondes : une phrase, un exemple déjà rempli, un bouton.
 - [ ] Vidéo de démonstration de secours enregistrée.
@@ -32,7 +33,7 @@ Visez le **samedi 24 octobre** pour garder une marge.
 
 ## Vote des pairs (obligatoire pour chaque membre)
 
-**Du dimanche 25 octobre 18 h 00 au lundi 26 octobre 23 h 59.**
+**Dates à confirmer** (avant le report de l'échéance au 20 novembre, le vote était fixé du dimanche 25 octobre 18 h 00 au lundi 26 octobre 23 h 59).
 Si un seul membre ne vote pas, **toute l'équipe est exclue**.
 
 - [ ] Membre 1 a voté
@@ -43,7 +44,9 @@ Si un seul membre ne vote pas, **toute l'équipe est exclue**.
 
 ## Suite du calendrier
 
-| Date | Étape |
+Les dates ci-dessous sont celles d'**avant** le report de l'échéance au 20 novembre : **à confirmer**.
+
+| Ancienne date (à confirmer) | Étape |
 |---|---|
 | 27 au 30 octobre | Campagne de l'équipe et vote du public (honnête, sans échange de votes) |
 | 31 octobre au 1er novembre | Notation par le jury. Préparez-vous à défendre l'architecture et la sécurité |
