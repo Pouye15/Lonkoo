@@ -8,6 +8,7 @@
     "e2e": "node run.mjs",
     "list": "node run.mjs --list",
     "github-reel": "node manuel/github-reel.mjs",
+    "demo-video": "node manuel/demo-video.mjs",
     "install-browser": "playwright-core install chromium"
   },
   "devDependencies": {

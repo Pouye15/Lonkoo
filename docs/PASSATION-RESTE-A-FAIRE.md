@@ -454,7 +454,7 @@ Les responsables sont ceux du backlog (`docs/BACKLOG-INITIAL.md`) ou **proposés
 | `DOC-5` | Harmoniser l'orthographe du nom « Serigne Fallou Ngom » dans le README et les documents, quand elle est confirmée | Fallou | cohérent partout |
 | `DOC-6` | **Remplir `docs/IA.md` § 3 « Maîtrise du code produit avec l'IA »** : pour chaque partie, la personne qui peut l'expliquer, la modifier sans l'IA et répondre au jury. Aujourd'hui, seules les lignes d'Ibrahima sont remplies (« à confirmer ») ; la **génération et l'envoi sur GitHub** (lot R8) ont été écrits par Ibrahima avec Claude Code : une autre personne doit les relire (`backend/.../generation/`, `backend/.../github/`) | chacun, Gaye pour la génération | chaque ligne a un nom |
 | `DEMO-1` | **Scénario de démo et répétition** (§ 7, `docs/Guide-defense-jury.pdf` hors dépôt) ; chacun sait expliquer n'importe quelle partie | tous, Diagne | répété au moins deux fois |
-| `DEMO-2` | **Vidéo de démonstration de secours** | Diagne | enregistrée, accessible hors ligne |
+| `DEMO-2` | **Vidéo de démonstration de secours** : `cd e2e && E2E_BASE_URL=https://<domaine> npm run demo-video` en produit une, sous-titrée, de la pile qui tourne (2 minutes, voir `e2e/README.md`) ; à compléter par l'IA et le déploiement réel une fois branchés | Diagne | enregistrée, accessible hors ligne |
 | `VOTE-1` | Les **5 membres votent** au vote des pairs (dates à confirmer, `ORG-1`) | tous | 5 cases cochées dans `DECLARATIONS-SOUMISSION.md` |
 
 ### 6.4 Plan proposé jusqu'au 20 novembre

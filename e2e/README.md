@@ -67,6 +67,22 @@ résultat attendu, il prouve la chaîne. À faire une fois sur l'adresse de prod
 **supprimer le dépôt de test** (Settings, Delete this repository). Essai à blanc sans fenêtre : `E2E_HEADED=0
 E2E_LOGIN_TIMEOUT_SECONDS=8` (il s'arrête à l'écran de connexion).
 
+## La vidéo de démonstration
+
+`manuel/demo-video.mjs` enregistre, en 2 minutes environ, une vidéo sous-titrée (WebM, sans son) de ce que l'application affiche
+quand tout marche : accueil, espace de démonstration, studio, une deuxième personne qui rejoint par un lien (curseur et blocs en
+direct), versions, export, génération du projet. Elle montre à quelqu'un qui n'arrive pas à lancer le projet en local à quoi
+ressemble un démarrage réussi, et elle est la base de la démo de secours du jury.
+
+```bash
+cd e2e
+E2E_BASE_URL=http://localhost:3000 npm run demo-video      # écrit e2e/captures/demo-lonkoo.webm (ignoré par git)
+```
+
+Avant d'enregistrer, le script vérifie que l'interface, le backend et le serveur temps réel répondent ; sinon il s'arrête sans
+rien filmer et dit quoi lancer. Il ne crée que des invités. Pour un MP4 (téléphone, WhatsApp) :
+`ffmpeg -i demo-lonkoo.webm -c:v libx264 -pix_fmt yuv420p -movflags +faststart demo-lonkoo.mp4`.
+
 ## Ce qu'ils ne font pas
 
 - Pas de connexion GitHub : elle demande un vrai compte et une application OAuth (voir
