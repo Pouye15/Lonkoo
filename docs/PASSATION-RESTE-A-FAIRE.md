@@ -551,6 +551,7 @@ Les non-décisions encore ouvertes : fournisseur d'IA (`IA-1`) ; réponses de l'
 **Spécifiques à ce dépôt**
 - **Mode de l'interface** : sans `frontend/.env.local` (`NEXT_PUBLIC_API_MODE=live`), l'interface est en démonstration. Elle doit tourner en **`npm run dev`** : le relais de `/api` vers le backend n'existe pas avec `npm start` (404).
 - **`.env`** : lu par le backend en profil `dev` et par `npm run dev` du temps réel ; **l'interface lit `frontend/.env.local`**, pas `.env`. Ne modifiez pas le `.env` d'un autre.
+- **Le studio ne s'ouvre pas** : « Connexion au canvas partagé… » qui dure = le temps réel est arrêté ou `NEXT_PUBLIC_REALTIME_URL` manque dans `frontend/.env.local` (l'interface relancée ensuite) ; « Accès au canvas refusé » alors qu'on est membre = secrets différents entre le backend et le temps réel (`REALTIME_TICKET_SECRET`, `REALTIME_SERVICE_TOKEN`), le journal du temps réel dit alors `Backend getState 401`. Le détail est dans le tableau « Si ça ne démarre pas » du `README.md`. **Dans une application tout en Docker sans Caddy**, `/ws` n'existe pas : même symptôme.
 - **Profil `prod`** : le backend **refuse de démarrer** avec une valeur `change-me`, un secret trop court ou une adresse publique qui n'est pas en `https`. C'est voulu.
 - **Sessions** : l'objet `CurrentUser` est sérialisé dans les sessions en base. **Ne le renommez ni ne le déplacez** (un test le garde) : tout le monde serait déconnecté au déploiement.
 - **Une seule instance** du backend : le compteur d'invités par adresse et le magasin de jetons GitHub sont en mémoire.

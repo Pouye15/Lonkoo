@@ -133,6 +133,8 @@ cd e2e && npm ci && npm run install-browser && npm run e2e   # parcours dans un 
 | L'interface propose des projets simulés, sans erreur | `frontend/.env.local` absent : mode démonstration |
 | `/api` répond 404 depuis l'interface | Interface lancée avec `npm start` au lieu de `npm run dev` |
 | Trop de demandes (429) en essayant sans compte | Limite d'invités par adresse (le message dit combien de temps attendre ; une connexion GitHub n'est pas concernée) : relevez `GUEST_RATE_LIMIT_PER_HOUR` dans `.env` |
+| Le studio reste sur « Connexion au canvas partagé… » (au bout de 12 secondes, un message le dit et propose « Réessayer ») | Le serveur temps réel n'est pas lancé (port 1234), ou `frontend/.env.local` n'a pas `NEXT_PUBLIC_REALTIME_URL=ws://localhost:1234` (l'interface cherche alors `/ws` sur le port 3000, que seul Caddy sert en production), ou l'interface n'a pas été relancée après la modification de ce fichier |
+| « Ce canvas n'est pas accessible » / « Accès au canvas refusé » alors que vous êtes bien membre | Le serveur temps réel et le backend n'ont pas les mêmes `REALTIME_TICKET_SECRET` ou `REALTIME_SERVICE_TOKEN` (deux fichiers `.env` différents), ou le temps réel ne joint pas le backend (`BACKEND_INTERNAL_URL`). Son journal dit `Backend getState 401` dans le cas d'un jeton de service différent |
 | GitHub injoignable (503) sur Windows | Réglage du certificat (voir l'étape Backend) |
 
 ## Équipe
