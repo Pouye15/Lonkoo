@@ -17,6 +17,18 @@ interface ChatbotPanelProps {
   nodesCount?: number;
 }
 
+function safeHttpUrl(raw: string): string | null {
+  try {
+    const url = new URL(raw);
+    if (url.protocol === "http:" || url.protocol === "https:") {
+      return url.toString();
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 const DEFAULT_SUGGESTIONS = [
   "Comment déployer mon architecture sur le Cloud Systalink ?",
   "Quelle configuration recommandes-tu pour la base de données ?",
@@ -119,15 +131,19 @@ export function ChatbotPanel({ canvasId, live, projectName, nodesCount = 0 }: Ch
     const parts = content.split(urlRegex);
     return parts.map((part, i) => {
       if (part.match(urlRegex)) {
+        const safeUrl = safeHttpUrl(part);
+        if (!safeUrl) {
+          return part;
+        }
         return (
           <a
             key={i}
-            href={part}
+            href={safeUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 font-semibold text-accent underline hover:text-accent-hover"
           >
-            <span>{part}</span>
+            <span>{safeUrl}</span>
             <ArrowSquareOut size={13} />
           </a>
         );

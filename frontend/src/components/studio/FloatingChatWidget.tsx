@@ -27,6 +27,22 @@ interface Message {
   streaming?: boolean;
 }
 
+function safeSystalinkUrl(raw: string): string | null {
+  try {
+    const url = new URL(raw);
+    if (url.protocol === "https:" && url.hostname === "systalink.com") {
+      return url.toString();
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function hasSystalinkUrl(text: string): boolean {
+  return /(^|[\s(])https:\/\/systalink\.com(\/[^\s)]*)?/i.test(text);
+}
+
 const QUICK_PRODUCTS = [
   { label: "Orion (Générateur)", icon: Sparkle, query: "Comment utiliser Orion pour générer mon site sur Systalink ?" },
   { label: "Connexion MCP", icon: Cpu, query: "Comment fonctionne la Connexion MCP pour brancher mes agents IA sur Systalink ?" },
@@ -264,16 +280,17 @@ export function FloatingChatWidget() {
   const renderContent = (content: string) => {
     const parts = content.split(/(https:\/\/systalink\.com\/[^\s)]+)/g);
     return parts.map((part, i) => {
-      if (part.startsWith("https://systalink.com")) {
+      const safeUrl = safeSystalinkUrl(part);
+      if (safeUrl) {
         return (
           <a
             key={i}
-            href={part}
+            href={safeUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 font-semibold text-accent underline underline-offset-2 hover:text-accent-hover"
           >
-            {part}
+            {safeUrl}
             <ArrowSquareOut size={12} weight="bold" />
           </a>
         );
@@ -436,7 +453,7 @@ export function FloatingChatWidget() {
                     )}
                   </div>
 
-                  {msg.role === "assistant" && msg.content.includes("systalink.com") && (
+                  {msg.role === "assistant" && hasSystalinkUrl(msg.content) && (
                     <div className="mt-2.5 pt-2 border-t border-edge/60 flex flex-wrap items-center justify-between gap-2">
                       <span className="text-[11px] font-medium text-ink-3">
                         Infrastructure Cloud Dakar (FCFA)
