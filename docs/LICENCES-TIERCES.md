@@ -37,6 +37,10 @@ La colonne « Vérifié » se coche seulement après avoir lu la licence dans le
 | Nimbus JOSE + JWT | 10.9.1 | Apache 2.0 | Oui | Signature des tickets temps réel | Maven | [x] |
 | zonky embedded-postgres (et binaires PostgreSQL 14) | 2.2.2 | Apache 2.0 (binaires : licence PostgreSQL) | Oui | Tests du backend uniquement, jamais livré | Maven | [x] |
 | PostgreSQL | 16 | Licence PostgreSQL | Oui | Base de données | Docker | [ ] |
+| FastAPI, Uvicorn, HTTPX, Pydantic, jsonschema | 0.162.0, 0.54.0, 0.28.1, 2.14.2, 4.26.0 | MIT, BSD-3-Clause, BSD-3-Clause, MIT, MIT | Oui | Agent IA (`agent_ia/`, Python 3.12) : serveur HTTP, appels au fournisseur d'IA, validation du contrat du canvas | PyPI | [x] |
+| Dépendances indirectes de l'agent IA (23 paquets : Starlette, anyio, h11, httpcore, idna, click, python-dotenv, PyYAML, watchfiles, websockets, httptools, uvloop, attrs, referencing, rpds-py, jsonschema-specifications, typing-extensions, typing-inspection, annotated-types, annotated-doc, pydantic-core, opentelemetry-api, certifi) | voir `agent_ia/requirements.lock` | MIT, BSD-3-Clause, Apache 2.0, PSF-2.0 (typing-extensions), Apache 2.0 ou MIT (uvloop) ; **certifi : MPL-2.0 (voir section 2)** | Oui, sauf certifi | Agent IA | PyPI | [x] licences lues sur PyPI le 04/11/2026 |
+| pytest (avec iniconfig, packaging, pluggy, Pygments ; colorama sous Windows) | 9.2.0 | MIT (pytest, iniconfig, pluggy), Apache 2.0 ou BSD-2-Clause (packaging), BSD-2-Clause (Pygments), BSD-3-Clause (colorama) | Oui | Tests de l'agent IA (développement), jamais livré | PyPI | [x] |
+| Image Docker `python:3.12-slim` | 3.12 | PSF-2.0 (Python) ; système Debian | Oui (Python) | Image de l'agent IA | Docker | [ ] même réserve que pour les autres images : le système est hors du périmètre du SBOM |
 | [Bibliothèque d'icônes] | [x] | [à vérifier] | [ ] | Icônes | [ ] | [ ] |
 | | | | | | | |
 
@@ -53,6 +57,7 @@ La colonne « Vérifié » se coche seulement après avoir lu la licence dans le
 | tldraw | Licence propre, clé exigée en production | Ne pas utiliser |
 | PlantUML | Plusieurs licences au choix, la version GPL est la plus complète | Si utilisé, télécharger la version MIT ou Apache |
 | Jakarta EE (certaines API) | Double licence EPL 2.0 ou GPL 2 avec exception Classpath | Vérifier dans le rapport de licences |
+| certifi 2026.10.23 (dépendance obligatoire de HTTPX, donc de l'agent IA) | MPL-2.0 : copyleft de fichier. Seuls les fichiers de certifi, si on les modifie, restent sous MPL ; rien d'autre n'est touché. Ici : installé tel quel depuis PyPI, jamais modifié. Le contrôle automatique ne refuse que GPL, AGPL et LGPL, mais notre règle interne est « licences permissives seulement » | **Décision à prendre** : poser la question à l'organisateur (`docs/QUESTIONS-ORGANISATEUR.md`). Exception déclarée dans `scripts/check_licenses_python.py`. Repli si c'est refusé : remplacer HTTPX par un client HTTP sans certifi |
 
 ## 3. Assets (icônes, polices, images)
 
@@ -72,7 +77,7 @@ Le règlement permet d'intégrer du code appartenant à un membre de l'équipe e
 
 ## 5. Vérification automatique
 
-La CI (`.github/workflows/ci.yml`) contrôle de façon bloquante les licences npm et celles des dépendances d'exécution Maven (`scripts/check_licenses_maven.py` : refus d'une licence GPL, AGPL ou LGPL sans alternative permissive, exceptions documentées dans le script) ; le rapport complet du plugin Maven reste informatif. Lancer aussi à la main avant la soumission :
+La CI (`.github/workflows/ci.yml`) contrôle de façon bloquante les licences npm, celles des dépendances d'exécution Maven (`scripts/check_licenses_maven.py` : refus d'une licence GPL, AGPL ou LGPL sans alternative permissive, exceptions documentées dans le script) et celles de l'agent IA en Python (`scripts/check_licenses_python.py`, même règle, d'après `docs/sbom/agent_ia.cdx.json`) ; le rapport complet du plugin Maven reste informatif. Lancer aussi à la main avant la soumission :
 
 Les inventaires des composants livrés (SBOM CycloneDX, un par morceau) sont dans [sbom/](sbom/README.md) : `python3 scripts/make_sbom.py` les régénère, la CI vérifie qu'ils sont à jour et complets. Les deux outils qui les produisent, `cyclonedx-maven-plugin` 2.9.3 et `@cyclonedx/cyclonedx-npm` 6.0.1, sont sous licence Apache 2.0 ; ils ne sont pas des dépendances du projet (lancés à la demande, jamais livrés).
 

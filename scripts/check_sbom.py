@@ -6,7 +6,8 @@ indépendante :
 
 - Maven : la liste des dépendances d'exécution de `mvn dependency:list -DincludeScope=runtime` (la même que lit
   `scripts/check_licenses_maven.py`) ;
-- npm : le `package-lock.json`, sans les paquets réservés au développement (`dev: true`).
+- npm : le `package-lock.json`, sans les paquets réservés au développement (`dev: true`) ;
+- pip : le fichier `requirements.lock` (versions figées, `nom==version`).
 
 Chaque composant de la source doit figurer dans le SBOM (même groupe, même nom, même version). Un composant en plus
 dans le SBOM est signalé sans faire échouer (portée « provided », paquets optionnels d'une autre plateforme).
@@ -14,6 +15,7 @@ dans le SBOM est signalé sans faire échouer (portée « provided », paquets o
 Usage :
     python3 scripts/check_sbom.py maven maven-deps.txt docs/sbom/backend.cdx.json
     python3 scripts/check_sbom.py npm frontend/package-lock.json docs/sbom/frontend.cdx.json
+    python3 scripts/check_sbom.py pip agent_ia/requirements.lock docs/sbom/agent_ia.cdx.json
 
 Code de sortie : 0 si le SBOM est bien formé et complet, 1 sinon. Bibliothèque standard seulement.
 """
@@ -23,6 +25,7 @@ import sys
 from pathlib import Path
 
 MAVEN_LINE = re.compile(r"^\s*([^:\s]+):([^:\s]+):jar:([^:\s]+):")
+PIP_LINE = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)==([^\s\\;]+)")
 
 
 def maven_expected(path):
@@ -50,6 +53,20 @@ def npm_expected(path):
     return expected
 
 
+def normalize_pip(name):
+    """Les noms PyPI se comparent sans casse et sans différence entre -, _ et . (PEP 503)."""
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def pip_expected(path):
+    expected = set()
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        match = PIP_LINE.match(line)
+        if match:
+            expected.add(f"{normalize_pip(match.group(1))}:{match.group(2)}")
+    return expected
+
+
 def all_components(sbom):
     """Tous les composants, y compris ceux rangés à l'intérieur d'un autre (CycloneDX autorise l'imbrication)."""
     stack = list(sbom.get("components") or [])
@@ -64,6 +81,8 @@ def component_key(kind, component):
     name = component["name"]
     if kind == "maven":
         return f"{group}:{name}:{component['version']}"
+    if kind == "pip":
+        return f"{normalize_pip(name)}:{component['version']}"
     full = f"{group}/{name}" if group else name
     return f"{full}:{component['version']}"
 
@@ -92,12 +111,12 @@ def shape_problems(sbom):
 def main(argv):
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
-    if len(argv) != 4 or argv[1] not in ("maven", "npm"):
+    if len(argv) != 4 or argv[1] not in ("maven", "npm", "pip"):
         print(__doc__)
         return 2
     kind, source, sbom_path = argv[1], argv[2], argv[3]
     sbom = json.loads(Path(sbom_path).read_text(encoding="utf-8"))
-    expected = maven_expected(source) if kind == "maven" else npm_expected(source)
+    expected = {"maven": maven_expected, "npm": npm_expected, "pip": pip_expected}[kind](source)
     found = {component_key(kind, c) for c in all_components(sbom) if c.get("name") and c.get("version")}
 
     problems = shape_problems(sbom)

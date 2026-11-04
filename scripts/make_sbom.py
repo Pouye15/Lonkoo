@@ -5,6 +5,7 @@ Trois inventaires, un par morceau qui embarque des bibliothèques tierces :
 
 - backend  : Maven, dépendances d'exécution (cyclonedx-maven-plugin, Apache 2.0) ;
 - frontend : npm, dépendances de production, d'après `package-lock.json` (@cyclonedx/cyclonedx-npm, Apache 2.0) ;
+- agent_ia : Python, d'après `requirements.lock` (cyclonedx-bom, Apache 2.0 ; licences lues sur PyPI) ;
 - realtime : idem pour le serveur temps réel.
 
 Sont exclus : les outils de développement et de test (jamais livrés), et ce qui n'est pas une bibliothèque de
@@ -27,11 +28,13 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CYCLONEDX_MAVEN = "org.cyclonedx:cyclonedx-maven-plugin:2.9.3"
 CYCLONEDX_NPM = "@cyclonedx/cyclonedx-npm@6.0.1"
+CYCLONEDX_PY = "cyclonedx-bom==7.6.0"
 SPEC_VERSION = "1.6"
 
 # Le paquet « sharp » de l'interface est un faux paquet local (frontend/stubs/sharp) qui évite d'installer libvips,
@@ -118,6 +121,48 @@ def make_npm(name, out):
     return ["npm", str(work / "package-lock.json"), str(target)]
 
 
+def pypi_licenses(name, version):
+    """Licences déclarées par une version précise d'un paquet PyPI (expression SPDX si elle existe, sinon classificateurs)."""
+    with urllib.request.urlopen(f"https://pypi.org/pypi/{name}/{version}/json", timeout=30) as response:
+        info = json.load(response)["info"]
+    if info.get("license_expression"):
+        return [{"expression": info["license_expression"]}]
+    names = [c.split("::")[-1].strip() for c in info.get("classifiers") or [] if c.startswith("License ::")]
+    if not names and (info.get("license") or "").strip():
+        names = [info["license"].strip().splitlines()[0][:80]]
+    return [{"license": {"name": n}} for n in names if n]
+
+
+def describe_python(document, name):
+    """Complète la sortie de cyclonedx-py : de quoi le SBOM est l'inventaire, et la licence de chaque composant."""
+    document.setdefault("metadata", {})["component"] = {
+        "type": "application",
+        "name": "lonkoo-" + name.replace("_", "-"),
+        "description": "Microservice interne de l'agent IA (FastAPI), image Docker construite depuis requirements.lock.",
+    }
+    for component in document.get("components") or []:
+        component.pop("description", None)  # la ligne du fichier de dépendances, avec ses empreintes : du bruit
+        component["bom-ref"] = component["purl"]
+        licenses = pypi_licenses(component["name"], component["version"])
+        if licenses:
+            component["licenses"] = licenses
+
+
+def make_python(name, out):
+    print(f"== {name} (Python)")
+    lock = ROOT / name / "requirements.lock"
+    venv = Path(tempfile.mkdtemp()) / "venv"
+    run([sys.executable, "-m", "venv", venv], ROOT)
+    tools = venv / ("Scripts" if sys.platform == "win32" else "bin")
+    run([tools / "python", "-m", "pip", "install", "--quiet", "--disable-pip-version-check", CYCLONEDX_PY], ROOT)
+    target = out / f"{name}.cdx.json"
+    run([tools / "cyclonedx-py", "requirements", lock, "--sv", SPEC_VERSION, "--of", "JSON", "-o", target], ROOT)
+    document = json.loads(target.read_text(encoding="utf-8"))
+    describe_python(document, name)
+    write_json(target, document)
+    return ["pip", str(lock), str(target)]
+
+
 def run_checks(checks):
     """Lance scripts/check_sbom.py pour chaque SBOM ; rend le nombre de SBOM refusés."""
     failed = 0
@@ -139,19 +184,19 @@ def main():
         print("== vérification de " + str(out))
         checks = [["maven", maven_truth(), str(out / "backend.cdx.json")]] + [
             ["npm", str(ROOT / name / "package-lock.json"), str(out / f"{name}.cdx.json")] for name in ("frontend", "realtime")
-        ]
+        ] + [["pip", str(ROOT / "agent_ia" / "requirements.lock"), str(out / "agent_ia.cdx.json")]]
         if run_checks(checks):
             sys.exit("docs/sbom est périmé (une dépendance a changé) : relancez `python3 scripts/make_sbom.py` et commitez le résultat.")
         print("docs/sbom est à jour.")
         return
 
-    checks = [make_backend(out), make_npm("frontend", out), make_npm("realtime", out)]
+    checks = [make_backend(out), make_npm("frontend", out), make_npm("realtime", out), make_python("agent_ia", out)]
 
     print("== vérification (scripts/check_sbom.py)")
     failed = run_checks(checks)
     if failed:
         sys.exit(f"{failed} SBOM incomplet(s) : voir ci-dessus.")
-    print(f"Trois SBOM CycloneDX {SPEC_VERSION} écrits dans {out}")
+    print(f"Quatre SBOM CycloneDX {SPEC_VERSION} écrits dans {out}")
 
 
 if __name__ == "__main__":

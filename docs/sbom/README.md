@@ -1,6 +1,6 @@
 # SBOM : inventaire des composants livrés
 
-Trois inventaires au format [CycloneDX](https://cyclonedx.org/) 1.6 (JSON), un par morceau du projet qui embarque des
+Quatre inventaires au format [CycloneDX](https://cyclonedx.org/) 1.6 (JSON), un par morceau du projet qui embarque des
 bibliothèques tierces. Ils accompagnent la déclaration des composants tiers ([../LICENCES-TIERCES.md](../LICENCES-TIERCES.md)).
 
 | Fichier | Contenu | Source | Composants |
@@ -8,6 +8,7 @@ bibliothèques tierces. Ils accompagnent la déclaration des composants tiers ([
 | `backend.cdx.json` | API Spring Boot : dépendances Maven d'exécution | `cyclonedx-maven-plugin` 2.9.3 (Apache 2.0) | 102 |
 | `frontend.cdx.json` | Interface Next.js : dépendances npm de production | `@cyclonedx/cyclonedx-npm` 6.0.1 (Apache 2.0) | 32 |
 | `realtime.cdx.json` | Serveur temps réel Node : dépendances npm de production | idem | 12 |
+| `agent_ia.cdx.json` | Agent IA Python : dépendances figées de l'image (`agent_ia/requirements.lock`) | `cyclonedx-bom` 7.6.0 (Apache 2.0) ; licences lues sur PyPI | 28 |
 
 Chaque composant a son identifiant (`purl`), sa version, sa licence déclarée et, côté Maven, les empreintes de son jar.
 
@@ -31,18 +32,20 @@ python3 scripts/make_sbom.py --verify   # ne produit rien : échoue si docs/sbom
 
 À refaire (et à commiter) dès qu'une dépendance Maven ou npm change : la CI (job « SBOM des composants ») échoue
 sinon, et dépose en plus les SBOM de la version testée en artefact. Prérequis : Java 21 et Maven (ou le wrapper du
-backend), Node, un accès au réseau pour télécharger les deux outils. Le numéro de série et l'horodatage changent à
+backend), Node, Python 3 (le troisième outil s'installe dans un environnement temporaire), un accès au réseau pour télécharger
+les outils. Le numéro de série et l'horodatage changent à
 chaque génération : seul le contenu des composants compte.
 
 ## Comment on sait qu'ils sont complets
 
 Un SBOM qui oublie des composants est pire que pas de SBOM. `scripts/check_sbom.py` compare donc chaque fichier à une
 source indépendante de l'outil qui l'a produit : la liste `mvn dependency:list -DincludeScope=runtime` pour Maven, le
-`package-lock.json` (hors paquets de développement) pour npm. Il échoue s'il manque un composant, ou si le fichier est mal
-formé. Les trois fichiers ont aussi été validés contre le schéma JSON officiel de CycloneDX 1.6.
+`package-lock.json` (hors paquets de développement) pour npm, `agent_ia/requirements.lock` pour Python. Il échoue s'il manque un composant, ou si le fichier est mal
+formé. Les trois premiers fichiers ont aussi été validés contre le schéma JSON officiel de CycloneDX 1.6.
 
 ## Limites
 
+- Le SBOM de l'agent IA est établi d'après `requirements.lock`, calculé pour Linux x86_64 et Python 3.12 (l'image Docker). Ses licences sont celles que PyPI affiche pour chaque version au moment de la génération. `uv pip compile` n'est pas une dépendance du projet : c'est l'outil qui régénère le fichier de dépendances figées (commande en tête du fichier).
 - Le SBOM npm est établi d'après le `package-lock.json`, donc sur toutes les plateformes : il peut lister des paquets
   optionnels qui ne s'installent pas sur la machine qui le lit (binaires d'une autre plateforme).
 - Les licences sont celles que les paquets **déclarent** (champ `license` du POM ou du `package.json`). Le contrôle

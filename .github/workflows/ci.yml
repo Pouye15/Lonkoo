@@ -104,6 +104,27 @@ jobs:
         run: mvn -B -ntp verify
 
   # ---------------------------------------------------------------
+  # Agent IA (Python) : tests, avec les dépendances exactes de l'image (requirements.lock, empreintes vérifiées)
+  # ---------------------------------------------------------------
+  python:
+    name: Python (agent_ia)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Installer les dépendances
+        run: |
+          python -m pip install --quiet --require-hashes -r agent_ia/requirements.lock
+          python -m pip install --quiet -r agent_ia/requirements-dev.txt
+
+      - name: Tests
+        run: cd agent_ia && python -m pytest -q
+
+  # ---------------------------------------------------------------
   # Contrat du canvas : le schéma est valide et les exemples le respectent
   # ---------------------------------------------------------------
   canvas-schema:
@@ -115,6 +136,11 @@ jobs:
         run: |
           python3 -m pip install --quiet jsonschema
           python3 scripts/check_canvas_schema.py
+
+      # L'agent IA embarque une copie du contrat (il valide ce que l'IA propose) : elle ne diverge jamais de docs/.
+      - name: La copie du contrat dans agent_ia est identique
+        if: hashFiles('agent_ia/schemas/canvas.schema.json') != ''
+        run: cmp docs/canvas.schema.json agent_ia/schemas/canvas.schema.json
 
       # Le contrat d'API (docs/openapi.yaml) doit rester une description OpenAPI valide.
       - name: Valider le contrat d'API
@@ -169,6 +195,11 @@ jobs:
         run: |
           (cd backend && mvn -B -ntp dependency:list -DincludeScope=runtime -DoutputFile="$GITHUB_WORKSPACE/maven-deps.txt")
           python3 scripts/check_licenses_maven.py maven-deps.txt
+
+      # Bloquant aussi pour l'agent IA : mêmes règles, d'après son SBOM (lui-même vérifié contre requirements.lock).
+      - name: Licences Python (bloquant)
+        if: hashFiles('docs/sbom/agent_ia.cdx.json') != ''
+        run: python3 scripts/check_licenses_python.py docs/sbom/agent_ia.cdx.json
 
       - name: Licences Maven (rapport complet, informatif)
         continue-on-error: true

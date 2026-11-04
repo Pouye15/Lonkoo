@@ -7,8 +7,9 @@ WORKDIR /app
 
 RUN useradd --system --uid 10001 --create-home appuser
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Versions et empreintes figées (requirements.lock) : la même image à chaque construction, rien d'autre que ce qui est inventorié.
+COPY requirements.lock .
+RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 
 COPY schemas /app/schemas
 COPY src /app/src
