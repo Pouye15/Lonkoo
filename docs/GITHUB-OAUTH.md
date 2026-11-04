@@ -1,6 +1,6 @@
 # Créer les applications OAuth GitHub
 
-À faire une fois, par la personne qui possède le dépôt (compte `Pouye15`). Il en faut **deux** : une application OAuth GitHub n'accepte qu'une seule adresse de retour, donc une pour le développement et une pour la production. Compter 10 minutes.
+**Chaque personne qui lance LONKOO sur son poste crée sa propre application de développement** (§ 1) : les identifiants (`GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`) vivent dans le `.env` de chaque poste et ne se partagent pas. Sans eux, le backend répond 503 et l'interface affiche « La connexion GitHub n'est pas encore configurée sur ce serveur » : c'est normal, « Essayer sans compte » reste disponible (tout sauf l'envoi sur GitHub et le déploiement). L'application de **production** (§ 2) se crée **une seule fois**, par la personne qui possède le dépôt (compte `Pouye15`), quand l'adresse publique existe : sur le serveur, chacun se connecte avec son propre compte GitHub. Une application OAuth GitHub n'accepte qu'une seule adresse de retour : une application par environnement. Compter 10 minutes.
 
 Ce que le backend demande aux utilisateurs : les portées `read:user` et `public_repo` à la connexion ordinaire (voir `architecture.md`). **Les portées ne se règlent pas ici** : le code les envoie à chaque connexion. Aucun jeton GitHub n'est stocké.
 
@@ -30,6 +30,22 @@ Une seconde connexion, **sur choix explicite de l'utilisateur** (`GET /api/auth/
    ```
 
    L'adresse de retour du `.env` doit être **identique, caractère pour caractère**, à celle saisie sur GitHub. En local, le front sur le port 3000 redirige `/api` vers le backend (port 8080), c'est pourquoi l'adresse est celle du front.
+
+### Sur un autre poste que celui du propriétaire
+
+La procédure est celle ci-dessus, avec **votre** compte GitHub : l'application est créée sur votre compte (*Settings, Developer settings, OAuth Apps*) et ses identifiants vont dans **votre** `.env`. L'adresse de retour reste `http://localhost:3000/api/auth/github/callback` si vous lancez le front sur le port 3000. Redémarrez le backend après avoir modifié le `.env`. Ne demandez jamais le secret de quelqu'un d'autre et ne le collez dans aucun message ni fichier du dépôt.
+
+### Dans un Codespace
+
+L'adresse du site n'est plus `localhost:3000` mais celle du port redirigé (de la forme `https://<nom-du-codespace>-3000.app.github.dev`). Il faut **trois** valeurs identiques à cette adresse, sinon la connexion échoue :
+
+| Où | Valeur |
+|---|---|
+| Application OAuth sur GitHub, *Authorization callback URL* | `https://<nom-du-codespace>-3000.app.github.dev/api/auth/github/callback` |
+| `.env` : `GITHUB_OAUTH_REDIRECT_URI` | la même adresse |
+| `.env` : `APP_PUBLIC_URL` | `https://<nom-du-codespace>-3000.app.github.dev` |
+
+`APP_PUBLIC_URL` compte aussi sans GitHub : le backend refuse toute requête `POST` dont l'origine n'est pas cette adresse (403 « Origine non autorisée »), ce qui touche déjà « Essayer sans compte » et la déconnexion si elle vaut encore `http://localhost:3000`. Le nom d'un Codespace change d'un Codespace à l'autre : une adresse de retour à mettre à jour sur GitHub à chaque nouveau Codespace. Les valeurs ci-dessus sont déduites du code (`OriginCheckFilter`, `GithubOAuthService`) ; **le parcours dans un Codespace n'a pas été essayé en vrai**.
 
 ## 2. Application de production
 
