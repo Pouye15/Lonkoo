@@ -116,6 +116,50 @@ public class AiService {
         return new AiAuditResponse(kept, discarded, ai.demo());
     }
 
+    public AiChatResponse chat(CurrentUser user, UUID canvasId, List<AiChatRequest.Message> messages) {
+        canvasAccessService.requireMemberRead(canvasId);
+        AiClient ai = client();
+
+        JsonNode snapshot = realtimeSnapshotClient.snapshot(canvasId);
+        quota.consume(user);
+        AiChatResponse response = ai.chat(snapshot, messages);
+        auditService.record(user.id(), "ai.chat", "canvas:" + canvasId, null);
+        return response;
+    }
+
+    public void chatStream(CurrentUser user, UUID canvasId, List<AiChatRequest.Message> messages, java.io.OutputStream out) {
+        canvasAccessService.requireMemberRead(canvasId);
+        AiClient ai = client();
+
+        JsonNode snapshot = realtimeSnapshotClient.snapshot(canvasId);
+        quota.consume(user);
+        try {
+            ai.chatStream(snapshot, messages, out);
+        } catch (java.io.IOException e) {
+            log.error("Erreur de flux SSE pour le canvas {}", canvasId, e);
+        }
+        auditService.record(user.id(), "ai.chat.stream", "canvas:" + canvasId, null);
+    }
+
+    public AiChatResponse globalChat(CurrentUser user, List<AiChatRequest.Message> messages) {
+        AiClient ai = client();
+        quota.consume(user);
+        AiChatResponse response = ai.chat(null, messages);
+        auditService.record(user.id(), "ai.chat.global", "global", null);
+        return response;
+    }
+
+    public void globalChatStream(CurrentUser user, List<AiChatRequest.Message> messages, java.io.OutputStream out) {
+        AiClient ai = client();
+        quota.consume(user);
+        try {
+            ai.chatStream(null, messages, out);
+        } catch (java.io.IOException e) {
+            log.error("Erreur de flux SSE pour le conseiller global", e);
+        }
+        auditService.record(user.id(), "ai.chat.stream", "global", null);
+    }
+
     /** Le fournisseur branché, ou 501 s'il n'y en a pas. */
     private AiClient client() {
         AiClient ai = clients.getIfAvailable();

@@ -34,6 +34,9 @@ public class ConfigurationCheck {
     private final String githubClientId;
     private final String githubClientSecret;
     private final String githubRedirectUri;
+    private final String aiProvider;
+    private final String aiApiKey;
+    private final String aiModel;
 
     @Autowired
     public ConfigurationCheck(
@@ -44,20 +47,32 @@ public class ConfigurationCheck {
             @Value("${app.public-url}") String publicUrl,
             @Value("${github.oauth.client-id}") String githubClientId,
             @Value("${github.oauth.client-secret}") String githubClientSecret,
-            @Value("${github.oauth.redirect-uri}") String githubRedirectUri) {
+            @Value("${github.oauth.redirect-uri}") String githubRedirectUri,
+            @Value("${lonkoo.ai.provider:off}") String aiProvider,
+            @Value("${lonkoo.ai.api-key:}") String aiApiKey,
+            @Value("${lonkoo.ai.model:}") String aiModel) {
         this(environment.acceptsProfiles(Profiles.of("prod")), databasePassword, ticketSecret, serviceToken, publicUrl,
-                githubClientId, githubClientSecret, githubRedirectUri);
+                githubClientId, githubClientSecret, githubRedirectUri, aiProvider, aiApiKey, aiModel);
     }
 
     /** Constructeur de test : des valeurs GitHub neutres empêchent les contrôles OAuth d'interférer. */
     public ConfigurationCheck(boolean production, String databasePassword, String ticketSecret, String serviceToken,
             String publicUrl) {
         this(production, databasePassword, ticketSecret, serviceToken, publicUrl,
-                "test-client-id", "test-client-secret", "https://lonkoo.example.org/api/auth/github/callback");
+                "test-client-id", "test-client-secret", "https://lonkoo.example.org/api/auth/github/callback",
+                "off", "", "");
     }
 
     public ConfigurationCheck(boolean production, String databasePassword, String ticketSecret, String serviceToken,
             String publicUrl, String githubClientId, String githubClientSecret, String githubRedirectUri) {
+        this(production, databasePassword, ticketSecret, serviceToken, publicUrl,
+                githubClientId, githubClientSecret, githubRedirectUri,
+                "off", "", "");
+    }
+
+    public ConfigurationCheck(boolean production, String databasePassword, String ticketSecret, String serviceToken,
+            String publicUrl, String githubClientId, String githubClientSecret, String githubRedirectUri,
+            String aiProvider, String aiApiKey, String aiModel) {
         this.production = production;
         this.databasePassword = databasePassword;
         this.ticketSecret = ticketSecret;
@@ -66,6 +81,9 @@ public class ConfigurationCheck {
         this.githubClientId = githubClientId;
         this.githubClientSecret = githubClientSecret;
         this.githubRedirectUri = githubRedirectUri;
+        this.aiProvider = aiProvider;
+        this.aiApiKey = aiApiKey;
+        this.aiModel = aiModel;
     }
 
     @PostConstruct
@@ -117,6 +135,18 @@ public class ConfigurationCheck {
             }
             if (isPlaceholder(githubRedirectUri) || (githubRedirectUri != null && !githubRedirectUri.startsWith("https://"))) {
                 problems.add("GITHUB_OAUTH_REDIRECT_URI doit être une adresse https et sans valeur d'exemple");
+            }
+            if (aiProvider != null && !aiProvider.equalsIgnoreCase("off") && !aiProvider.equalsIgnoreCase("fake") && !aiProvider.isBlank()) {
+                if (aiApiKey == null || aiApiKey.isBlank()) {
+                    problems.add("AI_API_KEY est vide alors qu'un fournisseur d'IA est configuré");
+                } else if (isPlaceholder(aiApiKey)) {
+                    problems.add("AI_API_KEY porte une valeur d'exemple");
+                }
+                if (aiModel == null || aiModel.isBlank()) {
+                    problems.add("AI_MODEL est vide alors qu'un fournisseur d'IA est configuré");
+                } else if (isPlaceholder(aiModel)) {
+                    problems.add("AI_MODEL porte une valeur d'exemple");
+                }
             }
         }
         return problems;
