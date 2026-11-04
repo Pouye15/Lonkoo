@@ -5,6 +5,7 @@ interface Next.js 16). Projet de l'équipe VISION X pour CADev 2026.
 
 **Avant toute action, lis `docs/PASSATION-RESTE-A-FAIRE.md`** : l'état réel du projet, ce qui reste à faire avant la démo, les
 règles et les pièges. L'état détaillé et les preuves sont dans `docs/AUDIT-ET-ROADMAP-BACKEND.md`.
+**Si `docs/SUITE-PR3-POUR-FALLOU.md` existe, lis-le aussi** : il détaille la suite de la pull request n° 3 (agent IA), tâche par tâche.
 
 Règles non négociables (détail : `CONTRIBUTING.md` et le § 0.3 du document de passation) :
 

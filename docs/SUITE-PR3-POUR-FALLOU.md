@@ -1,6 +1,6 @@
 # Suite de la pull request n° 3 (agent IA) : l'état au 04/11/2026 et ce qu'il reste à faire
 
-**Pour Serigne Fallou Ngom et son assistant IA.** À lire en entier avant de toucher au code. Il complète
+**Pour Serigne Fallou Ngom, pour Ibrahima Pouye, et pour leurs assistants IA (GitHub Copilot, Claude Code…).** À lire en entier avant de toucher au code. Chaque tâche de la section 4 porte le nom de la personne qui la fait : un assistant ne fait que celles de la personne avec qui il travaille, et demande avant de sortir de cette liste. Il complète
 [PASSATION-RESTE-A-FAIRE.md](PASSATION-RESTE-A-FAIRE.md) (§ 3.7 les contrôles, § 4 la mission IA, § 5 Docker) et
 [../AGENTS.md](../AGENTS.md) (les règles).
 
@@ -88,7 +88,7 @@ Vérifié en local par Ibrahima (poste Windows, **sans Docker**) sur les commits
 
 Dans l'ordre. Chaque tâche dit quand elle est **finie**. Note ce que tu fais dans le journal de la passation (§ 13).
 
-### 4.1 `PR3-1` Récupérer la branche et rejouer les contrôles (30 minutes)
+### 4.1 `PR3-1` Récupérer la branche et rejouer les contrôles (30 minutes) — Fallou, et Ibrahima de son côté
 
 Fait quand : sur `fix/ia-agent-revue`, les commandes du tableau de la section 3 passent chez toi (Codespace compris). Pour l'agent :
 
@@ -99,7 +99,7 @@ python -m pip install -r requirements-dev.txt
 python -m pytest
 ```
 
-### 4.2 `PR3-2` Intégrer ton travail local, s'il y en a (surtout la dockerisation)
+### 4.2 `PR3-2` Intégrer ton travail local, s'il y en a (surtout la dockerisation) — Fallou
 
 Tu as dit à Ibrahima avoir dockerisé le projet. Ce qui est **dans ta pull request** : `docker-compose.yml` à la racine, `agent_ia/Dockerfile`,
 et le service `agent_ia` dans `infra/docker-compose.prod.yml`. **Si tu as autre chose en local, non poussé** (Dockerfile modifiés, autre
@@ -121,7 +121,7 @@ les résolvant :
 
 Fait quand : une seule branche porte ta dockerisation et les corrections, et les contrôles de 4.1 passent encore.
 
-### 4.3 `DK-1` La pile complète sous Docker (c'est la première vraie construction)
+### 4.3 `DK-1` La pile complète sous Docker (c'est la première vraie construction) — Fallou ou toute personne qui a Docker (un Codespace suffit)
 
 Dans un Codespace ou sur un poste avec Docker :
 
@@ -145,7 +145,7 @@ résultat réel de chaque ligne** :
 Fait quand : le tableau est rempli avec de vrais résultats dans le journal de la passation, et tout défaut trouvé est corrigé (un
 changement = un test).
 
-### 4.4 `IA-6` Essai réel avec Gemini
+### 4.4 `IA-6` Essai réel avec Gemini — Fallou (la clé reste hors de git)
 
 1. Crée une clé dans Google AI Studio **liée à un compte avec facturation** (voir 4.5), mets-la dans `.env` (`AI_API_KEY=…`), jamais ailleurs.
 2. Essaie les routes à la main (Annexe B de la passation), et `AI_PROVIDER=agent_ia` en premier.
@@ -158,7 +158,7 @@ changement = un test).
 Fait quand : une esquisse, une complétion, un audit et un échange de conseiller réels ont réussi, avec latence et coût notés dans
 `docs/IA.md` § 2.
 
-### 4.5 `PR3-3` Les décisions de compte et de données (avec Ibrahima)
+### 4.5 `PR3-3` Les décisions de compte et de données — Ibrahima décide, Fallou applique
 
 Conditions de l'API Gemini lues le 04/11/2026 (en vigueur le 23 mars 2026) : **niveau gratuit** = Google peut réutiliser ce qu'on envoie
 et des relecteurs humains peuvent le lire, et il est demandé de ne pas envoyer d'information personnelle ; **niveau payant** = pas de
@@ -170,7 +170,7 @@ réutilisation. Cette lecture est un résumé d'outil : relis les conditions toi
 - Cocher ou corriger les cases de `docs/IA.md` § 2 une fois chacune vérifiée.
 - Valider ou corriger **tes** lignes de `docs/IA.md` § 1 et § 3 (« à confirmer »).
 
-### 4.6 `PR3-4` Essayer l'interface dans un navigateur, avec Fall
+### 4.6 `PR3-4` Essayer l'interface dans un navigateur — Fall (propriétaire de `frontend/`) avec Fallou
 
 Fall est le propriétaire de `frontend/` : il relit `3ded844` (`studio/page.tsx`, `ChatbotPanel.tsx`, `FloatingChatWidget.tsx`). Essais à
 faire à la main, serveur lancé :
@@ -187,7 +187,7 @@ faire à la main, serveur lancé :
 Fait quand : chaque ligne est essayée et corrigée si elle ne se comporte pas ainsi. Idéal : un scénario `e2e/` pour l'IA avec
 `AI_PROVIDER=fake`.
 
-### 4.7 `PR3-5` Pull requests et fusion, dans cet ordre
+### 4.7 `PR3-5` Pull requests et fusion, dans cet ordre — Ibrahima (pousser, ouvrir ou fusionner une pull request, écrire à l'organisateur : jamais un assistant seul)
 
 1. **La pull request n° 2 d'abord** (`backend` → `main`) : elle n'a aucune relecture. Fusion par « merge commit », jamais « squash ».
 2. Remettre `fix/ia-agent-revue` dans ta pull request : soit Ibrahima fait un `git push` de cette branche vers `ia_agent` (avance rapide,
@@ -200,7 +200,7 @@ Fait quand : chaque ligne est essayée et corrigée si elle ne se comporte pas a
    `docs/LICENCES-TIERCES.md` § 2 ; la question est écrite dans `docs/QUESTIONS-ORGANISATEUR.md`. **Rien n'est décidé** : Ibrahima l'envoie à
    l'organisateur. Repli si c'est refusé : remplacer HTTPX par un client HTTP sans `certifi`.
 
-### 4.8 `IA-9` La démo de secours
+### 4.8 `IA-9` La démo de secours — Fallou, avec Ibrahima pour le parcours général
 
 Au cas où Gemini serait indisponible le jour du jury : une courte vidéo ou des captures d'une esquisse et d'un audit réussis. Le script
 `e2e/manuel/demo-video.mjs` (sur `backend`, donc après la fusion 4.7) filme le parcours général ; ajoute l'IA une fois 4.3 et 4.4 faites.
