@@ -121,7 +121,7 @@ La pull request n° 2 (`backend` vers `main`, https://github.com/Pouye15/Lonkoo/
 | Onglet « Analyse IA » de l'interface | **données de démonstration locales** (aucun appel à l'API) | non |
 | Communauté (profils, revues, commentaires, Fork), Revues, MCP, Orion | maquettes (seule la galerie publique est réelle) | non |
 | Mise en ligne de LONKOO (compose de production, Caddy, pipeline, sauvegarde et restauration) | écrite ; la CI démarre la pile de production, sauvegarde et restaure | **jamais sur un serveur** : il n'y en a pas encore |
-| Qualité | 370 tests Java (1 ignoré), 50 temps réel, 71 interface, 71 vérifications navigateur ; CI 12 jobs ; SBOM CycloneDX ; contrôle des licences ; gitleaks | CI verte |
+| Qualité | 403 tests Java (1 ignoré), 50 temps réel, 79 interface, 65 agent IA (Python), 71 vérifications navigateur (non relancées depuis le 25/10) ; CI 13 jobs (dont « Python (agent_ia) », non encore exécuté sur GitHub) ; SBOM CycloneDX ; contrôle des licences ; gitleaks | CI verte |
 
 Le détail des constats (A-01 à A-16) et des preuves est dans `docs/AUDIT-ET-ROADMAP-BACKEND.md`.
 
@@ -249,10 +249,11 @@ Ouvrez <http://localhost:3000>, « Essayer sans compte » : le modèle d'exemple
 
 | Quoi | Commande | Attendu au 25/10 |
 |---|---|---|
-| Backend (PostgreSQL embarqué, sans Docker) | `cd backend && ./mvnw test` | 370 tests, 1 ignoré, 0 échec (environ 3 minutes) |
+| Backend (PostgreSQL embarqué, sans Docker) | `cd backend && ./mvnw test` | 403 tests, 1 ignoré, 0 échec (environ 4 minutes) |
 | Seulement l'IA | `cd backend && ./mvnw test -Dtest='Ai*'` | moins d'une minute |
 | Temps réel | `cd realtime && npm test` | 50 tests |
-| Interface | `cd frontend && npm test && npm run lint && npm run typecheck` | 71 tests, lint et types sans erreur |
+| Interface | `cd frontend && npm test && npm run lint && npm run typecheck` | 79 tests, lint et types sans erreur |
+| Agent IA (Python) | `cd agent_ia && pip install --require-hashes -r requirements.lock && pip install -r requirements-dev.txt && python -m pytest` | 65 tests |
 | Parcours dans un navigateur | `cd e2e && npm ci && npm run install-browser && npm run e2e` (contre l'application qui tourne) | 71 vérifications |
 | Inventaire des composants (SBOM) | `python3 scripts/make_sbom.py --verify` | échoue si `docs/sbom/` ne correspond plus aux dépendances |
 | Contrat OpenAPI | `python3 -m pip install openapi-spec-validator && python3 -m openapi_spec_validator docs/openapi.yaml` | `OK` |
@@ -613,6 +614,7 @@ Comptes GitHub qui ont un accès *Write* au 25/10 : `mouhaa-md`, `mifall-cloud`,
 | Date | Qui | Fait | Bloqué ou à décider | Prochaine action |
 |---|---|---|---|---|
 | 2026-10-25 | Ibrahima | Ce document ; audit des derniers travaux (A-12 à A-16) ; quota de l'IA (`ai_usage`, V20) ; revérification des accès temps réel ; mise en ligne (R7) fusionnée dans la branche ; essai réel contre GitHub ; pull request n° 2 à jour, CI verte (12 jobs) ; script manuel `e2e/manuel/github-reel.mjs` | Serigne Fallou n'est pas encore collaborateur du dépôt ; pull request n° 2 sans relecteur ; aucun serveur | pousser, inviter Serigne Fallou, faire relire la pull request n° 2 |
+| 2026-11-04 | Ibrahima (avec Claude Code) | Relecture de la pull request n° 3 de Fallou (`ia_agent`, étapes `IA-1` à `IA-4` et `IA-8`) et correctifs dans la branche locale `fix/ia-agent-revue` : jeton de service obligatoire (agent fermé sans jeton, jeton propre, refus de démarrer en production sans lui), audit et conseiller sans réponse ni chiffre inventés (l'interface fabriquait une analyse et des réponses quand le serveur échouait), 65 tests Python, dépendances figées avec empreintes, SBOM et contrôle de licences Python dans la CI, réseau Docker réservé à l'agent, `docs/IA.md` rétabli et corrigé | `IA-6` (vraie clé Gemini, modèle JSON à essayer) ; compte Google payant ou non ; `certifi` (MPL-2.0) : question à l'organisateur ; Docker jamais essayé sur ces changements ; ces correctifs ne sont pas encore poussés | pousser `fix/ia-agent-revue` (sur `ia_agent` ou en pull request vers elle, avec l'accord de Fallou), faire relire par Fall l'onglet « Analyse IA » et le conseiller, puis `IA-6` et `IA-9` |
 | | | | | |
 
 ---
