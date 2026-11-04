@@ -37,6 +37,7 @@ public class ConfigurationCheck {
     private final String aiProvider;
     private final String aiApiKey;
     private final String aiModel;
+    private final String aiServiceToken;
 
     @Autowired
     public ConfigurationCheck(
@@ -50,9 +51,10 @@ public class ConfigurationCheck {
             @Value("${github.oauth.redirect-uri}") String githubRedirectUri,
             @Value("${lonkoo.ai.provider:off}") String aiProvider,
             @Value("${lonkoo.ai.api-key:}") String aiApiKey,
-            @Value("${lonkoo.ai.model:}") String aiModel) {
+            @Value("${lonkoo.ai.model:}") String aiModel,
+            @Value("${lonkoo.ai.service-token:}") String aiServiceToken) {
         this(environment.acceptsProfiles(Profiles.of("prod")), databasePassword, ticketSecret, serviceToken, publicUrl,
-                githubClientId, githubClientSecret, githubRedirectUri, aiProvider, aiApiKey, aiModel);
+                githubClientId, githubClientSecret, githubRedirectUri, aiProvider, aiApiKey, aiModel, aiServiceToken);
     }
 
     /** Constructeur de test : des valeurs GitHub neutres empêchent les contrôles OAuth d'interférer. */
@@ -73,6 +75,13 @@ public class ConfigurationCheck {
     public ConfigurationCheck(boolean production, String databasePassword, String ticketSecret, String serviceToken,
             String publicUrl, String githubClientId, String githubClientSecret, String githubRedirectUri,
             String aiProvider, String aiApiKey, String aiModel) {
+        this(production, databasePassword, ticketSecret, serviceToken, publicUrl,
+                githubClientId, githubClientSecret, githubRedirectUri, aiProvider, aiApiKey, aiModel, "");
+    }
+
+    public ConfigurationCheck(boolean production, String databasePassword, String ticketSecret, String serviceToken,
+            String publicUrl, String githubClientId, String githubClientSecret, String githubRedirectUri,
+            String aiProvider, String aiApiKey, String aiModel, String aiServiceToken) {
         this.production = production;
         this.databasePassword = databasePassword;
         this.ticketSecret = ticketSecret;
@@ -84,6 +93,7 @@ public class ConfigurationCheck {
         this.aiProvider = aiProvider;
         this.aiApiKey = aiApiKey;
         this.aiModel = aiModel;
+        this.aiServiceToken = aiServiceToken;
     }
 
     @PostConstruct
@@ -146,6 +156,22 @@ public class ConfigurationCheck {
                     problems.add("AI_MODEL est vide alors qu'un fournisseur d'IA est configuré");
                 } else if (isPlaceholder(aiModel)) {
                     problems.add("AI_MODEL porte une valeur d'exemple");
+                }
+            }
+            if ("agent_ia".equalsIgnoreCase(aiProvider)) {
+                // Un secret par service : l'agent refuse tout appel sans son propre jeton, et il ne partage pas celui du temps réel.
+                if (aiServiceToken == null || aiServiceToken.isBlank()) {
+                    problems.add("AI_SERVICE_TOKEN est vide alors que l'agent IA est utilisé");
+                } else {
+                    if (isPlaceholder(aiServiceToken)) {
+                        problems.add("AI_SERVICE_TOKEN porte une valeur d'exemple");
+                    }
+                    if (aiServiceToken.length() < MIN_SERVICE_TOKEN_LENGTH) {
+                        problems.add("AI_SERVICE_TOKEN doit faire au moins " + MIN_SERVICE_TOKEN_LENGTH + " caractères");
+                    }
+                    if (aiServiceToken.equals(serviceToken) || aiServiceToken.equals(ticketSecret)) {
+                        problems.add("AI_SERVICE_TOKEN doit être différent de REALTIME_SERVICE_TOKEN et de REALTIME_TICKET_SECRET");
+                    }
                 }
             }
         }

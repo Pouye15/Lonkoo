@@ -1,9 +1,9 @@
+import hmac
 import json
 import logging
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 from fastapi import FastAPI, Header, HTTPException, status
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
 from gemini import GeminiClient
@@ -30,21 +30,23 @@ app = FastAPI(
     version="1.2.0",
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Pas de CORS : seul le backend appelle ce service, jamais un navigateur.
 
-SERVICE_TOKEN = os.getenv("AI_SERVICE_TOKEN", os.getenv("REALTIME_SERVICE_TOKEN", ""))
+# Jeton propre à ce service (jamais celui du temps réel : un secret par service).
+SERVICE_TOKEN = os.getenv("AI_SERVICE_TOKEN", "")
+if not SERVICE_TOKEN:
+    logger.error("AI_SERVICE_TOKEN est vide : toutes les routes (sauf /health) répondront 503 tant qu'il n'est pas défini.")
 gemini_client = GeminiClient()
 
 
 def verify_service_token(x_service_token: str = Header(default="")):
-    """Vérifie le jeton de service interne s'il est configuré."""
-    if SERVICE_TOKEN and x_service_token != SERVICE_TOKEN:
+    """Refuse tout appel sans le bon jeton de service ; sans jeton configuré, refuse tout (jamais d'accès ouvert)."""
+    if not SERVICE_TOKEN:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service non configuré : AI_SERVICE_TOKEN est vide."
+        )
+    if not hmac.compare_digest(x_service_token.encode("utf-8"), SERVICE_TOKEN.encode("utf-8")):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Accès interdit : jeton de service invalide"
@@ -74,7 +76,7 @@ async def complete(req: CompleteRequest, x_service_token: str = Header(default="
     node_filter = f"\n\nBlocs ciblés par la demande : {', '.join(req.nodeIds)}" if req.nodeIds else ""
     user_prompt = (
         f"Voici l'état actuel de l'architecture du canvas (au format JSON) :\n"
-        f"{req.snapshot}"
+        f"{_snapshot_json(req.snapshot)}"
         f"{node_filter}\n\n"
         f"Consigne d'évolution : {req.instruction or 'Complète et améliore logiquement cette architecture.'}"
     )
@@ -86,7 +88,7 @@ async def complete(req: CompleteRequest, x_service_token: str = Header(default="
 async def audit(req: AuditRequest, x_service_token: str = Header(default="")):
     verify_service_token(x_service_token)
     snapshot = req.snapshot or {}
-    user_prompt = f"Voici le canvas d'architecture à auditer (au format JSON) :\n{snapshot}"
+    user_prompt = f"Voici le canvas d'architecture à auditer (au format JSON) :\n{_snapshot_json(snapshot)}"
 
     messages = [
         {"role": "system", "content": AUDIT_SYSTEM_PROMPT},
@@ -96,54 +98,65 @@ async def audit(req: AuditRequest, x_service_token: str = Header(default="")):
     raw_output = await gemini_client.call_llm(messages, json_format=True)
     parsed = gemini_client._extract_json(raw_output)
 
-    existing_node_ids = {n.get("id") for n in snapshot.get("nodes", []) if isinstance(n, dict)}
+    nodes = snapshot.get("nodes")
+    existing_node_ids = {n.get("id") for n in nodes if isinstance(n, dict)} if isinstance(nodes, list) else set()
+
+    findings, discarded = parse_findings(parsed, existing_node_ids)
+    return AuditResponse(findings=findings, discarded=discarded, demo=False)
+
+
+def _snapshot_json(snapshot: Dict[str, Any]) -> str:
+    """L'instantané en vrai JSON (et non la représentation Python d'un dictionnaire : guillemets simples, True, None)."""
+    return json.dumps(snapshot, ensure_ascii=False)
+
+
+def _text(value: Any) -> str:
+    return value.strip() if isinstance(value, str) else ""
+
+
+def parse_findings(parsed: Any, existing_node_ids: set) -> Tuple[List[AiFinding], int]:
+    """Garde les remarques complètes et valides ; les autres sont écartées et comptées, jamais corrigées ni complétées.
+
+    Une réponse qui n'est pas une liste de remarques n'est pas un audit « sans remarque » : elle est refusée (502).
+    """
+    raw = parsed.get("findings") if isinstance(parsed, dict) else None
+    if not isinstance(raw, list):
+        logger.error("Audit : la réponse du fournisseur ne contient pas de liste de remarques")
+        raise HTTPException(status_code=502, detail="Réponse invalide du fournisseur d'IA : aucune liste de remarques.")
 
     findings: List[AiFinding] = []
     discarded = 0
-
-    for idx, item in enumerate(parsed.get("findings", []), start=1):
-        target = item.get("targetNodeId")
-        if not target or target not in existing_node_ids:
+    for idx, item in enumerate(raw, start=1):
+        finding = _finding_from(item, idx, existing_node_ids)
+        if finding is None:
             discarded += 1
-            continue
+        else:
+            findings.append(finding)
+    return findings, discarded
 
-        try:
-            sev = FindingSeverity(item.get("severity", "RECOMMENDED").upper())
-        except Exception:
-            sev = FindingSeverity.RECOMMENDED
 
-        try:
-            cat = FindingCategory(item.get("category", "STACK").upper())
-        except Exception:
-            cat = FindingCategory.STACK
-
-        patch = item.get("patch")
-        if not patch or not isinstance(patch, dict):
-            proposed = item.get("proposedConfig", "")
-            patch = {
-                "tech": proposed[:40] if proposed else "Stack Optimisée",
-                "version": "ha-latest",
-                "replicas": 2,
-                "status": "Optimisé",
-                "metricValue": "+35% RPS",
-            }
-
-        findings.append(
-            AiFinding(
-                id=item.get("id") or f"remarque_{idx}",
-                severity=sev,
-                category=cat,
-                title=item.get("title") or "Remarque d'architecture",
-                targetNodeId=target,
-                rationale=item.get("rationale") or "",
-                currentConfig=item.get("currentConfig") or "",
-                proposedConfig=item.get("proposedConfig") or "",
-                patch=patch,
-                impactScore=item.get("impactScore") or "+14 pts Score IA",
-            )
-        )
-
-    return AuditResponse(findings=findings, discarded=discarded, demo=False)
+def _finding_from(item: Any, idx: int, existing_node_ids: set):
+    if not isinstance(item, dict):
+        return None
+    target = item.get("targetNodeId")
+    title = _text(item.get("title"))
+    if not isinstance(target, str) or target not in existing_node_ids or not title:
+        return None
+    try:
+        severity = FindingSeverity(_text(item.get("severity")).upper())
+        category = FindingCategory(_text(item.get("category")).upper())
+    except ValueError:
+        return None
+    return AiFinding(
+        id=_text(item.get("id")) or f"remarque_{idx}",
+        severity=severity,
+        category=category,
+        title=title,
+        targetNodeId=target,
+        rationale=_text(item.get("rationale")),
+        currentConfig=_text(item.get("currentConfig")),
+        proposedConfig=_text(item.get("proposedConfig")),
+    )
 
 
 def _build_chat_messages(req: ChatRequest) -> List[Dict[str, str]]:
@@ -180,18 +193,14 @@ def _extract_suggestions(last_user_msg: str, reply: str) -> List[str]:
         suggested.append("Générer mon site avec Orion (Systalink)")
     if "mcp" in lower_r:
         suggested.append("Activer la Connexion MCP sur mon infrastructure")
-    if "base" in lower_r or "database" in lower_r or "postgres" in lower_r:
-        suggested.append("Héberger PostgreSQL sur DBaaS Systalink (Dakar)")
-    if "sécurité" in lower_r or "security" in lower_r or "ddos" in lower_r:
-        suggested.append("Activer la protection anti-DDoS Systalink")
     if "cache" in lower_r or "redis" in lower_r:
         suggested.append("Ajouter un composant Redis/Valkey pour le cache")
 
     if not suggested:
         suggested = [
             "Conseils pour mon architecture",
-            "Plan de déploiement sur VPS Dakar",
-            "Piloter mon infrastructure avec Yokk & MCP"
+            "Plan de déploiement sur un serveur cloud",
+            "Brancher des agents IA avec la Connexion MCP"
         ]
 
     return suggested[:3]

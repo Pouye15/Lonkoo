@@ -97,7 +97,7 @@ services:
       timeout: 5s
       retries: 6
       start_period: 60s
-    networks: [web, data]
+    networks: [web, data, ia]
     logging: *journaux
     mem_limit: 1536m
     <<: *durcissement
@@ -113,14 +113,13 @@ services:
       AI_BASE_URL:
       AI_MODEL:
       AI_SERVICE_TOKEN:
-      REALTIME_SERVICE_TOKEN:
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')\""]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 20s
-    networks: [data, web]
+    networks: [ia]
     logging: *journaux
     mem_limit: 512m
     <<: *durcissement
@@ -212,6 +211,9 @@ networks:
   data:
     # Pas d'accès à Internet depuis ce réseau : PostgreSQL ne sort jamais.
     internal: true
+  ia:
+    # Seuls le backend et l'agent IA s'y trouvent : ni Caddy, ni l'interface, ni le temps réel ne joignent l'agent.
+    # Réseau ordinaire (pas « internal ») : l'agent doit pouvoir appeler le fournisseur d'IA sur Internet.
 
 volumes:
   pgdata:

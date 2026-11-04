@@ -9,7 +9,6 @@ import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -219,18 +218,7 @@ public class GeminiAiClient implements AiClient {
         if (array.isArray()) {
             int index = 1;
             for (JsonNode item : array) {
-                String id = item.path("id").asText("remarque_" + index++);
-                AiFinding.Severity severity = parseSeverity(item.path("severity").asText("RECOMMENDED"));
-                AiFinding.Category category = parseCategory(item.path("category").asText("STACK"));
-                String title = item.path("title").asText("Remarque d'architecture");
-                String targetNodeId = item.path("targetNodeId").asText(null);
-                String rationale = item.path("rationale").asText("");
-                String currentConfig = item.path("currentConfig").asText("");
-                String proposedConfig = item.path("proposedConfig").asText("");
-
-                if (targetNodeId != null && !targetNodeId.isBlank()) {
-                    findings.add(new AiFinding(id, severity, category, title, targetNodeId, rationale, currentConfig, proposedConfig));
-                }
+                AiFindingParser.parse(item, index++).ifPresent(findings::add);
             }
         }
         return findings;
@@ -399,21 +387,5 @@ public class GeminiAiClient implements AiClient {
             return node.get("summary").asText();
         }
         return defaultSummary;
-    }
-
-    private static AiFinding.Severity parseSeverity(String value) {
-        try {
-            return AiFinding.Severity.valueOf(value.toUpperCase(Locale.ROOT));
-        } catch (Exception e) {
-            return AiFinding.Severity.RECOMMENDED;
-        }
-    }
-
-    private static AiFinding.Category parseCategory(String value) {
-        try {
-            return AiFinding.Category.valueOf(value.toUpperCase(Locale.ROOT));
-        } catch (Exception e) {
-            return AiFinding.Category.STACK;
-        }
     }
 }

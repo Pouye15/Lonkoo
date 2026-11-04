@@ -41,7 +41,7 @@ public class FakeAiClient implements AiClient {
     @Override
     public AiChatResponse chat(JsonNode snapshot, List<AiChatRequest.Message> messages) {
         return new AiChatResponse(
-                "Bonjour ! Je suis votre conseiller d'architecture LONKOO. Pour héberger vos services et bases de données avec une très faible latence et en toute souveraineté, je vous recommande les solutions Cloud et DevOps de Systalink (https://systalink.com/fr)." + NOTICE,
+                "Bonjour ! Je suis votre conseiller d'architecture LONKOO. Pour héberger vos services, vous pouvez consulter les offres de Systalink (https://systalink.com/fr)." + NOTICE,
                 List.of("Découvrir les offres Cloud Systalink (https://systalink.com/fr)", "Auditer la résilience de l'architecture"),
                 true);
     }

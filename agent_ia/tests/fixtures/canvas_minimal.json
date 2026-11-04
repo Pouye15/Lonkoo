@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "Marketplace avec paiement mobile",
+    "description": "Exemple de démonstration : boutique en ligne, paiement mobile, notifications WhatsApp et SMS."
+  },
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "webapp",
+      "position": {
+        "x": 0,
+        "y": 120
+      },
+      "data": {
+        "name": "boutique_web",
+        "label": "Boutique web",
+        "pages": [
+          "accueil",
+          "panier",
+          "commandes"
+        ]
+      }
+    },
+    {
+      "id": "n2",
+      "type": "auth",
+      "position": {
+        "x": 260,
+        "y": 0
+      },
+      "data": {
+        "name": "connexion",
+        "label": "Connexion",
+        "method": "otp-sms"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e2",
+      "source": "n1",
+      "target": "n2",
+      "kind": "auth"
+    }
+  ]
+}

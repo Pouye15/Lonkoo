@@ -58,7 +58,7 @@ class GeminiClient:
                 logger.error("Délai d'attente dépassé vers le fournisseur LLM")
                 raise HTTPException(status_code=504, detail="Le fournisseur d'IA n'a pas répondu à temps.")
             except httpx.RequestError as exc:
-                logger.error("Erreur réseau vers le fournisseur LLM : %s", exc)
+                logger.error("Erreur réseau vers le fournisseur LLM : %s", self._redact(str(exc)))
                 raise HTTPException(status_code=502, detail="Fournisseur d'IA injoignable.")
 
         if response.status_code == 429:
@@ -70,7 +70,7 @@ class GeminiClient:
             raise HTTPException(status_code=503, detail="Clé d'API du fournisseur d'IA invalide ou refusée.")
 
         if response.status_code != 200:
-            logger.error("Réponse d'erreur du fournisseur d'IA : %d - %s", response.status_code, response.text[:200])
+            logger.error("Réponse d'erreur du fournisseur d'IA : %d - %s", response.status_code, self._redact(response.text[:200]))
             raise HTTPException(status_code=502, detail="Erreur du fournisseur d'IA.")
 
         try:
@@ -79,6 +79,10 @@ class GeminiClient:
         except Exception as e:
             logger.error("Structure de réponse LLM inattendue : %s", e)
             raise HTTPException(status_code=502, detail="Réponse invalide du fournisseur d'IA.")
+
+    def _redact(self, text: str) -> str:
+        """Masque la clé d'API dans un texte destiné aux journaux (un fournisseur peut la répéter dans une erreur)."""
+        return text.replace(self.api_key, "***") if self.api_key else text
 
     async def stream_llm(
         self,
@@ -107,7 +111,7 @@ class GeminiClient:
                 async with client.stream("POST", endpoint, json=body, headers=headers) as response:
                     if response.status_code != 200:
                         error_text = await response.aread()
-                        logger.error("Erreur stream LLM : %d - %s", response.status_code, error_text[:200])
+                        logger.error("Erreur stream LLM : %d - %s", response.status_code, self._redact(error_text.decode("utf-8", "replace")[:200]))
                         yield f"data: {json.dumps({'error': 'Erreur du fournisseur IA'})}\n\n"
                         return
 
@@ -128,8 +132,8 @@ class GeminiClient:
                             except Exception:
                                 continue
             except Exception as e:
-                logger.error("Exception streaming LLM: %s", e)
-                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                logger.error("Exception streaming LLM: %s", self._redact(str(e)))
+                yield f"data: {json.dumps({'error': 'Erreur du fournisseur IA'})}\n\n"
 
     async def ask_for_canvas(self, system_prompt: str, user_content: str) -> Dict[str, Any]:
         """Génère un canvas avec tentative unique de reprise si le contrat est violé."""

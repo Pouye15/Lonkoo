@@ -49,8 +49,6 @@ class AiFinding(BaseModel):
     rationale: str
     currentConfig: str
     proposedConfig: str
-    patch: Optional[Dict[str, Any]] = None
-    impactScore: Optional[str] = None
 
 
 class ProposalResponse(BaseModel):

@@ -138,6 +138,47 @@ class ConfigurationCheckTest {
         assertThat(fakeOrOff.problems()).isEmpty();
     }
 
+    private static ConfigurationCheck productionWithAgent(String aiServiceToken) {
+        return new ConfigurationCheck(true, "un-mot-de-passe-solide", SECRET, TOKEN, "https://lonkoo.example.org",
+                "Iv1.id", "secret", "https://lonkoo.example.org/api/auth/github/callback",
+                "agent_ia", "AIzaSySolide", "gemini-3.8-flash", aiServiceToken);
+    }
+
+    @Test
+    void theAgentServiceTokenIsRequiredAndDistinctInProduction() {
+        assertThat(productionWithAgent("jeton-de-l-agent-ia-0123456789").problems()).isEmpty();
+
+        // Le piège d'origine : un jeton vide désactivait la vérification côté agent et ouvrait le service à tout le réseau.
+        assertThat(productionWithAgent("").problems())
+                .containsExactly("AI_SERVICE_TOKEN est vide alors que l'agent IA est utilisé");
+        assertThat(productionWithAgent(null).problems())
+                .containsExactly("AI_SERVICE_TOKEN est vide alors que l'agent IA est utilisé");
+
+        assertThat(productionWithAgent("change-me-agent-0123456789").problems())
+                .containsExactly("AI_SERVICE_TOKEN porte une valeur d'exemple");
+        assertThat(productionWithAgent("trop-court").problems())
+                .containsExactly("AI_SERVICE_TOKEN doit faire au moins 16 caractères");
+
+        // Un secret par service : celui du temps réel ne sert pas aussi à l'agent.
+        assertThat(productionWithAgent(TOKEN).problems())
+                .containsExactly("AI_SERVICE_TOKEN doit être différent de REALTIME_SERVICE_TOKEN et de REALTIME_TICKET_SECRET");
+        assertThat(productionWithAgent(SECRET).problems())
+                .containsExactly("AI_SERVICE_TOKEN doit être différent de REALTIME_SERVICE_TOKEN et de REALTIME_TICKET_SECRET");
+    }
+
+    @Test
+    void theAgentServiceTokenIsNotCheckedForOtherProvidersOrOutsideProduction() {
+        var gemini = new ConfigurationCheck(true, "un-mot-de-passe-solide", SECRET, TOKEN, "https://lonkoo.example.org",
+                "Iv1.id", "secret", "https://lonkoo.example.org/api/auth/github/callback",
+                "gemini", "AIzaSySolide", "gemini-3.8-flash", "");
+        assertThat(gemini.problems()).isEmpty();
+
+        var development = new ConfigurationCheck(false, "change-me", SECRET, TOKEN, "http://localhost:3000",
+                "Iv1.id", "secret", "http://localhost:3000/api/auth/github/callback",
+                "agent_ia", "", "", "");
+        assertThat(development.problems()).doesNotContain("AI_SERVICE_TOKEN est vide alors que l'agent IA est utilisé");
+    }
+
     @Test
     void theProductionProfileMakesTheSessionCookieSecure() throws IOException {
         Properties prod = new Properties();

@@ -9,7 +9,6 @@ import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +42,7 @@ public class AgentIaClient implements AiClient {
     @Autowired
     public AgentIaClient(
             @Value("${lonkoo.ai.agent-url:http://agent_ia:8000}") String baseUrl,
-            @Value("${lonkoo.ai.service-token:${realtime.service-token:}}") String serviceToken,
+            @Value("${lonkoo.ai.service-token:}") String serviceToken,
             @Value("${lonkoo.ai.timeout-seconds:30}") int timeoutSeconds) {
         this(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build(),
                 baseUrl, serviceToken, Duration.ofSeconds(timeoutSeconds));
@@ -55,6 +54,9 @@ public class AgentIaClient implements AiClient {
         this.baseUrl = resolved.endsWith("/") ? resolved.substring(0, resolved.length() - 1) : resolved;
         this.serviceToken = serviceToken;
         this.timeout = timeout;
+        if (serviceToken == null || serviceToken.isBlank()) {
+            log.warn("AI_SERVICE_TOKEN est vide : l'agent IA refusera les appels (le jeton du temps réel n'est jamais réutilisé).");
+        }
     }
 
     @Override
@@ -94,19 +96,9 @@ public class AgentIaClient implements AiClient {
         List<AiFinding> findings = new ArrayList<>();
         JsonNode array = res.path("findings");
         if (array.isArray()) {
+            int index = 1;
             for (JsonNode item : array) {
-                String id = item.path("id").asText();
-                AiFinding.Severity severity = parseSeverity(item.path("severity").asText("RECOMMENDED"));
-                AiFinding.Category category = parseCategory(item.path("category").asText("STACK"));
-                String title = item.path("title").asText("");
-                String targetNodeId = item.path("targetNodeId").asText("");
-                String rationale = item.path("rationale").asText("");
-                String currentConfig = item.path("currentConfig").asText("");
-                String proposedConfig = item.path("proposedConfig").asText("");
-
-                if (!targetNodeId.isBlank()) {
-                    findings.add(new AiFinding(id, severity, category, title, targetNodeId, rationale, currentConfig, proposedConfig));
-                }
+                AiFindingParser.parse(item, index++).ifPresent(findings::add);
             }
         }
         return findings;
@@ -236,22 +228,6 @@ public class AgentIaClient implements AiClient {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new AiUnavailableException("L'appel IA a été interrompu.");
-        }
-    }
-
-    private static AiFinding.Severity parseSeverity(String value) {
-        try {
-            return AiFinding.Severity.valueOf(value.toUpperCase(Locale.ROOT));
-        } catch (Exception e) {
-            return AiFinding.Severity.RECOMMENDED;
-        }
-    }
-
-    private static AiFinding.Category parseCategory(String value) {
-        try {
-            return AiFinding.Category.valueOf(value.toUpperCase(Locale.ROOT));
-        } catch (Exception e) {
-            return AiFinding.Category.STACK;
         }
     }
 }

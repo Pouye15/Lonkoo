@@ -61,7 +61,7 @@ services:
       JOB_STALE_MINUTES: ${JOB_STALE_MINUTES:-30}
       AI_PROVIDER: ${AI_PROVIDER:-agent_ia}
       AI_AGENT_URL: http://agent_ia:8000
-      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:-lonkoo_dev_service_token_16_chars_min}
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:-lonkoo_dev_ai_token_0123456789}
       AI_BASE_URL: ${AI_BASE_URL:-}
       AI_DAILY_QUOTA: ${AI_DAILY_QUOTA:-30}
       AI_GUEST_DAILY_QUOTA: ${AI_GUEST_DAILY_QUOTA:-100}
@@ -84,6 +84,7 @@ services:
     networks:
       - data
       - web
+      - ia
 
   agent_ia:
     build:
@@ -95,8 +96,7 @@ services:
       AI_API_KEY: ${AI_API_KEY:-}
       AI_BASE_URL: ${AI_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai}
       AI_MODEL: ${AI_MODEL:-gemini-3.8-flash}
-      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:-lonkoo_dev_service_token_16_chars_min}
-      REALTIME_SERVICE_TOKEN: ${REALTIME_SERVICE_TOKEN:-lonkoo_dev_service_token_16_chars_min}
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:-lonkoo_dev_ai_token_0123456789}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')\""]
       interval: 10s
@@ -104,8 +104,7 @@ services:
       retries: 5
       start_period: 15s
     networks:
-      - data
-      - web
+      - ia
 
   realtime:
     build:
@@ -182,6 +181,9 @@ services:
 networks:
   web:
   data:
+  ia:
+    # Seuls le backend et l'agent IA s'y trouvent : ni Caddy, ni l'interface, ni le temps réel ne joignent l'agent.
+    # Réseau ordinaire (pas « internal ») : l'agent doit pouvoir appeler le fournisseur d'IA sur Internet.
 
 volumes:
   pgdata:
