@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "Marketplace avec paiement mobile",
+    "description": "Exemple de démonstration : boutique en ligne, paiement mobile, notifications WhatsApp et SMS."
+  },
+  "nodes": [
+    { "id": "n1", "type": "webapp", "position": { "x": 0, "y": 120 }, "data": { "name": "boutique_web", "label": "Boutique web", "pages": ["accueil", "panier", "commandes"] } },
+    { "id": "n2", "type": "auth", "position": { "x": 260, "y": 0 }, "data": { "name": "connexion", "label": "Connexion", "method": "otp-sms" } },
+    {
+      "id": "n3", "type": "service", "position": { "x": 260, "y": 240 },
+      "data": {
+        "name": "api_marketplace", "label": "API marketplace",
+        "endpoints": [
+          { "method": "GET", "path": "/produits", "summary": "Lister les produits" },
+          { "method": "POST", "path": "/commandes", "summary": "Créer une commande" }
+        ]
+      }
+    },
+    {
+      "id": "n4", "type": "database", "position": { "x": 540, "y": 240 },
+      "data": {
+        "name": "marketplace_db", "label": "Base marketplace", "engine": "postgresql",
+        "entities": [
+          { "name": "produit", "fields": [
+            { "name": "nom", "type": "string", "required": true },
+            { "name": "prix", "type": "decimal", "required": true },
+            { "name": "stock", "type": "integer" }
+          ] },
+          { "name": "commande", "fields": [
+            { "name": "reference", "type": "string", "required": true, "unique": true },
+            { "name": "total", "type": "decimal", "required": true },
+            { "name": "cree_le", "type": "datetime", "required": true }
+          ] }
+        ]
+      }
+    },
+    { "id": "n5", "type": "mobile-payment", "position": { "x": 540, "y": 400 }, "data": { "name": "paiement_mobile", "label": "Paiement mobile", "currency": "XOF", "flow": "collect" } },
+    {
+      "id": "n6", "type": "messaging", "position": { "x": 540, "y": 80 },
+      "data": {
+        "name": "notifications", "label": "Notifications WhatsApp", "channel": "whatsapp",
+        "templates": [ { "name": "commande_confirmee", "text": "Votre commande est confirmée." } ]
+      }
+    },
+    { "id": "n7", "type": "billing", "position": { "x": 800, "y": 400 }, "data": { "name": "facturation", "label": "Facturation", "model": "one-time", "currency": "XOF" } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "n1", "target": "n3", "kind": "http", "label": "appelle l'API" },
+    { "id": "e2", "source": "n1", "target": "n2", "kind": "auth" },
+    { "id": "e3", "source": "n3", "target": "n4", "kind": "data" },
+    { "id": "e4", "source": "n3", "target": "n5", "kind": "http", "label": "demande un paiement" },
+    { "id": "e5", "source": "n3", "target": "n6", "kind": "event", "label": "commande confirmée" },
+    { "id": "e6", "source": "n5", "target": "n7", "kind": "event", "label": "paiement reçu" }
+  ]
+}

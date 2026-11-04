@@ -1,0 +1,67 @@
+# ===== Secrets (ne jamais committer) =====
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+id_rsa*
+id_ed25519*
+secrets/
+*.secret
+
+# ===== Java / Maven / Gradle =====
+target/
+build/
+.gradle/
+*.class
+*.jar
+*.war
+!**/.mvn/wrapper/maven-wrapper.jar
+hs_err_pid*
+
+# ===== Node / Next.js =====
+node_modules/
+.next/
+out/
+dist/
+coverage/
+.npm/
+.eslintcache
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ===== Base de données locales et sauvegardes =====
+*.sql.gz
+*.dump
+*.sqlite
+*.db
+pgdata/
+
+# ===== Journaux =====
+*.log
+logs/
+
+# ===== IDE et éditeurs =====
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*~
+
+# ===== Système =====
+.DS_Store
+Thumbs.db
+
+# ===== Divers =====
+tmp/
+*.tmp
+
+# ===== Parcours de bout en bout (captures d'écran) =====
+e2e/captures/

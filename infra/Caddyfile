@@ -1,0 +1,54 @@
+# Origine unique : / (interface), /api (backend), /ws (temps réel).
+# DOMAIN est fourni par l'environnement (ex. lonkoo.example.com). Caddy obtient le certificat TLS seul.
+#
+# Les adresses des services valent celles du réseau Docker (voir docker-compose.prod.yml). Elles se règlent par
+# variable seulement pour essayer ce fichier sans Docker (BACKEND_UPSTREAM=localhost:8080, par exemple).
+#
+# JOURNAUX : volontairement aucune directive « log », donc aucun journal d'accès. Le jeton d'un lien de partage est
+# dans le chemin (/join/<jeton> pour la page, /api/join/<jeton> pour l'API) et ne doit jamais être écrit (S-07).
+# N'activez pas les journaux sans exclure ces deux chemins avec « log_skip ».
+{$DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Routes réservées au backend et au serveur temps réel : jamais exposées.
+	# Un « handle » et non un « respond » seul : Caddy exécute tous les « handle » avant un « respond » placé à la racine du
+	# site, quel que soit l'ordre d'écriture. Le « respond » seul ne s'exécutait donc jamais : /internal/… partait vers l'interface,
+	# qui répondait 404 par hasard. Le contrôle est dans scripts/check_internal_routes.sh (CI et déploiement).
+	@internal path /internal /internal/*
+	handle @internal {
+		respond 404
+	}
+
+	handle /api/* {
+		# 2 Mio : plus gros que toute requête légitime (les instantanés enregistrés font 1 Mio au plus). Au-delà : 413.
+		request_body {
+			max_size 2MiB
+		}
+		reverse_proxy {$BACKEND_UPSTREAM:backend:8080}
+	}
+
+	# Le temps réel n'expose que la poignée de main WebSocket (/ws) et sa santé (/ws/health). Le préfixe est retiré :
+	# le navigateur ouvre wss://<domaine>/ws, le serveur temps réel reçoit « / » (il accepte aussi « /ws » tel quel).
+	# Tout autre chemin sous /ws est refusé : une fois « /ws » retiré, /ws/internal/… arriverait aux routes /internal
+	# du serveur temps réel, qui ne sont protégées que par le jeton de service.
+	@ws_ouvert path /ws /ws/ /ws/health
+	handle @ws_ouvert {
+		uri strip_prefix /ws
+		reverse_proxy {$REALTIME_UPSTREAM:realtime:1234}
+	}
+	@ws_autre path /ws /ws/*
+	handle @ws_autre {
+		respond 404
+	}
+
+	handle {
+		reverse_proxy {$FRONTEND_UPSTREAM:frontend:3000}
+	}
+}

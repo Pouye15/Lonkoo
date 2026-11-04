@@ -1,0 +1,1883 @@
+openapi: 3.0.3
+info:
+  title: Lonkoo API
+  version: 0.1.0
+  description: |
+    API de la plateforme Lonkoo, sous le préfixe `/api`.
+    Version 0 : tranche T1 indispensable (session, projets, canvas, partage,
+    versions, santé), T2 important (génération, GitHub, déploiement) et routes
+    IA déclarées mais répondant 501 tant que le fournisseur n'est pas branché.
+
+    Authentification : cookie de session serveur (HttpOnly, Secure hors dev,
+    SameSite=Lax). Les erreurs sont au format `application/problem+json` (RFC 9457).
+
+    Conventions : une route protégée sans session valide répond 401 ; un projet
+    ou un canvas que l'appelant ne peut pas voir répond 404 (jamais 403, pour ne
+    pas révéler son existence) ; un rôle insuffisant sur une ressource visible
+    répond 403. Un projet public se lit en lecture seule par toute personne
+    connectée ; ses écritures répondent alors 403 (le projet est visible). Les routes marquées `x-implemented: false` sont décrites pour le
+    contrat mais ne sont pas encore codées.
+servers:
+  - url: /api
+    description: Origine unique (Caddy en production, proxy de Next.js en développement)
+  - url: http://localhost:8080/api
+    description: Backend seul, en développement local
+
+security:
+  - cookieAuth: []
+
+tags:
+  - name: Session
+  - name: Projets
+  - name: Canvas
+  - name: Membres
+  - name: Partage
+  - name: Versions
+  - name: IA
+  - name: Génération
+  - name: Santé
+
+paths:
+  # ---------------------------------------------------------------------
+  # Session
+  # ---------------------------------------------------------------------
+  /auth/github/login:
+    get:
+      tags: [Session]
+      summary: Démarre la connexion GitHub (OAuth)
+      security: []
+      description: |
+        Garde un `state` aléatoire (à usage unique) en session et redirige le navigateur vers GitHub
+        avec les portées `read:user` et `public_repo`. L'adresse de retour vient de la configuration,
+        jamais de la requête. À appeler par navigation (`window.location`), pas par `fetch`.
+
+        Avec `access=deploy`, les portées sont `read:user`, `repo` et `workflow` : c'est ce qu'il faut pour que
+        LONKOO lance le workflow de déploiement et pour créer un dépôt privé. L'écran de consentement de GitHub est
+        alors bien plus large : à ne proposer que sur un choix explicite de l'utilisateur. Au retour, le navigateur
+        est renvoyé sur la page de déploiement (`/deploy`) au lieu du tableau de bord.
+      parameters:
+        - name: access
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [deploy]
+      responses:
+        "302":
+          description: Redirection vers la page d'autorisation de GitHub
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "503":
+          description: L'application OAuth n'est pas configurée sur ce serveur
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /auth/github/callback:
+    get:
+      tags: [Session]
+      summary: Retour d'OAuth GitHub
+      security: []
+      description: |
+        Vérifie le `state`, échange le code, lit le profil, crée ou met à jour le compte, ouvre une
+        session neuve et redirige vers `APP_PUBLIC_URL/dashboard`. Un invité connecté rattache son
+        compte : ses projets, ses appartenances et ses versions passent au compte GitHub. Le jeton
+        GitHub reste dans la session serveur ; il n'est ni stocké ni renvoyé.
+        Si l'utilisateur refuse l'autorisation (`error` présent), redirection vers
+        `APP_PUBLIC_URL/login?error=github`, sans session.
+      parameters:
+        - name: code
+          in: query
+          schema:
+            type: string
+        - name: state
+          in: query
+          schema:
+            type: string
+        - name: error
+          in: query
+          description: Renseigné par GitHub quand l'utilisateur refuse
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirection vers `APP_PUBLIC_URL/dashboard`, ou vers `APP_PUBLIC_URL/login?error=github` en cas de refus
+        "400":
+          description: État absent, faux ou déjà utilisé ; code manquant, invalide ou expiré
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "502":
+          description: GitHub a répondu une erreur ou un contenu inutilisable (ou l'application OAuth est mal configurée)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          description: GitHub est injoignable, ou l'application OAuth n'est pas configurée sur ce serveur
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "504":
+          description: GitHub n'a pas répondu à temps (10 s)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /auth/guest:
+    post:
+      tags: [Session]
+      summary: Crée un invité éphémère et un projet « Démo »
+      security: []
+      description: |
+        Limité par adresse (20/h). Ouvre une session serveur et crée un projet
+        de démonstration avec le modèle d'exemple comme seed du canvas.
+      responses:
+        "201":
+          description: Invité créé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "429":
+          description: Limite d'usage par adresse atteinte
+
+  /auth/logout:
+    post:
+      tags: [Session]
+      summary: Ferme la session
+      security: []
+      responses:
+        "204":
+          description: Session fermée
+
+  /me:
+    get:
+      tags: [Session]
+      summary: Profil de l'utilisateur connecté
+      responses:
+        "200":
+          description: Utilisateur connecté
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "401":
+          description: Non authentifié
+
+  # ---------------------------------------------------------------------
+  # Projets
+  # ---------------------------------------------------------------------
+  /projects:
+    get:
+      tags: [Projets]
+      summary: Liste les projets dont je suis membre
+      responses:
+        "200":
+          description: Projets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+    post:
+      tags: [Projets]
+      summary: Crée un projet (avec un canvas vide)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectCreate"
+      responses:
+        "201":
+          description: Projet créé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/LimitReached"
+
+  /projects/public:
+    get:
+      tags: [Projets]
+      summary: Galerie publique (projets publics de comptes GitHub)
+      description: |
+        Du plus récemment modifié au plus ancien. Un projet public d'invité reste consultable par son lien
+        (`GET /projects/{projectId}`) mais ne figure pas dans la galerie. Une fiche ne donne ni les membres ni
+        l'identifiant de l'auteur.
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: "Nombre de fiches (24 par défaut, entre 1 et 50 ; une valeur hors de cet intervalle est ramenée à la borne)."
+          schema:
+            type: integer
+            default: 24
+      responses:
+        "200":
+          description: Fiches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PublicProject"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /projects/{projectId}:
+    get:
+      tags: [Projets]
+      summary: Détail d'un projet (membre, ou toute personne connectée si le projet est public)
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Projet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "404":
+          description: Projet inexistant ou non visible
+    patch:
+      tags: [Projets]
+      summary: Modifie un projet (MAINTAINER et plus ; la visibilité, OWNER seulement)
+      description: |
+        Le nom et la description demandent d'être MAINTAINER. Changer `visibility` demande d'être OWNER (403
+        sinon, et rien n'est modifié, pas même le nom envoyé avec). Quand un projet public repasse en privé, les
+        personnes qui le consultaient sans en être membres sont déconnectées du temps réel et leurs tickets
+        refusés ; les membres restent connectés.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectPatch"
+      responses:
+        "200":
+          description: Projet modifié
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Projets]
+      summary: Supprime un projet (OWNER)
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "204":
+          description: Projet supprimé
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ---------------------------------------------------------------------
+  # Membres
+  # ---------------------------------------------------------------------
+  /projects/{projectId}/members:
+    get:
+      tags: [Membres]
+      summary: Liste les membres du projet (tout membre)
+      description: |
+        Du plus haut rôle au plus bas, puis par ancienneté. `you` désigne l'appelant ; `removable` dit s'il peut
+        retirer ce membre (ou, pour lui-même, quitter le projet) : l'interface n'affiche que des boutons qui marchent.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Membres
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Member"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /projects/{projectId}/members/{userId}:
+    delete:
+      tags: [Membres]
+      summary: Retire un membre, ou quitte le projet si `userId` est l'appelant
+      description: |
+        Retirer quelqu'un demande d'être MAINTAINER ou plus, et d'avoir un rôle **strictement** plus élevé que
+        lui : un MAINTAINER retire un WRITE, un TRIAGE ou un READ, mais ni un autre MAINTAINER ni le propriétaire.
+        Quitter est permis à tout membre sauf au propriétaire (409 : il supprime le projet à la place).
+        Un appelant qui n'a pas le droit de retirer reçoit 403 que `userId` soit membre ou non.
+
+        Le membre perd l'accès aussitôt : plus de ticket temps réel, ses connexions ouvertes sont coupées (les siennes
+        seulement) et le serveur temps réel refuse les tickets qu'il détient encore (5 minutes de validité). Si le
+        temps réel est injoignable à cet instant, le retrait tient quand même, mais la personne garde sa connexion
+        et ses tickets au plus 5 minutes. Elle peut revenir avec un lien de partage encore actif : pour l'en
+        empêcher, révoquer aussi le lien (`DELETE /canvases/{canvasId}/share-links/{linkId}`).
+        Journal d'audit : `member.removed` ou `member.left`.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "204":
+          description: Membre retiré
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Projet non visible par l'appelant, ou `userId` n'est pas membre de ce projet
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: Le propriétaire ne peut pas quitter son projet
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  # ---------------------------------------------------------------------
+  # Canvas
+  # ---------------------------------------------------------------------
+  /projects/{projectId}/canvases:
+    get:
+      tags: [Canvas]
+      summary: Liste les canvas d'un projet
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Canvas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Canvas"
+    post:
+      tags: [Canvas]
+      summary: Crée un canvas (WRITE et plus)
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  maxLength: 80
+      responses:
+        "201":
+          description: Canvas créé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Canvas"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/LimitReached"
+
+  /canvases/{canvasId}:
+    get:
+      tags: [Canvas]
+      summary: Métadonnées du canvas (et rôle de l'appelant)
+      parameters:
+        - $ref: "#/components/parameters/CanvasId"
+      responses:
+        "200":
+          description: Canvas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Canvas"
+        "404":
+          description: Canvas inexistant ou non visible
+
+  /canvases/{canvasId}/realtime-ticket:
+    post:
+      tags: [Canvas]
+      summary: Délivre un ticket temps réel (5 min)
+      parameters:
+        - $ref: "#/components/parameters/CanvasId"
+      responses:
+        "200":
+          description: Ticket
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ticket, expiresAt, role, user]
+                properties:
+                  ticket:
+                    type: string
+                  expiresAt:
+                    type: string
+                    format: date-time
+                  role:
+                    $ref: "#/components/schemas/Role"
+                  user:
+                    type: object
+                    required: [name, color]
+                    properties:
+                      name:
+                        type: string
+                      color:
+                        type: string
+        "404":
+          description: Canvas inexistant ou non visible
+
+  /canvases/{canvasId}/snapshot:
+    get:
+      tags: [Canvas]
+      summary: Instantané JSON courant (export, générateur, IA)
+      description: |
+        Lu auprès du serveur temps réel : il reflète les modifications en cours, y compris
+        celles qui ne sont pas encore enregistrées en base. `nodes` et `edges` sont triés par `id`.
+      parameters:
+        - $ref: "#/components/parameters/CanvasId"
+      responses:
+        "200":
+          description: Instantané conforme au contrat du canvas (`docs/canvas.schema.json`)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [schemaVersion, nodes, edges]
+                properties:
+                  schemaVersion:
+                    type: integer
+                    enum: [1]
+                  meta:
+                    type: object
+                  nodes:
+                    type: array
+                    items:
+                      type: object
+                  edges:
+                    type: array
+                    items:
+                      type: object
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
+
+  # ---------------------------------------------------------------------
+  # Partage
+  # ---------------------------------------------------------------------
+  /canvases/{canvasId}/share-links:
+    post:
+      tags: [Partage]
+      summary: Crée un lien de partage (MAINTAINER et plus)
+      parameters:
+        - $ref: "#/components/parameters/CanvasId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role:
+                  type: string
+                  enum: [WRITE, READ]
+                ttlHours:
+                  type: integer
+                  minimum: 1
+                  maximum: 72
+      responses:
+        "201":
+          description: Lien créé
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, url, expiresAt]
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                    description: Sert à révoquer le lien ; ne permet pas de le rejoindre.
+                  url:
+                    type: string
+                    description: "Montrée une seule fois (le serveur ne garde que l'empreinte du jeton)."
+                  expiresAt:
+                    type: string
+                    format: date-time
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/LimitReached"
+    get:
+      tags: [Partage]
+      summary: Liste les liens de partage encore actifs (MAINTAINER et plus)
+      description: |
+        Du plus récent au plus ancien. Les liens expirés n'y figurent pas. Le jeton n'est pas retrouvable
+        (seule son empreinte est stockée) : cette liste dit qui a créé quoi, pas où cliquer.
+      parameters:
+        - $ref: "#/components/parameters/CanvasId"
+      responses:
+        "200":
+          description: Liens actifs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ShareLinkSummary"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /canvases/{canvasId}/share-links/{linkId}:
+    delete:
+      tags: [Partage]
+      summary: Révoque un lien de partage (MAINTAINER et plus)
+      description: |
+        Le lien ne rattache plus personne. Ceux qui l'ont déjà utilisé restent membres : les retirer est une
+        autre action (`DELETE /projects/{projectId}/members/{userId}`). Un lien inconnu, déjà révoqué ou
+        d'un autre canvas donne 404. Journal d'audit : `share.revoked` (identifiant du lien, jamais le jeton).
+      parameters:
+        - $ref: "#/components/parameters/CanvasId"
+        - $ref: "#/components/parameters/LinkId"
+      responses:
+        "204":
+          description: Lien révoqué
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /join/{token}:
+    post:
+      tags: [Partage]
+      summary: Rejoint un canvas via un lien de partage
+      description: |
+        Sans session, le visiteur devient un invité éphémère (limité par adresse,
+        comme `/auth/guest`) ; l'invité n'est créé qu'une fois le lien reconnu.
+        Avec une session, c'est l'utilisateur connecté qui est rattaché au projet.
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Accès accordé
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [projectId, canvasId, role]
+                properties:
+                  projectId:
+                    type: string
+                    format: uuid
+                  canvasId:
+                    type: string
+                    format: uuid
+                  role:
+                    $ref: "#/components/schemas/Role"
+        "404":
+          description: Jeton inconnu ou expiré
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  # ---------------------------------------------------------------------
+  # Versions
+  # ---------------------------------------------------------------------
+  /canvases/{canvasId}/versions:
+    get:
+      tags: [Versions]
+      summary: Liste les versions nommées (la plus récente d'abord)
+      parameters:
+        - $ref: "#/components/parameters/CanvasId"
+      responses:
+        "200":
+          description: Versions, sans leur instantané
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CanvasVersionSummary"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags: [Versions]
+      summary: Enregistre une version nommée (WRITE et plus)
+      description: |
+        L'instantané est lu auprès du serveur temps réel puis validé (schéma et règles du contrat) :
+        un canvas invalide n'est pas enregistré (422, liste des erreurs dans `errors`).
+      parameters:
+        - $ref: "#/components/parameters/CanvasId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+                message:
+                  type: string
+                  maxLength: 500
+      responses:
+        "201":
+          description: Version enregistrée, sans instantané (`GET …/versions/{versionId}` le donne)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanvasVersionSummary"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/LimitReached"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
+
+  /canvases/{canvasId}/versions/{versionId}:
+    get:
+      tags: [Versions]
+      summary: Détail d'une version (avec son instantané)
+      parameters:
+        - $ref: "#/components/parameters/CanvasId"
+        - $ref: "#/components/parameters/VersionId"
+      responses:
+        "200":
+          description: Version avec instantané
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanvasVersionDetail"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /canvases/{canvasId}/versions/{versionId}/restore:
+    post:
+      tags: [Versions]
+      summary: Restaure une version (WRITE et plus)
+      description: |
+        Le serveur temps réel remplace le contenu du document en une transaction : les clients
+        connectés voient le changement sans se reconnecter.
+      parameters:
+        - $ref: "#/components/parameters/CanvasId"
+        - $ref: "#/components/parameters/VersionId"
+      responses:
+        "204":
+          description: Version restaurée (appliquée aux clients connectés)
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
+
+  # ---------------------------------------------------------------------
+  # IA (point de raccordement de l'agent : 501 tant qu'aucun fournisseur n'est branché)
+  # ---------------------------------------------------------------------
+  /canvases/{canvasId}/ai/sketch:
+    post:
+      tags: [IA]
+      summary: Esquisse d'architecture depuis un cahier des charges (WRITE et plus)
+      description: |
+        Renvoie une **proposition** de canvas complet, validée contre le contrat du canvas ; le serveur ne l'écrit jamais
+        (la personne l'accepte ou non, puis l'enregistre par les routes habituelles). Chaque appel laisse une ligne
+        `ai.sketch` dans le journal d'audit, sans le texte saisi.
+
+        **Quota** : chaque appel qui part vers le fournisseur compte pour la personne, par jour UTC (`AI_DAILY_QUOTA`, 30 par
+        défaut ; `AI_GUEST_DAILY_QUOTA`, 5 pour un invité), et pour tout le service (`AI_GLOBAL_DAILY_CAP`, 500) ; au-delà, **429**
+        avec `Retry-After` (secondes jusqu'à minuit UTC). Un appel refusé avant (droits, texte trop long, bloc inconnu) ne compte pas.
+
+        Sans fournisseur branché (`AI_PROVIDER` absent, `off` ou inconnu), la réponse est **501** `AI_NOT_IMPLEMENTED`
+        pour toute personne qui y a droit : le contrôle d'accès passe avant. Avec `AI_PROVIDER=fake`, la réponse est figée
+        (le modèle d'exemple) et porte `demo: true`.
+      parameters:
+        - $ref: "#/components/parameters/CanvasId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [brief]
+              properties:
+                brief:
+                  type: string
+                  description: "Le cahier des charges, en texte libre (8000 caractères au plus par défaut, `AI_MAX_INPUT_CHARS`)."
+      responses:
+        "200":
+          $ref: "#/components/responses/AiProposal"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "501":
+          $ref: "#/components/responses/AiNotImplemented"
+        "502":
+          $ref: "#/components/responses/AiBadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
+
+  /canvases/{canvasId}/ai/complete:
+    post:
+      tags: [IA]
+      summary: Complète l'architecture courante (WRITE et plus)
+      description: |
+        Lit l'état courant du canvas auprès du serveur temps réel, le soumet à l'agent et renvoie le canvas **complété**
+        comme proposition (même garanties que `/ai/sketch` : validée, jamais écrite, `ai.complete` au journal). Le corps
+        est facultatif.
+      parameters:
+        - $ref: "#/components/parameters/CanvasId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nodeIds:
+                  type: array
+                  maxItems: 50
+                  description: Les blocs sélectionnés ; vide ou absent, tout le canvas. Un identifiant absent du canvas donne 400.
+                  items:
+                    type: string
+                instruction:
+                  type: string
+                  description: Une consigne facultative (8000 caractères au plus par défaut).
+      responses:
+        "200":
+          $ref: "#/components/responses/AiProposal"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "501":
+          $ref: "#/components/responses/AiNotImplemented"
+        "502":
+          $ref: "#/components/responses/AiBadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
+
+  /canvases/{canvasId}/ai/audit:
+    post:
+      tags: [IA]
+      summary: Audit consultatif de l'architecture courante (membre du projet)
+      description: |
+        Des remarques sur l'état courant du canvas ; l'audit ne modifie rien. Réservé aux **membres** (tous rôles) : un
+        visiteur d'un projet public reçoit 404, pour qu'il ne déclenche pas d'appel payant. Les remarques qui visent un bloc
+        absent du canvas sont écartées et comptées dans `discarded`. Pas de corps. `ai.audit` au journal.
+      parameters:
+        - $ref: "#/components/parameters/CanvasId"
+      responses:
+        "200":
+          description: Remarques
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiAudit"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "501":
+          $ref: "#/components/responses/AiNotImplemented"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
+
+  # ---------------------------------------------------------------------
+  # Génération, GitHub, déploiement (T2)
+  # ---------------------------------------------------------------------
+  /canvases/{canvasId}/generate:
+    post:
+      tags: [Génération]
+      summary: Génère un projet Spring Boot depuis un instantané validé
+      description: |
+        Fige l'instantané (la version `versionId`, ou à défaut l'état courant demandé au serveur temps réel),
+        le valide contre le contrat, puis rend la main : le projet est produit sur un exécuteur borné et son
+        état se lit par `GET /generations/{generationId}` jusqu'à `DONE` ou `FAILED`. Rôle d'écriture requis.
+        Une seule génération à la fois par canvas (409), au plus 20 conservées par canvas (409 « Limite
+        atteinte » : en supprimer une libère une place).
+      parameters:
+        - $ref: "#/components/parameters/CanvasId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                versionId:
+                  type: string
+                  format: uuid
+                  description: Version nommée à générer ; absente, l'état courant du canvas
+                target:
+                  type: string
+                  enum: [spring-boot]
+                  description: Seule cible produite pour l'instant (valeur par défaut)
+                projectName:
+                  type: string
+                  maxLength: 80
+                  description: Nom du projet généré ; absent, le nom du projet du canvas
+      responses:
+        "202":
+          description: Génération lancée
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [generationId]
+                properties:
+                  generationId:
+                    type: string
+                    format: uuid
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Une génération de ce canvas est déjà en cours, ou plafond atteint (titre « Limite atteinte »)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
+
+  /canvases/{canvasId}/generations:
+    get:
+      tags: [Génération]
+      summary: Les 20 dernières générations du canvas (sans la liste des fichiers)
+      parameters:
+        - $ref: "#/components/parameters/CanvasId"
+      responses:
+        "200":
+          description: Générations, la plus récente d'abord
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Generation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /generations/{generationId}:
+    get:
+      tags: [Génération]
+      summary: État d'une génération et liste de fichiers
+      description: |
+        `status` : `PENDING` (en attente d'un exécuteur), `RUNNING`, `DONE` ou `FAILED` (`error` en dit la
+        raison). `files` n'est présent que pour une génération terminée. `push.status` vaut `null` tant qu'aucun
+        envoi sur GitHub n'a été demandé. Lisible par tout membre du canvas.
+      parameters:
+        - $ref: "#/components/parameters/GenerationId"
+      responses:
+        "200":
+          description: État de la génération
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Generation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Génération]
+      summary: Supprime une génération (rôle d'écriture)
+      parameters:
+        - $ref: "#/components/parameters/GenerationId"
+      responses:
+        "204":
+          description: Supprimée ; la place est libérée dans le plafond du canvas
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Génération ou envoi en cours
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /generations/{generationId}/files:
+    get:
+      tags: [Génération]
+      summary: Contenu d'un fichier du projet généré
+      parameters:
+        - $ref: "#/components/parameters/GenerationId"
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Chemin relatif tel que listé dans `files` (par exemple `README.md`)
+      responses:
+        "200":
+          description: Le fichier, en `text/plain; charset=UTF-8` (jamais interprété par le navigateur)
+          content:
+            text/plain:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Génération non visible ou non terminée, ou chemin inconnu
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /generations/{generationId}/download:
+    get:
+      tags: [Génération]
+      summary: Le projet généré en archive ZIP
+      description: "Horodatage fixe dans l'archive : la même génération donne toujours les mêmes octets."
+      parameters:
+        - $ref: "#/components/parameters/GenerationId"
+      responses:
+        "200":
+          description: Archive `<slug>.zip`, dossier racine `<slug>/`
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Génération non visible ou non terminée
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /generations/{generationId}/push-github:
+    post:
+      tags: [Génération]
+      summary: Envoie le projet généré sur le compte GitHub de l'utilisateur
+      description: |
+        Crée un dépôt sur le compte GitHub connecté puis y pousse tout le projet en un seul commit. Le travail est
+        asynchrone : la réponse est l'état de la génération, et `push.status` (`RUNNING`, puis `DONE` ou `FAILED`
+        avec `push.error`) se lit par `GET /generations/{generationId}`. Rôle d'écriture sur le canvas requis, et une
+        connexion GitHub (un invité reçoit 403 « Connexion GitHub requise »). Le jeton GitHub reste en mémoire du
+        serveur : il n'est ni stocké en base ni renvoyé (après un redémarrage du serveur, la personne reste
+        connectée mais doit reconnecter GitHub).
+
+        Le fichier de workflow `.github/workflows/…` n'est envoyé que si la connexion a l'autorisation `workflow`
+        (sinon `push.warnings` l'explique et `push.workflowSent` vaut `false`). Un dépôt privé demande l'autorisation
+        `repo`. Après un échec, un nouvel envoi est possible ; si le dépôt avait été créé par l'essai précédent, il est
+        repris. Un projet déjà envoyé ne peut pas l'être une seconde fois (409).
+      parameters:
+        - $ref: "#/components/parameters/GenerationId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                repoName:
+                  type: string
+                  pattern: "^[A-Za-z0-9._-]{1,100}$"
+                  description: Nom du dépôt (ni `.`, ni `..`, ni `.git` à la fin) ; absent, le nom de dossier du projet
+                visibility:
+                  type: string
+                  enum: [public, private]
+                  default: public
+      responses:
+        "202":
+          description: Envoi lancé ; état de la génération, `push.status` vaut `RUNNING`
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Generation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Rôle insuffisant, ou pas de connexion GitHub (titre « Connexion GitHub requise »)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Projet pas encore généré, envoi déjà en cours, ou projet déjà envoyé
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          description: Trop de travaux en cours (titre « Serveur occupé »)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /generations/{generationId}/deploy:
+    post:
+      tags: [Génération]
+      summary: Déploie le projet généré depuis son dépôt GitHub
+      description: |
+        Le projet doit déjà être sur GitHub (409 sinon). En mode `auto` (défaut), LONKOO lance le workflow
+        `deploy-systalink.yml` du dépôt (`workflow_dispatch`) avec le jeton GitHub de la session et suit
+        l'exécution : `GET /deployments/{deploymentId}` donne `RUNNING` puis `DEPLOYED` ou `FAILED`.
+        Si LONKOO ne peut pas lancer le workflow (fichier absent du dépôt, autorisations `repo` et `workflow`
+        manquantes), le déploiement passe en `MANUAL` : `manual` donne les étapes à suivre soi-même (pages GitHub
+        du workflow et des secrets, secrets attendus, commandes). Le mode `manual` enregistre seulement la demande
+        et ne demande aucune connexion GitHub. Rôle d'écriture requis ; 403 « Connexion GitHub requise » en mode
+        `auto` sans jeton.
+
+        Le serveur ne se connecte jamais lui-même à une machine de déploiement et n'appelle pas `publicUrl` :
+        cette adresse (http ou https, 200 caractères au plus, sans identifiants) est seulement affichée.
+        Un seul déploiement actif à la fois (409), au plus 20 par projet généré (409 « Limite atteinte »).
+      parameters:
+        - $ref: "#/components/parameters/GenerationId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mode:
+                  type: string
+                  enum: [auto, manual]
+                  default: auto
+                publicUrl:
+                  type: string
+                  maxLength: 200
+      responses:
+        "202":
+          description: Déploiement enregistré (lancement en cours, ou étapes manuelles)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Deployment"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Rôle insuffisant, ou pas de connexion GitHub (titre « Connexion GitHub requise »)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Projet pas encore envoyé sur GitHub, déploiement déjà en cours, ou plafond atteint
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          description: Trop de travaux en cours (titre « Serveur occupé »)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /generations/{generationId}/deployments:
+    get:
+      tags: [Génération]
+      summary: Les 10 derniers déploiements du projet généré (sans rafraîchissement)
+      parameters:
+        - $ref: "#/components/parameters/GenerationId"
+      responses:
+        "200":
+          description: Déploiements, le plus récent d'abord
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Deployment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /deployments/{deploymentId}:
+    get:
+      tags: [Génération]
+      summary: État d'un déploiement
+      description: |
+        Tant que le déploiement est en cours, l'état est rafraîchi depuis GitHub avec le jeton de l'appelant (au plus
+        toutes les 3 secondes). Sans jeton, ou si GitHub ne répond pas, l'état enregistré est rendu tel quel.
+        Lisible par tout membre du canvas.
+      parameters:
+        - name: deploymentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: État du déploiement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Deployment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /github/status:
+    get:
+      tags: [Session]
+      summary: La connexion GitHub de la session et ce qu'elle permet
+      description: |
+        Pour que l'interface propose le bon bouton (se connecter, autoriser le déploiement). Interroge GitHub avec le
+        jeton de la session, sans jamais le renvoyer. Les booléens valent `null` quand GitHub n'annonce pas les
+        autorisations du jeton.
+      responses:
+        "200":
+          description: État de la connexion
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [connected, expired, scopes]
+                properties:
+                  connected:
+                    type: boolean
+                  expired:
+                    type: boolean
+                    description: Un jeton était présent mais GitHub ne le reconnaît plus
+                  login:
+                    type: string
+                    nullable: true
+                  scopes:
+                    type: array
+                    items:
+                      type: string
+                  canPublish:
+                    type: boolean
+                    nullable: true
+                    description: Peut envoyer un projet dans un dépôt public
+                  canPrivate:
+                    type: boolean
+                    nullable: true
+                    description: Peut créer un dépôt privé (autorisation `repo`)
+                  canDeploy:
+                    type: boolean
+                    nullable: true
+                    description: Peut lancer le workflow de déploiement (autorisations `repo` et `workflow`)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          description: GitHub est injoignable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  # ---------------------------------------------------------------------
+  # Santé
+  # ---------------------------------------------------------------------
+  /actuator/health:
+    get:
+      tags: [Santé]
+      summary: Santé du service
+      security: []
+      responses:
+        "200":
+          description: UP
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [UP]
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: JSESSIONID
+      description: |
+        Session serveur ouverte par `/auth/guest` ou `/join/{token}` (puis par la connexion GitHub). Elle est gardée en
+        base : un redémarrage ou un déploiement du serveur ne déconnecte personne (24 h d'inactivité au plus).
+
+  responses:
+    BadRequest:
+      description: Valeur invalide (champ manquant, énumération inconnue, taille dépassée)
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Unauthorized:
+      description: Pas de session valide (absente, fermée ou expirée)
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Forbidden:
+      description: Ressource visible mais rôle insuffisant
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    NotFound:
+      description: Ressource inexistante ou non visible par l'appelant
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    TooManyRequests:
+      description: |
+        Une limite d'usage est atteinte : invités par adresse (20 par heure par défaut, réglable ; le `detail`, en français,
+        le dit en minutes et rappelle qu'une connexion GitHub n'est pas concernée), ou appels à l'IA du jour (par personne,
+        par invité ou pour tout le service). `Retry-After` donne le délai en secondes.
+      headers:
+        Retry-After:
+          description: Secondes avant qu'une place se libère pour cette adresse, ou avant minuit UTC pour l'IA.
+          schema:
+            type: integer
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    LimitReached:
+      description: |
+        Plafond d'usage atteint (titre « Limite atteinte », `detail` en français). Réessayer ne change rien :
+        il faut libérer de la place ou, pour un invité, se connecter avec GitHub. Plafonds par défaut :
+        20 projets par invité, 100 par compte GitHub, 10 canvas par projet, 50 versions par canvas,
+        20 liens de partage actifs par canvas, 1 Mio par instantané enregistré, 20 générations conservées par
+        canvas et 8 Mio par projet généré (réglables par variables d'environnement).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    AiProposal:
+      description: Une proposition à accepter ou non ; le serveur ne l'a pas appliquée
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AiProposal"
+    AiNotImplemented:
+      description: |
+        Aucun fournisseur d'IA n'est branché sur ce serveur (propriété `code` : `AI_NOT_IMPLEMENTED`). Un droit
+        insuffisant (404, 403) est refusé avant, et prime sur ce 501.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    AiBadGateway:
+      description: |
+        Le fournisseur d'IA a répondu une erreur, ou une proposition qui ne respecte pas le contrat du canvas (titre
+        « Réponse IA invalide », erreurs du validateur dans `errors` : rien n'est renvoyé), ou le serveur temps réel a
+        échoué en lisant l'état du canvas.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/InvalidCanvasProblem"
+    Unprocessable:
+      description: Instantané du canvas invalide (schéma ou règles du contrat) ; la liste des erreurs est dans `errors`
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/InvalidCanvasProblem"
+    BadGateway:
+      description: Le serveur temps réel a répondu une erreur ou un contenu inutilisable
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    ServiceUnavailable:
+      description: Le serveur temps réel est injoignable
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    GatewayTimeout:
+      description: Le serveur temps réel n'a pas répondu à temps (10 s)
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+
+  parameters:
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CanvasId:
+      name: canvasId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    LinkId:
+      name: linkId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    GenerationId:
+      name: generationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    VersionId:
+      name: versionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    Role:
+      type: string
+      enum: [OWNER, MAINTAINER, WRITE, TRIAGE, READ]
+
+    Me:
+      type: object
+      required: [id, login, isGuest]
+      properties:
+        id:
+          type: string
+          format: uuid
+        login:
+          type: string
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+        isGuest:
+          type: boolean
+
+    AiProposal:
+      type: object
+      required: [canvas, summary, demo]
+      properties:
+        canvas:
+          type: object
+          description: Le canvas proposé, au format de `GET /canvases/{id}/snapshot` (`docs/canvas.schema.json`), déjà validé.
+        summary:
+          type: string
+          description: Ce que la proposition apporte, en une ou deux phrases.
+        demo:
+          type: boolean
+          description: Vrai si la réponse est figée (agent de démonstration) et non celle d'un agent.
+
+    AiFinding:
+      type: object
+      required: [id, severity, category, title, targetNodeId]
+      properties:
+        id:
+          type: string
+        severity:
+          type: string
+          enum: [CRITICAL, RECOMMENDED, OPTIMIZATION]
+        category:
+          type: string
+          enum: [RESILIENCE, STACK, SECURITY, PERFORMANCE]
+        title:
+          type: string
+        targetNodeId:
+          type: string
+          description: Un identifiant de bloc qui existe dans le canvas audité.
+        rationale:
+          type: string
+        currentConfig:
+          type: string
+        proposedConfig:
+          type: string
+
+    AiAudit:
+      type: object
+      required: [findings, discarded, demo]
+      properties:
+        findings:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiFinding"
+        discarded:
+          type: integer
+          description: Remarques écartées parce qu'elles visaient un bloc absent du canvas.
+        demo:
+          type: boolean
+          description: Vrai si la réponse est figée (agent de démonstration) et non celle d'un agent.
+
+    Member:
+      type: object
+      required: [userId, login, guest, role, joinedAt, you, removable]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+          nullable: true
+        login:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+        guest:
+          type: boolean
+        role:
+          $ref: "#/components/schemas/Role"
+        joinedAt:
+          type: string
+          format: date-time
+        you:
+          type: boolean
+          description: Vrai pour l'appelant.
+        removable:
+          type: boolean
+          description: Vrai si l'appelant peut retirer ce membre (ou, si `you`, quitter le projet).
+
+    ShareLinkSummary:
+      type: object
+      required: [id, role, expiresAt, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [WRITE, READ]
+        expiresAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+          nullable: true
+          description: Nom de l'auteur du lien, absent si son compte a disparu.
+
+    PublicProject:
+      type: object
+      required: [id, name, ownerName, ownerLogin, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        ownerName:
+          type: string
+          description: Nom affiché de l'auteur, ou son identifiant GitHub à défaut.
+        ownerLogin:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+
+    Project:
+      type: object
+      required: [id, name, visibility, ownerId, ownerLogin, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        visibility:
+          type: string
+          enum: [private, public]
+          description: |
+            `private` : visible des seuls membres. `public` : toute personne connectée (invité compris) lit le
+            projet, son canvas, ses versions et le temps réel **en lecture seule** ; elle n'est pas membre, ne voit
+            ni l'équipe, ni les générations, ni les dépôts GitHub, et ne peut rien modifier. Seul le propriétaire
+            change cette valeur.
+        ownerId:
+          type: string
+          format: uuid
+        ownerLogin:
+          type: string
+          description: Identifiant du propriétaire (celui du compte GitHub, ou de l'invité).
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ProjectCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          maxLength: 80
+        description:
+          type: string
+          maxLength: 500
+        visibility:
+          type: string
+          enum: [private, public]
+
+    ProjectPatch:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 80
+        description:
+          type: string
+          maxLength: 500
+        visibility:
+          type: string
+          enum: [private, public]
+
+    Canvas:
+      type: object
+      required: [id, projectId, name, createdAt, role]
+      properties:
+        id:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        # Rôle de l'appelant sur le projet du canvas.
+        role:
+          $ref: "#/components/schemas/Role"
+
+    Problem:
+      description: Erreur au format RFC 9457 (`application/problem+json`)
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+
+    CanvasVersionSummary:
+      type: object
+      required: [id, name, schemaVersion, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        message:
+          type: string
+          nullable: true
+        schemaVersion:
+          type: integer
+        authorId:
+          description: Nul si l'auteur a été supprimé (invité expiré)
+          type: string
+          format: uuid
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    CanvasVersionDetail:
+      allOf:
+        - $ref: "#/components/schemas/CanvasVersionSummary"
+        - type: object
+          required: [canvasId, snapshot]
+          properties:
+            canvasId:
+              type: string
+              format: uuid
+            snapshot:
+              description: Instantané conforme à `docs/canvas.schema.json`
+              type: object
+
+    InvalidCanvasProblem:
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - type: object
+          required: [errors]
+          properties:
+            errors:
+              type: array
+              items:
+                type: string
+
+    Generation:
+      type: object
+      required: [id, canvasId, target, status, projectName, createdAt, push]
+      properties:
+        id:
+          type: string
+          format: uuid
+        canvasId:
+          type: string
+          format: uuid
+        versionId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Version générée ; `null` pour l'état courant du canvas au moment de la demande
+        target:
+          type: string
+          enum: [spring-boot]
+        status:
+          type: string
+          enum: [PENDING, RUNNING, DONE, FAILED]
+        projectName:
+          type: string
+        slug:
+          type: string
+          nullable: true
+          description: Nom du dossier racine et de l'archive, connu une fois la génération terminée
+        fileCount:
+          type: integer
+          nullable: true
+        totalBytes:
+          type: integer
+          format: int64
+          nullable: true
+        warnings:
+          type: array
+          items:
+            type: string
+          description: Éléments du canvas que le générateur n'a pu traduire qu'en partie (stubs, avertissements)
+        error:
+          type: string
+          nullable: true
+          description: Raison de l'échec, en français
+        createdAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        push:
+          $ref: "#/components/schemas/GenerationPush"
+        files:
+          type: array
+          nullable: true
+          description: Fichiers du projet (chemin et taille) ; seulement au détail d'une génération terminée
+          items:
+            type: object
+            required: [path, bytes]
+            properties:
+              path:
+                type: string
+              bytes:
+                type: integer
+
+    GenerationPush:
+      type: object
+      description: L'envoi sur GitHub qui a suivi la génération ; `status` vaut `null` tant qu'aucun envoi n'a été demandé
+      required: [status, workflowSent, warnings]
+      properties:
+        status:
+          type: string
+          nullable: true
+          enum: [PENDING, RUNNING, DONE, FAILED]
+        repoFullName:
+          type: string
+          nullable: true
+        repoUrl:
+          type: string
+          nullable: true
+        commitSha:
+          type: string
+          nullable: true
+        workflowSent:
+          type: boolean
+        warnings:
+          type: array
+          items:
+            type: string
+        error:
+          type: string
+          nullable: true
+        pushedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    Deployment:
+      type: object
+      required: [id, generationId, method, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        generationId:
+          type: string
+          format: uuid
+        method:
+          type: string
+          enum: [WORKFLOW, MANUAL]
+          description: "`WORKFLOW` : lancé par LONKOO ; `MANUAL` : à faire soi-même (choisi, ou repli faute d'autorisation)"
+        status:
+          type: string
+          enum: [PENDING, RUNNING, DEPLOYED, FAILED, MANUAL]
+        publicUrl:
+          type: string
+          nullable: true
+          description: Adresse donnée par l'utilisateur, jamais appelée par le serveur ; à traiter comme non fiable côté interface
+        runUrl:
+          type: string
+          nullable: true
+          description: Page de l'exécution sur GitHub Actions
+        detail:
+          type: string
+          nullable: true
+          description: Ce qui se passe, ou la raison de l'échec, en français
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        manual:
+          type: object
+          nullable: true
+          description: Présent seulement pour la méthode `MANUAL`
+          required: [actionsUrl, secretsUrl, secrets, commands]
+          properties:
+            actionsUrl:
+              type: string
+              description: Page GitHub du workflow, pour le lancer à la main
+            secretsUrl:
+              type: string
+              description: Page GitHub où créer les secrets du dépôt
+            secrets:
+              type: array
+              items:
+                type: string
+            commands:
+              type: array
+              items:
+                type: string
+              description: Commandes à exécuter sur le serveur de déploiement

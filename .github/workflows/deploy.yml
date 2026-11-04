@@ -1,0 +1,138 @@
+name: Déploiement
+
+# Déploiement A (docs/DEPLOIEMENT.md) : Lonkoo lui-même, sur le serveur de production.
+# À chaque fusion dans main : le code est envoyé sur le serveur par SSH, les images y sont construites, la pile
+# (infra/docker-compose.prod.yml) est relancée, puis la mise en ligne est vérifiée de l'extérieur.
+#
+# Secrets du dépôt (Settings, Secrets and variables, Actions) :
+#   SYSTALINK_SSH_HOST         adresse du serveur
+#   SYSTALINK_SSH_USER         utilisateur de déploiement (membre du groupe docker)
+#   SYSTALINK_SSH_PRIVATE_KEY  clé privée SSH de cet utilisateur (une clé faite pour cet usage, sans phrase secrète)
+#   SYSTALINK_SSH_KNOWN_HOSTS  résultat de « ssh-keyscan -t ed25519 <adresse> » (vérifie l'identité du serveur)
+#   PRODUCTION_DOMAIN          nom de domaine public, sans https:// (le même que DOMAIN dans le .env du serveur)
+# Les secrets de l'application (base, temps réel, GitHub) ne passent PAS par ici : ils sont dans /opt/lonkoo/.env,
+# sur le serveur, que ce déploiement ne modifie jamais.
+#
+# Tant que ces secrets n'existent pas, une fusion dans main ne déploie rien (un avis le dit) ; un lancement manuel
+# échoue en les nommant. Retour arrière : lancer à la main avec « ref » = un commit antérieur de main.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branche, étiquette ou commit à déployer (retour arrière : un commit antérieur de main)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploiement-production
+  cancel-in-progress: false
+
+jobs:
+  deployer:
+    name: Déployer sur le serveur
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SSH_HOST: ${{ secrets.SYSTALINK_SSH_HOST }}
+      SSH_USER: ${{ secrets.SYSTALINK_SSH_USER }}
+      DOMAIN: ${{ secrets.PRODUCTION_DOMAIN }}
+      REMOTE_DIR: /opt/lonkoo
+    steps:
+      - name: Vérifier que le déploiement est configuré
+        id: config
+        env:
+          SSH_KEY: ${{ secrets.SYSTALINK_SSH_PRIVATE_KEY }}
+          KNOWN_HOSTS: ${{ secrets.SYSTALINK_SSH_KNOWN_HOSTS }}
+          MANUAL: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          missing=""
+          [ -n "$SSH_HOST" ] || missing="$missing SYSTALINK_SSH_HOST"
+          [ -n "$SSH_USER" ] || missing="$missing SYSTALINK_SSH_USER"
+          [ -n "$SSH_KEY" ] || missing="$missing SYSTALINK_SSH_PRIVATE_KEY"
+          [ -n "$KNOWN_HOSTS" ] || missing="$missing SYSTALINK_SSH_KNOWN_HOSTS"
+          [ -n "$DOMAIN" ] || missing="$missing PRODUCTION_DOMAIN"
+          if [ -z "$missing" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "enabled=false" >> "$GITHUB_OUTPUT"
+          if [ "$MANUAL" = "true" ]; then
+            echo "::error::Secrets manquants :$missing (voir l'en-tête de ce fichier)."
+            exit 1
+          fi
+          echo "::notice::Déploiement ignoré : le serveur n'est pas encore configuré. Secrets manquants :$missing"
+
+      - uses: actions/checkout@v7
+        if: steps.config.outputs.enabled == 'true'
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Préparer la connexion SSH
+        if: steps.config.outputs.enabled == 'true'
+        env:
+          SSH_KEY: ${{ secrets.SYSTALINK_SSH_PRIVATE_KEY }}
+          KNOWN_HOSTS: ${{ secrets.SYSTALINK_SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Envoyer le code
+        if: steps.config.outputs.enabled == 'true'
+        run: |
+          # Seuls les dossiers dont le serveur a besoin. Le nouveau dossier remplace l'ancien d'un coup : jamais de
+          # fichiers d'une version précédente mêlés à ceux de la nouvelle. Le .env du serveur est hors de ce dossier.
+          tar czf - backend realtime frontend infra \
+            | ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_USER@$SSH_HOST" \
+              "set -e; rm -rf $REMOTE_DIR/app.new; mkdir -p $REMOTE_DIR/app.new; tar xzf - -C $REMOTE_DIR/app.new; rm -rf $REMOTE_DIR/app; mv $REMOTE_DIR/app.new $REMOTE_DIR/app"
+
+      - name: Construire et démarrer la pile
+        if: steps.config.outputs.enabled == 'true'
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_USER@$SSH_HOST" \
+            "set -e; cd $REMOTE_DIR/app; docker compose -f infra/docker-compose.prod.yml --env-file $REMOTE_DIR/.env up -d --build --remove-orphans --wait --wait-timeout 900; docker image prune -f"
+
+      - name: Vérifier la mise en ligne
+        if: steps.config.outputs.enabled == 'true'
+        run: |
+          base="https://$DOMAIN"
+          code=""
+          for _ in $(seq 1 60); do
+            code="$(curl -s -o /dev/null -w '%{http_code}' "$base/api/actuator/health" || true)"
+            [ "$code" = "200" ] && break
+            sleep 5
+          done
+          if [ "$code" != "200" ]; then
+            echo "::error::$base/api/actuator/health répond $code (200 attendu)."
+            exit 1
+          fi
+          curl -fsS "$base/ws/health" | grep -q '"UP"'
+          curl -fsS "$base/login" | grep -q 'data-api-mode="live"'
+          # Routes internes : refus par Caddy (404 sans corps), à la racine comme derrière /ws (scripts/check_internal_routes.sh).
+          bash scripts/check_internal_routes.sh "$base" || { echo "::error::Une route interne est joignable depuis Internet (détail ci-dessus)."; exit 1; }
+
+          # Parcours minimal d'un invité : session, projet d'accueil, canvas, instantané lu à travers le temps réel.
+          jar="$(mktemp)"
+          [ "$(curl -s -c "$jar" -o /dev/null -w '%{http_code}' -X POST "$base/api/auth/guest")" = "201" ]
+          project="$(curl -fsS -b "$jar" "$base/api/projects" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["id"])')"
+          canvas="$(curl -fsS -b "$jar" "$base/api/projects/$project/canvases" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["id"])')"
+          curl -fsS -b "$jar" "$base/api/canvases/$canvas/snapshot" | grep -q '"schemaVersion"'
+          echo "Mise en ligne vérifiée : $base"
+          {
+            echo "### Déploiement réussi"
+            echo "- Adresse : $base"
+            echo "- Commit : \`${GITHUB_SHA}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: État du serveur en cas d'échec
+        if: failure() && steps.config.outputs.enabled == 'true'
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_USER@$SSH_HOST" \
+            "cd $REMOTE_DIR/app && docker compose -f infra/docker-compose.prod.yml --env-file $REMOTE_DIR/.env ps && docker compose -f infra/docker-compose.prod.yml --env-file $REMOTE_DIR/.env logs --tail=80" || true

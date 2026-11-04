@@ -1,0 +1,605 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "serialNumber": "urn:uuid:f7d3d41d-2c30-4362-998f-bb021c82e796",
+  "metadata": {
+    "timestamp": "2026-10-25T11:32:52.266Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "npm",
+          "version": "10.9.3"
+        },
+        {
+          "type": "application",
+          "name": "cyclonedx-npm",
+          "group": "@cyclonedx",
+          "version": "6.0.1",
+          "author": "Jan Kowalleck",
+          "description": "Create CycloneDX Software Bill of Materials (SBOM) from NPM projects.",
+          "licenses": [
+            {
+              "license": {
+                "id": "Apache-2.0"
+              }
+            }
+          ],
+          "externalReferences": [
+            {
+              "url": "git+https://github.com/CycloneDX/cyclonedx-node-npm.git",
+              "type": "vcs",
+              "comment": "as detected from PackageJson property \"repository.url\""
+            },
+            {
+              "url": "https://github.com/CycloneDX/cyclonedx-node-npm#readme",
+              "type": "website",
+              "comment": "as detected from PackageJson property \"homepage\""
+            },
+            {
+              "url": "https://github.com/CycloneDX/cyclonedx-node-npm/issues",
+              "type": "issue-tracker",
+              "comment": "as detected from PackageJson property \"bugs.url\""
+            }
+          ],
+          "properties": [
+            {
+              "name": "cdx:npm:package:constraint:engine:node",
+              "value": ">=20.18.0"
+            },
+            {
+              "name": "cdx:npm:package:constraint:engine:npm",
+              "value": ">=9"
+            }
+          ]
+        },
+        {
+          "type": "library",
+          "name": "cyclonedx-library",
+          "group": "@cyclonedx",
+          "version": "10.3.0",
+          "author": "Jan Kowalleck",
+          "description": "Core functionality of CycloneDX for JavaScript (Node.js or WebBrowser).",
+          "licenses": [
+            {
+              "license": {
+                "id": "Apache-2.0"
+              }
+            }
+          ],
+          "externalReferences": [
+            {
+              "url": "git+https://github.com/CycloneDX/cyclonedx-javascript-library.git",
+              "type": "vcs",
+              "comment": "as detected from PackageJson property \"repository.url\""
+            },
+            {
+              "url": "https://github.com/CycloneDX/cyclonedx-javascript-library#readme",
+              "type": "website",
+              "comment": "as detected from PackageJson property \"homepage\""
+            },
+            {
+              "url": "https://github.com/CycloneDX/cyclonedx-javascript-library/issues",
+              "type": "issue-tracker",
+              "comment": "as detected from PackageJson property \"bugs.url\""
+            }
+          ],
+          "properties": [
+            {
+              "name": "cdx:npm:package:constraint:engine:node",
+              "value": ">=20.18.0"
+            }
+          ]
+        }
+      ]
+    },
+    "component": {
+      "type": "application",
+      "name": "lonkoo-realtime",
+      "version": "0.1.0",
+      "bom-ref": "lonkoo-realtime@0.1.0",
+      "description": "Serveur de collaboration en temps réel Lonkoo (Hocuspocus + Yjs)",
+      "purl": "pkg:npm/lonkoo-realtime@0.1.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=22"
+        },
+        {
+          "name": "cdx:npm:package:private",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": ""
+        }
+      ]
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "server",
+      "group": "@hocuspocus",
+      "version": "4.7.1",
+      "bom-ref": "lonkoo-realtime@0.1.0|@hocuspocus/server@4.7.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40hocuspocus/server@4.7.1",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@hocuspocus/server/-/server-4.7.1.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "7f64d6362e6b1678eed6db4e7acc6447590f22e90598c0a51d8e29031d1194804cce30285159448229444c801096bc26c3550cc6ccb7d5fb1ed2d981cd8129c1"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@hocuspocus/server"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "jose",
+      "version": "6.2.13",
+      "bom-ref": "lonkoo-realtime@0.1.0|jose@6.2.13",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/jose@6.2.13",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/jose/-/jose-6.2.13.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "ed3220d74644d71f3661e76237e95cacf36f18c2a07bdc851d00fe421a3f6fccb669d7ee814dc0b2fbc77f15747f3c859654fa97dc428dfe11598f60fd9f4f25"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/jose"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "ws",
+      "version": "8.22.0",
+      "bom-ref": "lonkoo-realtime@0.1.0|ws@8.22.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/ws@8.22.0",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/ws/-/ws-8.22.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "61d82073df3bf913b40275ad67fed6abd16d36f72b2f56ff44ed2e77d9968d43e00ebb00030412179d6c9b6866d57a1f6d4ff88e4a4612c2c5b1967153ed433a"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/ws"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "yjs",
+      "version": "13.6.33",
+      "bom-ref": "lonkoo-realtime@0.1.0|yjs@13.6.33",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/yjs@13.6.33",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/yjs/-/yjs-13.6.33.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "abf518bebd603a4e17208f82bb5096d9d20d8d8a8924589f4f3a2011a2004739ebbd7eee3a51ec75311772738132e22cac218410a74dc62ef893230b6652957f"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/yjs"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "common",
+      "group": "@hocuspocus",
+      "version": "4.7.1",
+      "bom-ref": "lonkoo-realtime@0.1.0|@hocuspocus/common@4.7.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40hocuspocus/common@4.7.1",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@hocuspocus/common/-/common-4.7.1.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "f8de2df007412160542bec87b2e06f09c066f7a795d84deab887b099af7e4d8a26a9531786ba2f01fddd03a5c56d81d133b820b579251edda616a4dca6231d01"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@hocuspocus/common"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "async-mutex",
+      "version": "0.5.0",
+      "bom-ref": "lonkoo-realtime@0.1.0|async-mutex@0.5.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/async-mutex@0.5.0",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/async-mutex/-/async-mutex-0.5.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "d40f78075f23909dc362adbce2884fc685db7d30391ec43bfcc7f80c485cc8bc77073dbb461e7d89271b07a10f88ff81fa3a2e7ba602c5c31749b142d6d64ac0"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/async-mutex"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "crossws",
+      "version": "0.4.15",
+      "bom-ref": "lonkoo-realtime@0.1.0|crossws@0.4.15",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/crossws@0.4.15",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/crossws/-/crossws-0.4.15.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "36c50ea43668b33ee7c88faa108974e726a25ce59a5c7da84de33e5c15ad892599b5be6bcdc22c9750124ff1f33368f3527efa785bb2ae49fcdc4ea2481454bf"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/crossws"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "kleur",
+      "version": "4.1.5",
+      "bom-ref": "lonkoo-realtime@0.1.0|kleur@4.1.5",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/kleur@4.1.5",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/kleur/-/kleur-4.1.5.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "a3e34efbc5ab462404138ffb9f044984dd475a9566266e75d690475313cbb69d015084b3941a653916129937250a726f42adad2aefec825df156991ced95ae41"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/kleur"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "lib0",
+      "version": "0.2.119",
+      "bom-ref": "lonkoo-realtime@0.1.0|lib0@0.2.119",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/lib0@0.2.119",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/lib0/-/lib0-0.2.119.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "be1f9389e8d5cbc5e6fa109d9d17e7f41b6118dbcd5197445e5b4d8d564bdd3cd120a3f7b35967421f2959dfd0d300a063414f0065558c51786621d45772c580"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/lib0"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "y-protocols",
+      "version": "1.0.7",
+      "bom-ref": "lonkoo-realtime@0.1.0|y-protocols@1.0.7",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/y-protocols@1.0.7",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/y-protocols/-/y-protocols-1.0.7.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "61256c2e85f13baec9e9e13f9d5e00b45b53dd0128b597f9b0ae411f11415eca3b543513dd3c74ec87c0ea1b2ee50e4e98174c910566159f50380edf8a45af9f"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/y-protocols"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "tslib",
+      "version": "2.8.1",
+      "bom-ref": "lonkoo-realtime@0.1.0|tslib@2.8.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "0BSD",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/tslib@2.8.1",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/tslib/-/tslib-2.8.1.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "a0916ef781d06fe29576e49440bef09e99aa9df98bb0e03f9c087a6fa107d30084a0ad3f98f79753a737c0a0d5f373243ae1cf447b525ca294f7d2016b34bfdb"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/tslib"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "isomorphic.js",
+      "version": "0.2.5",
+      "bom-ref": "lonkoo-realtime@0.1.0|isomorphic.js@0.2.5",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/isomorphic.js@0.2.5",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/isomorphic.js/-/isomorphic.js-0.2.5.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "3c878c6c7a8cb780e750fdcc03f1657341c49588cc5c0aecc35ab0259726f6ca91f26ab797c3588b314cb72d295b013fb732061f710a2b9fa37ace6602bf39cb"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/isomorphic.js"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "lonkoo-realtime@0.1.0",
+      "dependsOn": [
+        "lonkoo-realtime@0.1.0|@hocuspocus/server@4.7.1",
+        "lonkoo-realtime@0.1.0|jose@6.2.13",
+        "lonkoo-realtime@0.1.0|ws@8.22.0",
+        "lonkoo-realtime@0.1.0|yjs@13.6.33"
+      ]
+    },
+    {
+      "ref": "lonkoo-realtime@0.1.0|@hocuspocus/server@4.7.1",
+      "dependsOn": [
+        "lonkoo-realtime@0.1.0|@hocuspocus/common@4.7.1",
+        "lonkoo-realtime@0.1.0|async-mutex@0.5.0",
+        "lonkoo-realtime@0.1.0|crossws@0.4.15",
+        "lonkoo-realtime@0.1.0|kleur@4.1.5",
+        "lonkoo-realtime@0.1.0|lib0@0.2.119",
+        "lonkoo-realtime@0.1.0|y-protocols@1.0.7",
+        "lonkoo-realtime@0.1.0|yjs@13.6.33"
+      ]
+    },
+    {
+      "ref": "lonkoo-realtime@0.1.0|jose@6.2.13"
+    },
+    {
+      "ref": "lonkoo-realtime@0.1.0|ws@8.22.0"
+    },
+    {
+      "ref": "lonkoo-realtime@0.1.0|yjs@13.6.33",
+      "dependsOn": [
+        "lonkoo-realtime@0.1.0|lib0@0.2.119"
+      ]
+    },
+    {
+      "ref": "lonkoo-realtime@0.1.0|@hocuspocus/common@4.7.1",
+      "dependsOn": [
+        "lonkoo-realtime@0.1.0|lib0@0.2.119"
+      ]
+    },
+    {
+      "ref": "lonkoo-realtime@0.1.0|async-mutex@0.5.0",
+      "dependsOn": [
+        "lonkoo-realtime@0.1.0|tslib@2.8.1"
+      ]
+    },
+    {
+      "ref": "lonkoo-realtime@0.1.0|crossws@0.4.15"
+    },
+    {
+      "ref": "lonkoo-realtime@0.1.0|kleur@4.1.5"
+    },
+    {
+      "ref": "lonkoo-realtime@0.1.0|lib0@0.2.119",
+      "dependsOn": [
+        "lonkoo-realtime@0.1.0|isomorphic.js@0.2.5"
+      ]
+    },
+    {
+      "ref": "lonkoo-realtime@0.1.0|y-protocols@1.0.7",
+      "dependsOn": [
+        "lonkoo-realtime@0.1.0|lib0@0.2.119",
+        "lonkoo-realtime@0.1.0|yjs@13.6.33"
+      ]
+    },
+    {
+      "ref": "lonkoo-realtime@0.1.0|tslib@2.8.1"
+    },
+    {
+      "ref": "lonkoo-realtime@0.1.0|isomorphic.js@0.2.5"
+    }
+  ]
+}

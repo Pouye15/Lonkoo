@@ -1,0 +1,25 @@
+{
+  "name": "lonkoo-realtime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Serveur de collaboration en temps réel Lonkoo (Hocuspocus + Yjs)",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --env-file=../.env src/index.js",
+    "test": "node --test \"test/**/*.test.js\""
+  },
+  "dependencies": {
+    "@hocuspocus/server": "4.7.1",
+    "jose": "6.2.13",
+    "ws": "8.22.0",
+    "yjs": "13.6.33"
+  },
+  "devDependencies": {
+    "@hocuspocus/provider": "4.7.1",
+    "y-protocols": "1.0.7"
+  }
+}

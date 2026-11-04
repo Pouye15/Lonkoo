@@ -1,0 +1,472 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------
+  # Frontend (Next.js) et serveur temps réel (Node)
+  # Les étapes sont ignorées tant que le dossier n'a pas de package.json.
+  # ---------------------------------------------------------------
+  node:
+    name: Node (${{ matrix.dir }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: [frontend, realtime]
+    defaults:
+      run:
+        working-directory: ${{ matrix.dir }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Vérifier la présence du projet
+        id: has
+        run: |
+          if [ -f package.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "Pas encore de package.json dans ${{ matrix.dir }} : étapes ignorées."
+          fi
+
+      - uses: actions/setup-node@v7
+        if: steps.has.outputs.present == 'true'
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: ${{ matrix.dir }}/package-lock.json
+
+      - name: Installer les dépendances
+        if: steps.has.outputs.present == 'true'
+        run: npm ci
+
+      - name: Lint
+        if: steps.has.outputs.present == 'true'
+        run: npm run lint --if-present
+
+      - name: Build
+        if: steps.has.outputs.present == 'true'
+        run: npm run build --if-present
+
+      - name: Tests
+        if: steps.has.outputs.present == 'true'
+        run: npm test --if-present
+
+  # ---------------------------------------------------------------
+  # Backend (Spring Boot)
+  # ---------------------------------------------------------------
+  backend:
+    name: Backend (Maven)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Vérifier la présence du projet
+        id: has
+        run: |
+          if [ -f pom.xml ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "Pas encore de pom.xml dans backend : étapes ignorées."
+          fi
+
+      - uses: actions/setup-java@v6
+        if: steps.has.outputs.present == 'true'
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      # Le test de chaîne (RealtimeChainIntegrationTest) lance le vrai serveur temps réel Node.
+      - uses: actions/setup-node@v7
+        if: steps.has.outputs.present == 'true'
+        with:
+          node-version: 24
+
+      - name: Dépendances du serveur temps réel (test de chaîne)
+        if: steps.has.outputs.present == 'true'
+        working-directory: realtime
+        run: npm ci
+
+      - name: Build et tests
+        if: steps.has.outputs.present == 'true'
+        run: mvn -B -ntp verify
+
+  # ---------------------------------------------------------------
+  # Contrat du canvas : le schéma est valide et les exemples le respectent
+  # ---------------------------------------------------------------
+  canvas-schema:
+    name: Contrat du canvas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Valider le schéma et les exemples
+        run: |
+          python3 -m pip install --quiet jsonschema
+          python3 scripts/check_canvas_schema.py
+
+      # Le contrat d'API (docs/openapi.yaml) doit rester une description OpenAPI valide.
+      - name: Valider le contrat d'API
+        run: |
+          python3 -m pip install --quiet openapi-spec-validator
+          python3 -m openapi_spec_validator docs/openapi.yaml
+
+  # ---------------------------------------------------------------
+  # Licences des composants tiers
+  # Le règlement CADev rend le projet irrecevable avec une licence GPL, AGPL ou LGPL.
+  # - npm : bloquant. Seules les licences de la liste ci-dessous passent.
+  #   Faux positifs possibles (licences doubles) : vérifiez à la main,
+  #   puis documentez la décision dans docs/LICENCES-TIERCES.md.
+  # - Maven : bloquant pour les dépendances d'exécution (scripts/check_licenses_maven.py) ;
+  #   le rapport complet du plugin (test compris) reste informatif.
+  # ---------------------------------------------------------------
+  licences:
+    name: Licences des composants tiers
+    runs-on: ubuntu-latest
+    env:
+      ALLOWED: "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD;BlueOak-1.0.0;CC0-1.0;Unlicense;MIT-0;Python-2.0;CC-BY-4.0"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Licences npm (bloquant)
+        run: |
+          for dir in frontend realtime; do
+            if [ -f "$dir/package-lock.json" ]; then
+              echo "== $dir =="
+              (cd "$dir" && npm ci --ignore-scripts \
+                && npx --yes license-checker-rseidelsohn@5.0.1 --production --excludePrivatePackages --onlyAllow "$ALLOWED")
+            else
+              echo "== $dir : pas de package-lock.json, ignoré =="
+            fi
+          done
+
+      - uses: actions/setup-java@v6
+        if: hashFiles('backend/pom.xml') != ''
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      # Bloquant : une licence GPL, AGPL ou LGPL sans alternative permissive rend le projet irrecevable.
+      # Les licences sont lues dans les POM des dépendances d'exécution (exceptions documentées dans le script).
+      - name: Licences Maven (bloquant)
+        if: hashFiles('backend/pom.xml') != ''
+        run: |
+          (cd backend && mvn -B -ntp dependency:list -DincludeScope=runtime -DoutputFile="$GITHUB_WORKSPACE/maven-deps.txt")
+          python3 scripts/check_licenses_maven.py maven-deps.txt
+
+      - name: Licences Maven (rapport complet, informatif)
+        continue-on-error: true
+        run: |
+          if [ -f backend/pom.xml ]; then
+            cd backend
+            mvn -B -ntp org.codehaus.mojo:license-maven-plugin:2.4.0:add-third-party
+            REPORT=target/generated-sources/license/THIRD-PARTY.txt
+            if [ -f "$REPORT" ]; then
+              echo "== Licences à revoir (GPL, LGPL, EPL, AGPL) =="
+              grep -iE "GPL|Lesser General Public|Eclipse Public|\bEPL\b" "$REPORT" || echo "Aucune correspondance."
+            fi
+          else
+            echo "Pas encore de pom.xml dans backend : étape ignorée."
+          fi
+
+  # ---------------------------------------------------------------
+  # SBOM : inventaire des composants livrés (CycloneDX, un par morceau), à joindre à la déclaration des composants.
+  # - bloquant : docs/sbom doit correspondre aux dépendances actuelles (sinon : python3 scripts/make_sbom.py, puis commit) ;
+  # - chaque SBOM est comparé à une source indépendante (mvn dependency:list, package-lock.json) : s'il manque un
+  #   composant, le job échoue ;
+  # - les SBOM de cette version sont déposés en artefact.
+  # ---------------------------------------------------------------
+  sbom:
+    name: SBOM des composants
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: docs/sbom est à jour (bloquant)
+        run: python3 scripts/make_sbom.py --verify
+
+      - name: Produire les SBOM de cette version
+        run: python3 scripts/make_sbom.py --out "$RUNNER_TEMP/sbom"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: sbom
+          path: ${{ runner.temp }}/sbom
+          retention-days: 90
+
+  # ---------------------------------------------------------------
+  # Images Docker : les Dockerfiles se construisent (Docker n'est pas installé sur le poste du backend).
+  # L'image du serveur temps réel est en plus démarrée : une route interne sans jeton doit répondre 401.
+  # L'image de l'interface est démarrée aussi : elle doit répondre, et ne pas avoir été construite en mode simulé.
+  # ---------------------------------------------------------------
+  docker:
+    name: Image Docker (${{ matrix.dir }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: [backend, realtime, frontend]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Vérifier la présence du Dockerfile
+        id: has
+        run: |
+          if [ -f "${{ matrix.dir }}/Dockerfile" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "Pas de Dockerfile dans ${{ matrix.dir }} : étape ignorée."
+          fi
+
+      - name: Construire l'image
+        if: steps.has.outputs.present == 'true'
+        run: docker build --pull --tag "lonkoo-${{ matrix.dir }}:ci" "${{ matrix.dir }}"
+
+      - name: Démarrer l'image du serveur temps réel
+        if: steps.has.outputs.present == 'true' && matrix.dir == 'realtime'
+        run: |
+          # Secrets jetables, tirés au hasard pour ce seul démarrage.
+          docker run --detach --name realtime --publish 1234:1234 \
+            --env REALTIME_SERVICE_TOKEN="$(openssl rand -hex 16)" \
+            --env REALTIME_TICKET_SECRET="$(openssl rand -hex 32)" \
+            lonkoo-realtime:ci
+          for attempt in $(seq 1 20); do
+            health=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:1234/health || true)
+            [ "$health" = "200" ] && break
+            sleep 1
+          done
+          internal=$(curl -s -o /dev/null -w '%{http_code}' \
+            http://localhost:1234/internal/canvases/00000000-0000-0000-0000-000000000000/snapshot || true)
+          if [ "$health" = "200" ] && [ "$internal" = "401" ]; then exit 0; fi
+          echo "Réponses inattendues : /health $health (200 attendu), route interne $internal (401 attendu)"
+          docker logs realtime
+          exit 1
+
+      - name: Démarrer l'image de l'interface
+        if: steps.has.outputs.present == 'true' && matrix.dir == 'frontend'
+        run: |
+          docker run --detach --name frontend --publish 3000:3000 lonkoo-frontend:ci
+          for attempt in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/login || true)
+            [ "$code" = "200" ] && break
+            sleep 1
+          done
+          if [ "$code" != "200" ]; then
+            echo "/login répond $code (200 attendu)"
+            docker logs frontend
+            exit 1
+          fi
+          # Construite en mode simulé, l'interface fonctionnerait sur des données factices du navigateur, sans aucune
+          # erreur visible. Le mode fixé au build est lisible dans le HTML servi (data-api-mode sur <html>).
+          if ! curl -s http://localhost:3000/login | grep -q 'data-api-mode="live"'; then
+            echo "L'image n'a pas été construite en mode API : NEXT_PUBLIC_API_MODE doit valoir « live »."
+            exit 1
+          fi
+
+  # ---------------------------------------------------------------
+  # Pile de production : infra/docker-compose.prod.yml démarre avec des secrets jetables, derrière Caddy en HTTPS
+  # (certificat de l'autorité locale de Caddy : un nom en « .internal » ne reçoit jamais de certificat public).
+  # On y rejoue ce que le pipeline de déploiement vérifie en production, plus ce qui ne se voit qu'ici : ports publiés,
+  # droits retirés, profil prod, données gardées après un redémarrage, sauvegarde puis restauration testée
+  # (infra/backup.sh et infra/restore.sh). C'est le seul endroit où le compose de production tourne avant le serveur.
+  # ---------------------------------------------------------------
+  pile-production:
+    name: Pile de production (compose)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      COMPOSE_FILE: infra/docker-compose.prod.yml
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Configuration jetable
+        run: |
+          # Le contexte « runner » n'est pas disponible dans le env: d'un job : le chemin passe par GITHUB_ENV.
+          echo "ENV_FILE=$RUNNER_TEMP/ci.env" >> "$GITHUB_ENV"
+          {
+            echo "DOMAIN=lonkoo.internal"
+            echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)"
+            echo "REALTIME_TICKET_SECRET=$(openssl rand -hex 32)"
+            echo "REALTIME_SERVICE_TOKEN=$(openssl rand -hex 16)"
+            echo "GITHUB_OAUTH_CLIENT_ID=ci-client-id"
+            echo "GITHUB_OAUTH_CLIENT_SECRET=$(openssl rand -hex 16)"
+            # Réglages facultatifs : le premier doit arriver dans le backend, les autres (absents) ne doivent pas.
+            echo "MAX_PROJECTS_PER_GUEST=7"
+          } > "$RUNNER_TEMP/ci.env"
+
+      - name: Construire et démarrer la pile
+        run: docker compose --env-file "$ENV_FILE" up -d --build --wait --wait-timeout 600
+
+      - name: Parcours de bout en bout en HTTPS
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://lonkoo.internal"
+          c() { curl -sk --resolve lonkoo.internal:443:127.0.0.1 --resolve lonkoo.internal:80:127.0.0.1 "$@"; }
+          compose() { docker compose --env-file "$ENV_FILE" "$@"; }
+          fail() { echo "::error::$*"; exit 1; }
+          # grep sur une variable (pas dans un tube) : avec pipefail, « | grep -q » échoue à tort quand grep s'arrête tôt.
+          has() { grep -q -- "$1" <<< "$2"; }
+          hasi() { grep -qi -- "$1" <<< "$2"; }
+
+          echo "== Santé, HTTPS, routes"
+          code="$(c -o /dev/null -w '%{http_code}' "$base/api/actuator/health")"
+          [ "$code" = "200" ] || fail "santé du backend : $code"
+          has '"UP"' "$(c "$base/api/actuator/health")" || fail "corps de la santé du backend"
+          has '"UP"' "$(c "$base/ws/health")" || fail "santé du temps réel (/ws/health)"
+          has 'data-api-mode="live"' "$(c "$base/login")" || fail "interface construite hors du mode API"
+          redirect="$(c -o /dev/null -w '%{http_code} %{redirect_url}' http://lonkoo.internal/login)"
+          [ "$redirect" = "308 https://lonkoo.internal/login" ] || fail "redirection HTTP vers HTTPS : $redirect"
+          # Routes internes : refus par Caddy (404 sans corps), à la racine comme derrière /ws. Un simple « 404 » ne suffit pas :
+          # l'interface répond aussi 404. Voir scripts/check_internal_routes.sh.
+          bash scripts/check_internal_routes.sh "$base" -k --resolve lonkoo.internal:443:127.0.0.1 --resolve lonkoo.internal:80:127.0.0.1 \
+            || fail "une route interne est joignable depuis l'extérieur (détail ci-dessus)"
+          hasi 'strict-transport-security' "$(c -D - -o /dev/null "$base/login")" || fail "en-tête HSTS absent"
+          ws="$(curl -sk --resolve lonkoo.internal:443:127.0.0.1 --http1.1 -i --max-time 3 \
+            -H 'Connection: Upgrade' -H 'Upgrade: websocket' -H 'Sec-WebSocket-Version: 13' \
+            -H "Sec-WebSocket-Key: $(openssl rand -base64 16)" "$base/ws" 2>/dev/null | head -1 || true)"
+          has '101' "$ws" || fail "poignée de main WebSocket sur /ws : $ws"
+
+          echo "== Parcours d'un invité (session, projet, canvas, instantané lu à travers le temps réel)"
+          jar="$RUNNER_TEMP/jar.txt"
+          headers="$(c -D - -o /dev/null -c "$jar" -X POST "$base/api/auth/guest" | tr -d '\r')"
+          has ' 201' "$(head -1 <<< "$headers")" || fail "création d'un invité"
+          hasi '^set-cookie:.*secure' "$headers" || fail "cookie de session sans l'attribut Secure (profil prod absent ?)"
+          project="$(c -b "$jar" "$base/api/projects" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["id"])')"
+          canvas="$(c -b "$jar" "$base/api/projects/$project/canvases" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["id"])')"
+          has '"schemaVersion"' "$(c -b "$jar" "$base/api/canvases/$canvas/snapshot")" || fail "instantané du canvas (chaîne backend, temps réel, base)"
+          created="$(c -b "$jar" -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' \
+            --data-binary '{"name":"avant redemarrage"}' "$base/api/projects")"
+          [ "$created" = "201" ] || fail "création d'un projet : $created"
+          python3 -c "import json; print(json.dumps({'name': 'a' * 3000000}))" > "$RUNNER_TEMP/gros.json"
+          big="$(c -b "$jar" -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' \
+            --data-binary @"$RUNNER_TEMP/gros.json" "$base/api/projects")"
+          [ "$big" = "413" ] || fail "corps de 3 Mio : $big (413 attendu)"
+
+          echo "== Ce que le serveur expose et ce qu'il s'interdit"
+          listening="$(ss -ltnH | awk '{print $4}')"
+          for port in 5432 8080 1234 3000; do
+            if grep -Eq ":$port\$" <<< "$listening"; then fail "le port $port est joignable depuis la machine hôte"; fi
+          done
+          has '0000000000000000' "$(compose exec -T backend sh -c 'grep CapEff /proc/1/status')" || fail "le backend garde des capacités Linux"
+          has 'profile is active: "prod"' "$(compose logs backend 2>&1)" || fail "le backend ne tourne pas en profil prod"
+          [ "$(compose exec -T backend printenv MAX_PROJECTS_PER_GUEST)" = "7" ] || fail "réglage facultatif non transmis au backend"
+          if compose exec -T backend printenv GUEST_TTL_HOURS > /dev/null 2>&1; then fail "une variable facultative absente est transmise vide"; fi
+
+          echo "== Redémarrage : les données restent"
+          count() { compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tA -c "select count(*) from projects"'; }
+          before="$(count)"
+          compose restart db backend realtime
+          compose up -d --wait --wait-timeout 300
+          after="$(count)"
+          [ "$before" = "$after" ] && [ "$before" -ge 2 ] || fail "projets avant : $before, après redémarrage : $after"
+          code="$(c -o /dev/null -w '%{http_code}' "$base/api/actuator/health")"
+          [ "$code" = "200" ] || fail "santé après redémarrage : $code"
+          # Les sessions sont en base (V13) : l'invité de tout à l'heure est toujours connecté après le redémarrage.
+          code="$(c -b "$jar" -o /dev/null -w '%{http_code}' "$base/api/me")"
+          [ "$code" = "200" ] || fail "la session d'un invité n'a pas survécu au redémarrage : $code (200 attendu)"
+
+          echo "== Sauvegarde, puis restauration testée"
+          export APP_DIR="$PWD" BACKUP_DIR="$RUNNER_TEMP/sauvegardes"
+          bash infra/backup.sh
+          dump="$(find "$BACKUP_DIR" -name 'lonkoo-*.dump' | head -1)"
+          [ -n "$dump" ] || fail "aucune sauvegarde produite"
+          result="$(bash infra/restore.sh --test "$dump")"
+          echo "$result"
+          has 'Restauration vérifiée' "$result" || fail "la restauration de test n'a pas abouti"
+          if bash infra/restore.sh --live "$dump" > /dev/null 2>&1; then fail "restore --live s'est exécuté sans confirmation"; fi
+          [ "$(count)" = "$before" ] || fail "la base de production a changé pendant le test de restauration"
+
+      - name: État de la pile en cas d'échec
+        if: failure()
+        run: |
+          docker compose --env-file "$ENV_FILE" ps
+          docker compose --env-file "$ENV_FILE" logs --tail=80
+
+  # ---------------------------------------------------------------
+  # Avis de sécurité connus sur les dépendances (informatif : ne bloque pas la fusion).
+  # npm audit pour le front et le temps réel, OSV.dev pour les dépendances Maven d'exécution.
+  # ---------------------------------------------------------------
+  vulnerabilites:
+    name: Avis de sécurité des dépendances (informatif)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: npm audit (frontend)
+        if: hashFiles('frontend/package-lock.json') != ''
+        continue-on-error: true
+        working-directory: frontend
+        run: npm audit --omit=dev
+
+      - name: npm audit (temps réel)
+        if: hashFiles('realtime/package-lock.json') != ''
+        continue-on-error: true
+        working-directory: realtime
+        run: npm audit --omit=dev
+
+      - uses: actions/setup-java@v6
+        if: hashFiles('backend/pom.xml') != ''
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Avis OSV sur les dépendances Maven d'exécution
+        if: hashFiles('backend/pom.xml') != ''
+        run: |
+          (cd backend && mvn -B -ntp dependency:list -DincludeScope=runtime -DoutputFile="$GITHUB_WORKSPACE/deps.txt")
+          python3 scripts/check_osv_maven.py deps.txt
+
+  # ---------------------------------------------------------------
+  # Détection de secrets dans tout l'historique
+  # ---------------------------------------------------------------
+  secrets:
+    name: Détection de secrets (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Installer gitleaks
+        run: |
+          VERSION=8.30.1
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP" gitleaks
+
+      - name: Rechercher des secrets
+        run: |
+          "$RUNNER_TEMP/gitleaks" detect --source . --redact --verbose

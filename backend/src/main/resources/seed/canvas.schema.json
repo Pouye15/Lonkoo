@@ -1,0 +1,234 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "canvas.schema.json",
+  "title": "Canvas Lonkoo",
+  "description": "Format d'échange du canvas (instantanés nommés, export, entrée de l'IA et du générateur). Version 1. Voir docs/schema-canvas.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "nodes", "edges"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "maxLength": 80 },
+        "description": { "type": "string", "maxLength": 500 }
+      }
+    },
+    "nodes": { "type": "array", "maxItems": 200, "items": { "$ref": "#/$defs/node" } },
+    "edges": { "type": "array", "maxItems": 500, "items": { "$ref": "#/$defs/edge" } }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,40}$" },
+    "ident": {
+      "description": "Identifiant technique. Seul texte autorisé à finir dans du code généré.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,30}$"
+    },
+    "text80": { "type": "string", "maxLength": 80 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "position": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y"],
+      "properties": {
+        "x": { "type": "number", "minimum": -100000, "maximum": 100000 },
+        "y": { "type": "number", "minimum": -100000, "maximum": 100000 }
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "position", "data"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "type": {
+          "enum": ["webapp", "service", "database", "auth", "queue", "mobile-payment", "messaging", "billing", "generic"]
+        },
+        "position": { "$ref": "#/$defs/position" },
+        "data": { "type": "object" }
+      },
+      "allOf": [
+        { "if": { "properties": { "type": { "const": "webapp" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/data_webapp" } } } },
+        { "if": { "properties": { "type": { "const": "service" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/data_service" } } } },
+        { "if": { "properties": { "type": { "const": "database" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/data_database" } } } },
+        { "if": { "properties": { "type": { "const": "auth" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/data_auth" } } } },
+        { "if": { "properties": { "type": { "const": "queue" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/data_queue" } } } },
+        { "if": { "properties": { "type": { "const": "mobile-payment" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/data_mobile_payment" } } } },
+        { "if": { "properties": { "type": { "const": "messaging" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/data_messaging" } } } },
+        { "if": { "properties": { "type": { "const": "billing" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/data_billing" } } } },
+        { "if": { "properties": { "type": { "const": "generic" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/data_generic" } } } }
+      ]
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "source", "target"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "source": { "$ref": "#/$defs/id" },
+        "target": { "$ref": "#/$defs/id" },
+        "kind": { "enum": ["http", "event", "data", "auth"], "default": "http" },
+        "label": { "$ref": "#/$defs/text80" }
+      }
+    },
+    "data_webapp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "$ref": "#/$defs/ident" },
+        "label": { "$ref": "#/$defs/text80" },
+        "tech": { "$ref": "#/$defs/text80" },
+        "pages": { "type": "array", "maxItems": 30, "items": { "$ref": "#/$defs/ident" } }
+      }
+    },
+    "data_service": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "$ref": "#/$defs/ident" },
+        "label": { "$ref": "#/$defs/text80" },
+        "tech": { "$ref": "#/$defs/text80" },
+        "endpoints": {
+          "type": "array",
+          "maxItems": 50,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["method", "path"],
+            "properties": {
+              "method": { "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+              "path": { "type": "string", "pattern": "^/[a-z0-9/{}_-]{0,80}$" },
+              "summary": { "$ref": "#/$defs/text80" }
+            }
+          }
+        }
+      }
+    },
+    "data_database": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "$ref": "#/$defs/ident" },
+        "label": { "$ref": "#/$defs/text80" },
+        "tech": { "$ref": "#/$defs/text80" },
+        "engine": { "enum": ["postgresql"], "default": "postgresql" },
+        "entities": {
+          "type": "array",
+          "maxItems": 40,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "fields"],
+            "properties": {
+              "name": { "$ref": "#/$defs/ident" },
+              "fields": {
+                "type": "array",
+                "maxItems": 40,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["name", "type"],
+                  "properties": {
+                    "name": { "$ref": "#/$defs/ident" },
+                    "type": { "enum": ["string", "text", "integer", "long", "decimal", "boolean", "date", "datetime", "uuid", "json"] },
+                    "required": { "type": "boolean", "default": false },
+                    "unique": { "type": "boolean", "default": false }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "data_auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "method"],
+      "properties": {
+        "name": { "$ref": "#/$defs/ident" },
+        "label": { "$ref": "#/$defs/text80" },
+        "tech": { "$ref": "#/$defs/text80" },
+        "method": { "enum": ["github", "password", "otp-sms"] }
+      }
+    },
+    "data_queue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "$ref": "#/$defs/ident" },
+        "label": { "$ref": "#/$defs/text80" },
+        "tech": { "$ref": "#/$defs/text80" },
+        "topics": { "type": "array", "maxItems": 30, "items": { "$ref": "#/$defs/ident" } }
+      }
+    },
+    "data_mobile_payment": {
+      "description": "Bloc générique de paiement mobile. Aucune marque ni intégration réelle.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "currency"],
+      "properties": {
+        "name": { "$ref": "#/$defs/ident" },
+        "label": { "$ref": "#/$defs/text80" },
+        "tech": { "$ref": "#/$defs/text80" },
+        "currency": { "$ref": "#/$defs/currency" },
+        "flow": { "enum": ["collect", "payout"], "default": "collect" }
+      }
+    },
+    "data_messaging": {
+      "description": "Bloc générique de messagerie (SMS, USSD, WhatsApp, courriel). Aucune marque ni intégration réelle.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "channel"],
+      "properties": {
+        "name": { "$ref": "#/$defs/ident" },
+        "label": { "$ref": "#/$defs/text80" },
+        "tech": { "$ref": "#/$defs/text80" },
+        "channel": { "enum": ["sms", "ussd", "whatsapp", "email"] },
+        "templates": {
+          "type": "array",
+          "maxItems": 30,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "text"],
+            "properties": {
+              "name": { "$ref": "#/$defs/ident" },
+              "text": { "type": "string", "maxLength": 300 }
+            }
+          }
+        }
+      }
+    },
+    "data_billing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "model", "currency"],
+      "properties": {
+        "name": { "$ref": "#/$defs/ident" },
+        "label": { "$ref": "#/$defs/text80" },
+        "tech": { "$ref": "#/$defs/text80" },
+        "model": { "enum": ["subscription", "one-time", "usage"] },
+        "currency": { "$ref": "#/$defs/currency" }
+      }
+    },
+    "data_generic": {
+      "description": "Bloc libre sans effet sur le code généré (passerelle, cache, IA, utilisateur…). Le générateur l'ignore.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "$ref": "#/$defs/ident" },
+        "label": { "$ref": "#/$defs/text80" },
+        "tech": { "$ref": "#/$defs/text80" },
+        "description": { "type": "string", "maxLength": 300 }
+      }
+    }
+  }
+}

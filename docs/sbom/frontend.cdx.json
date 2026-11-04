@@ -1,0 +1,1389 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "serialNumber": "urn:uuid:a96a8049-334c-4044-bc69-3f5ae77a6f0c",
+  "metadata": {
+    "timestamp": "2026-10-25T11:32:47.415Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "npm",
+          "version": "10.9.3"
+        },
+        {
+          "type": "application",
+          "name": "cyclonedx-npm",
+          "group": "@cyclonedx",
+          "version": "6.0.1",
+          "author": "Jan Kowalleck",
+          "description": "Create CycloneDX Software Bill of Materials (SBOM) from NPM projects.",
+          "licenses": [
+            {
+              "license": {
+                "id": "Apache-2.0"
+              }
+            }
+          ],
+          "externalReferences": [
+            {
+              "url": "git+https://github.com/CycloneDX/cyclonedx-node-npm.git",
+              "type": "vcs",
+              "comment": "as detected from PackageJson property \"repository.url\""
+            },
+            {
+              "url": "https://github.com/CycloneDX/cyclonedx-node-npm#readme",
+              "type": "website",
+              "comment": "as detected from PackageJson property \"homepage\""
+            },
+            {
+              "url": "https://github.com/CycloneDX/cyclonedx-node-npm/issues",
+              "type": "issue-tracker",
+              "comment": "as detected from PackageJson property \"bugs.url\""
+            }
+          ],
+          "properties": [
+            {
+              "name": "cdx:npm:package:constraint:engine:node",
+              "value": ">=20.18.0"
+            },
+            {
+              "name": "cdx:npm:package:constraint:engine:npm",
+              "value": ">=9"
+            }
+          ]
+        },
+        {
+          "type": "library",
+          "name": "cyclonedx-library",
+          "group": "@cyclonedx",
+          "version": "10.3.0",
+          "author": "Jan Kowalleck",
+          "description": "Core functionality of CycloneDX for JavaScript (Node.js or WebBrowser).",
+          "licenses": [
+            {
+              "license": {
+                "id": "Apache-2.0"
+              }
+            }
+          ],
+          "externalReferences": [
+            {
+              "url": "git+https://github.com/CycloneDX/cyclonedx-javascript-library.git",
+              "type": "vcs",
+              "comment": "as detected from PackageJson property \"repository.url\""
+            },
+            {
+              "url": "https://github.com/CycloneDX/cyclonedx-javascript-library#readme",
+              "type": "website",
+              "comment": "as detected from PackageJson property \"homepage\""
+            },
+            {
+              "url": "https://github.com/CycloneDX/cyclonedx-javascript-library/issues",
+              "type": "issue-tracker",
+              "comment": "as detected from PackageJson property \"bugs.url\""
+            }
+          ],
+          "properties": [
+            {
+              "name": "cdx:npm:package:constraint:engine:node",
+              "value": ">=20.18.0"
+            }
+          ]
+        }
+      ]
+    },
+    "component": {
+      "type": "application",
+      "name": "lonkoo-front",
+      "version": "1.0.0",
+      "bom-ref": "lonkoo-front@1.0.0",
+      "purl": "pkg:npm/lonkoo-front@1.0.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:private",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": ""
+        }
+      ]
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "provider",
+      "group": "@hocuspocus",
+      "version": "4.7.1",
+      "bom-ref": "lonkoo-front@1.0.0|@hocuspocus/provider@4.7.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40hocuspocus/provider@4.7.1",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@hocuspocus/provider/-/provider-4.7.1.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "ce7ba5ab20b0c2e86af3a68599317a8b33a89b045695919178201ff926692e0a6f75fbc1409ce3a23f4776db975df2fdc2404cd9876df3a91a32cdab8da89c44"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@hocuspocus/provider"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react",
+      "group": "@phosphor-icons",
+      "version": "2.1.10",
+      "bom-ref": "lonkoo-front@1.0.0|@phosphor-icons/react@2.1.10",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40phosphor-icons/react@2.1.10",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@phosphor-icons/react/-/react-2.1.10.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "bedf13beaf062e385e0196586be606fe95bb1c36e8bfc125fcc00d5bca4e033e1e1b1af08676dfad066ad02a78abccc112ef0d2211dd9ebfabf2d8677d148d60"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@phosphor-icons/react"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "next",
+      "version": "16.4.2",
+      "bom-ref": "lonkoo-front@1.0.0|next@16.4.2",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/next@16.4.2",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/next/-/next-16.4.2.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "afea012688df79f5233a25a40615e02d2fa28315ffec15b22b9f6e1e7c8eca994c48bb4167e40b3f7a24add6136eb7eb6eb98d4d558b04f6870d7f4a45a22ddf"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/next"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-dom",
+      "version": "19.3.1",
+      "bom-ref": "lonkoo-front@1.0.0|react-dom@19.3.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/react-dom@19.3.1",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/react-dom/-/react-dom-19.3.1.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "6346c0473e77961102d4d302012b34fe3f9f681ff3aaddd1f21a6f8357bcfbad59549e142f451d0b87016d77d931c22e86b7e07882d32def9978109abd03ed29"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/react-dom"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react",
+      "version": "19.3.1",
+      "bom-ref": "lonkoo-front@1.0.0|react@19.3.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/react@19.3.1",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/react/-/react-19.3.1.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "40d85676dee7ae05565901b9f10b86b004778efdc76dee266f8bf3ef0d9cb271dabdc89926075ad423cd6a5745e9e571bfdd2e7778d45e92a51cbebd80edfccb"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/react"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "sharp",
+      "version": "0.35.5",
+      "bom-ref": "lonkoo-front@1.0.0|sharp@0.35.5",
+      "licenses": [
+        {
+          "license": {
+            "name": "UNLICENSED",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:generic/sharp-stub@0.35.5",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/sharp"
+        },
+        {
+          "name": "lonkoo:stub",
+          "value": "true"
+        }
+      ],
+      "description": "Faux paquet local (frontend/stubs/sharp) qui remplace sharp : il ne traite aucune image et n'installe pas libvips (LGPL-3.0, interdite par le règlement CADEV). Voir docs/LICENCES-TIERCES.md."
+    },
+    {
+      "type": "library",
+      "name": "yjs",
+      "version": "13.6.33",
+      "bom-ref": "lonkoo-front@1.0.0|yjs@13.6.33",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/yjs@13.6.33",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/yjs/-/yjs-13.6.33.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "abf518bebd603a4e17208f82bb5096d9d20d8d8a8924589f4f3a2011a2004739ebbd7eee3a51ec75311772738132e22cac218410a74dc62ef893230b6652957f"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/yjs"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "common",
+      "group": "@hocuspocus",
+      "version": "4.7.1",
+      "bom-ref": "lonkoo-front@1.0.0|@hocuspocus/common@4.7.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40hocuspocus/common@4.7.1",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@hocuspocus/common/-/common-4.7.1.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "f8de2df007412160542bec87b2e06f09c066f7a795d84deab887b099af7e4d8a26a9531786ba2f01fddd03a5c56d81d133b820b579251edda616a4dca6231d01"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@hocuspocus/common"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "attempt",
+      "group": "@lifeomic",
+      "version": "3.1.0",
+      "bom-ref": "lonkoo-front@1.0.0|@lifeomic/attempt@3.1.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40lifeomic/attempt@3.1.0",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@lifeomic/attempt/-/attempt-3.1.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "419a9e9b842e027032cdfcfe1a3e7ff922f1ab0080c36aa6b7bef7d995e876be950d619e60b1bac358bfbd82dae7925033dc11b8128b9979a26763f42ed139af"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@lifeomic/attempt"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "lib0",
+      "version": "0.2.119",
+      "bom-ref": "lonkoo-front@1.0.0|lib0@0.2.119",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/lib0@0.2.119",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/lib0/-/lib0-0.2.119.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "be1f9389e8d5cbc5e6fa109d9d17e7f41b6118dbcd5197445e5b4d8d564bdd3cd120a3f7b35967421f2959dfd0d300a063414f0065558c51786621d45772c580"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/lib0"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "y-protocols",
+      "version": "1.0.7",
+      "bom-ref": "lonkoo-front@1.0.0|y-protocols@1.0.7",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/y-protocols@1.0.7",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/y-protocols/-/y-protocols-1.0.7.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "61256c2e85f13baec9e9e13f9d5e00b45b53dd0128b597f9b0ae411f11415eca3b543513dd3c74ec87c0ea1b2ee50e4e98174c910566159f50380edf8a45af9f"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/y-protocols"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "env",
+      "group": "@next",
+      "version": "16.4.2",
+      "bom-ref": "lonkoo-front@1.0.0|@next/env@16.4.2",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40next/env@16.4.2",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@next/env/-/env-16.4.2.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "9d3513147ec6e7f27f7e6a648d52de80e92ac8a38fd0212c25c32cc8ee1409878dd6cbbe60c5bf31f69212b9c9b242fb5ccf940cae9a4efb25c6c442cb26bfb0"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@next/env"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "swc-darwin-arm64",
+      "group": "@next",
+      "version": "16.4.2",
+      "bom-ref": "lonkoo-front@1.0.0|@next/swc-darwin-arm64@16.4.2",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40next/swc-darwin-arm64@16.4.2",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@next/swc-darwin-arm64/-/swc-darwin-arm64-16.4.2.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "38d92116f64d15696c10738cffcd40b71772b893f629160a611d09c4fc2f72ed40b8f30c32070bfb05b696e95d26f32d6702ad531a12902c9c856e7021ea184b"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@next/swc-darwin-arm64"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "swc-darwin-x64",
+      "group": "@next",
+      "version": "16.4.2",
+      "bom-ref": "lonkoo-front@1.0.0|@next/swc-darwin-x64@16.4.2",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40next/swc-darwin-x64@16.4.2",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@next/swc-darwin-x64/-/swc-darwin-x64-16.4.2.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "96e3c231b3ac0a8685fa45c91148e68e6399835942dc17e586652ef99996e2d06edaf5bfe005da93c24116f78f8b31a4c5598d880c3fafdadafba52f8825ad59"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@next/swc-darwin-x64"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "swc-linux-arm64-gnu",
+      "group": "@next",
+      "version": "16.4.2",
+      "bom-ref": "lonkoo-front@1.0.0|@next/swc-linux-arm64-gnu@16.4.2",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40next/swc-linux-arm64-gnu@16.4.2",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@next/swc-linux-arm64-gnu/-/swc-linux-arm64-gnu-16.4.2.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "c61c054c09dc272682372e4aa8a2ae29a208742cb5ff5655d6ce52d46d21853ef018c9034e57c9e9a41b7d1167206fecdff903af143c6b27157be7394273fca3"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@next/swc-linux-arm64-gnu"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "swc-linux-arm64-musl",
+      "group": "@next",
+      "version": "16.4.2",
+      "bom-ref": "lonkoo-front@1.0.0|@next/swc-linux-arm64-musl@16.4.2",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40next/swc-linux-arm64-musl@16.4.2",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@next/swc-linux-arm64-musl/-/swc-linux-arm64-musl-16.4.2.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "4f53cd99f6cf731af99ddb5650bff7c10b4b5eccfcd3c96aeac7361ab353e64da8aae17b532a9975d1d2b807b01d5b16b065deea7b25f47a0dd5836b8958ee4a"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@next/swc-linux-arm64-musl"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "swc-linux-x64-gnu",
+      "group": "@next",
+      "version": "16.4.2",
+      "bom-ref": "lonkoo-front@1.0.0|@next/swc-linux-x64-gnu@16.4.2",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40next/swc-linux-x64-gnu@16.4.2",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@next/swc-linux-x64-gnu/-/swc-linux-x64-gnu-16.4.2.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "37d70350e086b64246e4f34a0c5654177c579ddac925ca4ba75db5b801a3206bcefd4da9f6d7dd34e33d86d8fbfb97fbda5d26f2b330fdcbd869c509050a2e76"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@next/swc-linux-x64-gnu"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "swc-linux-x64-musl",
+      "group": "@next",
+      "version": "16.4.2",
+      "bom-ref": "lonkoo-front@1.0.0|@next/swc-linux-x64-musl@16.4.2",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40next/swc-linux-x64-musl@16.4.2",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@next/swc-linux-x64-musl/-/swc-linux-x64-musl-16.4.2.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "c98dae8756215fab9fb98cb61426f0d5da9b95b848e7b18b60025f0a4a83f5ab93bfaa4bac7ebb51c72373740c2817826001ba96482ed3c131997d5b6e37a38d"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@next/swc-linux-x64-musl"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "swc-win32-arm64-msvc",
+      "group": "@next",
+      "version": "16.4.2",
+      "bom-ref": "lonkoo-front@1.0.0|@next/swc-win32-arm64-msvc@16.4.2",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40next/swc-win32-arm64-msvc@16.4.2",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@next/swc-win32-arm64-msvc/-/swc-win32-arm64-msvc-16.4.2.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "8ff02b591207a4c301eb060b321af6a6e4e0b81b7bd25354fc29a397da7a7530c4f031a49d824c3fd3ddc0f93676aa4234bfca217f727e7803bc87acc493e6b2"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@next/swc-win32-arm64-msvc"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "swc-win32-x64-msvc",
+      "group": "@next",
+      "version": "16.4.2",
+      "bom-ref": "lonkoo-front@1.0.0|@next/swc-win32-x64-msvc@16.4.2",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40next/swc-win32-x64-msvc@16.4.2",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@next/swc-win32-x64-msvc/-/swc-win32-x64-msvc-16.4.2.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "000e1e7725870e4a373424a8d31e86a26b1d8056f4a11d49dcc5d4d5be71b7a151160e00b9cacc3d6dd2d2109effda275343b505ba46401b2aa35af41a77aed6"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@next/swc-win32-x64-msvc"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "helpers",
+      "group": "@swc",
+      "version": "0.5.23",
+      "bom-ref": "lonkoo-front@1.0.0|@swc/helpers@0.5.23",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40swc/helpers@0.5.23",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@swc/helpers/-/helpers-0.5.23.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "e654ac30e4d751178f8250dfbee01052a9067a4f47836924b0e61acb69b4f9747ef9bd8d5982ffe2c5b2baf54122cf282a725ac64762f7085a2ffb2a375dda7f"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@swc/helpers"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "baseline-browser-mapping",
+      "version": "2.11.29",
+      "bom-ref": "lonkoo-front@1.0.0|baseline-browser-mapping@2.11.29",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/baseline-browser-mapping@2.11.29",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/baseline-browser-mapping/-/baseline-browser-mapping-2.11.29.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "61e7acc61526478879cb957c285f22042a896fc605ac127ef9705378671621a40e61718dd7d24cd05a223a3021c2e0e8967f28c0c817716066807b584a4932db"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/baseline-browser-mapping"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "caniuse-lite",
+      "version": "1.0.30001816",
+      "bom-ref": "lonkoo-front@1.0.0|caniuse-lite@1.0.30001816",
+      "licenses": [
+        {
+          "license": {
+            "id": "CC-BY-4.0",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/caniuse-lite@1.0.30001816",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/caniuse-lite/-/caniuse-lite-1.0.30001816.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "fbc631ec15c2a2a93a205f324e27237d447a0ff95d273765b2876510e88e48f9a12bce38588824ebbff321068600ec4d919cb2bc196b4459cbbea288a2a6c017"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/caniuse-lite"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "postcss",
+      "version": "8.5.23",
+      "bom-ref": "lonkoo-front@1.0.0|next@16.4.2|postcss@8.5.23",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/postcss@8.5.23",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/postcss/-/postcss-8.5.23.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "839d39f3acebe1b666c0589395f94cbbc1346c34dbe48e607abb60c002a6b1d5254d022166dba7cd4943d564b3c1c5563e8015a6cac0eaf95f083ee85ef47082"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/next/node_modules/postcss"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "styled-jsx",
+      "version": "5.1.6",
+      "bom-ref": "lonkoo-front@1.0.0|styled-jsx@5.1.6",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/styled-jsx@5.1.6",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/styled-jsx/-/styled-jsx-5.1.6.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "a925720d378ca2d76f418a0758b346c111491c2fa2f99bdd051628b0e1600be5a0d6fc787eb376fd11bf340ed262aaaf28d2dfdfd3f62d2440da9bba9f45d864"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/styled-jsx"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "scheduler",
+      "version": "0.28.0",
+      "bom-ref": "lonkoo-front@1.0.0|scheduler@0.28.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/scheduler@0.28.0",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/scheduler/-/scheduler-0.28.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "8eea2b7c2988908c3cb53fa9e415d29ba3c98d017fc9c11898acb3511088b7f45a64884bf8fba56d0f58bb6cf51dd3890dda834e5c40d7ec4a0661d726c73303"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/scheduler"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "isomorphic.js",
+      "version": "0.2.5",
+      "bom-ref": "lonkoo-front@1.0.0|isomorphic.js@0.2.5",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/isomorphic.js@0.2.5",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/isomorphic.js/-/isomorphic.js-0.2.5.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "3c878c6c7a8cb780e750fdcc03f1657341c49588cc5c0aecc35ab0259726f6ca91f26ab797c3588b314cb72d295b013fb732061f710a2b9fa37ace6602bf39cb"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/isomorphic.js"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "tslib",
+      "version": "2.8.1",
+      "bom-ref": "lonkoo-front@1.0.0|tslib@2.8.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "0BSD",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/tslib@2.8.1",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/tslib/-/tslib-2.8.1.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "a0916ef781d06fe29576e49440bef09e99aa9df98bb0e03f9c087a6fa107d30084a0ad3f98f79753a737c0a0d5f373243ae1cf447b525ca294f7d2016b34bfdb"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/tslib"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "nanoid",
+      "version": "3.3.20",
+      "bom-ref": "lonkoo-front@1.0.0|nanoid@3.3.20",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/nanoid@3.3.20",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/nanoid/-/nanoid-3.3.20.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "b8a760d86dc63422909fd6f260ea716c6aab4f67c63b9291b7927ff1bde9a24f2b4faab119617a871332262118b407fe155c98b83f6145a0ea5f9b8f15827865"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/nanoid"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "picocolors",
+      "version": "1.1.1",
+      "bom-ref": "lonkoo-front@1.0.0|picocolors@1.1.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "ISC",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/picocolors@1.1.1",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/picocolors/-/picocolors-1.1.1.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "c5c787dac9e1b5be4cf658aa0ec984c39ea57b7efa993664117fe311bfd1c4d1727a036e97b78db250973fd1438ff2dcbb45fc284c8c71e3f69eda5a1eb0c454"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/picocolors"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "source-map-js",
+      "version": "1.2.2",
+      "bom-ref": "lonkoo-front@1.0.0|source-map-js@1.2.2",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/source-map-js@1.2.2",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/source-map-js/-/source-map-js-1.2.2.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "2868fff18e37c77e5a6550edb7e27898ad61a0b18750b3187d290e0c93508cd0c2de85b53ea3e8c4cc28d292d4b1633f5041b338dfcdc5e1f2c047cd5cd3f757"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/source-map-js"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "client-only",
+      "version": "0.0.1",
+      "bom-ref": "lonkoo-front@1.0.0|client-only@0.0.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/client-only@0.0.1",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/client-only/-/client-only-0.0.1.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "215dcebb48d233366b777a59e3c9cb913f4303b020d699cfcda8908695bb73745b72aab3bf3cd5bbe2fc81fa8ca7ff08336310b528aa682c6badc7eef08f2b30"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/client-only"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "lonkoo-front@1.0.0",
+      "dependsOn": [
+        "lonkoo-front@1.0.0|@hocuspocus/provider@4.7.1",
+        "lonkoo-front@1.0.0|@phosphor-icons/react@2.1.10",
+        "lonkoo-front@1.0.0|next@16.4.2",
+        "lonkoo-front@1.0.0|react-dom@19.3.1",
+        "lonkoo-front@1.0.0|react@19.3.1",
+        "lonkoo-front@1.0.0|sharp@0.35.5",
+        "lonkoo-front@1.0.0|yjs@13.6.33"
+      ]
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|@hocuspocus/provider@4.7.1",
+      "dependsOn": [
+        "lonkoo-front@1.0.0|@hocuspocus/common@4.7.1",
+        "lonkoo-front@1.0.0|@lifeomic/attempt@3.1.0",
+        "lonkoo-front@1.0.0|lib0@0.2.119",
+        "lonkoo-front@1.0.0|y-protocols@1.0.7",
+        "lonkoo-front@1.0.0|yjs@13.6.33"
+      ]
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|@phosphor-icons/react@2.1.10",
+      "dependsOn": [
+        "lonkoo-front@1.0.0|react-dom@19.3.1",
+        "lonkoo-front@1.0.0|react@19.3.1"
+      ]
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|next@16.4.2",
+      "dependsOn": [
+        "lonkoo-front@1.0.0|@next/env@16.4.2",
+        "lonkoo-front@1.0.0|@next/swc-darwin-arm64@16.4.2",
+        "lonkoo-front@1.0.0|@next/swc-darwin-x64@16.4.2",
+        "lonkoo-front@1.0.0|@next/swc-linux-arm64-gnu@16.4.2",
+        "lonkoo-front@1.0.0|@next/swc-linux-arm64-musl@16.4.2",
+        "lonkoo-front@1.0.0|@next/swc-linux-x64-gnu@16.4.2",
+        "lonkoo-front@1.0.0|@next/swc-linux-x64-musl@16.4.2",
+        "lonkoo-front@1.0.0|@next/swc-win32-arm64-msvc@16.4.2",
+        "lonkoo-front@1.0.0|@next/swc-win32-x64-msvc@16.4.2",
+        "lonkoo-front@1.0.0|@swc/helpers@0.5.23",
+        "lonkoo-front@1.0.0|baseline-browser-mapping@2.11.29",
+        "lonkoo-front@1.0.0|caniuse-lite@1.0.30001816",
+        "lonkoo-front@1.0.0|next@16.4.2|postcss@8.5.23",
+        "lonkoo-front@1.0.0|react-dom@19.3.1",
+        "lonkoo-front@1.0.0|react@19.3.1",
+        "lonkoo-front@1.0.0|sharp@0.35.5",
+        "lonkoo-front@1.0.0|styled-jsx@5.1.6"
+      ]
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|react-dom@19.3.1",
+      "dependsOn": [
+        "lonkoo-front@1.0.0|react@19.3.1",
+        "lonkoo-front@1.0.0|scheduler@0.28.0"
+      ]
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|react@19.3.1"
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|sharp@0.35.5"
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|yjs@13.6.33",
+      "dependsOn": [
+        "lonkoo-front@1.0.0|lib0@0.2.119"
+      ]
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|@hocuspocus/common@4.7.1",
+      "dependsOn": [
+        "lonkoo-front@1.0.0|lib0@0.2.119"
+      ]
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|@lifeomic/attempt@3.1.0"
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|lib0@0.2.119",
+      "dependsOn": [
+        "lonkoo-front@1.0.0|isomorphic.js@0.2.5"
+      ]
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|y-protocols@1.0.7",
+      "dependsOn": [
+        "lonkoo-front@1.0.0|lib0@0.2.119",
+        "lonkoo-front@1.0.0|yjs@13.6.33"
+      ]
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|@next/env@16.4.2"
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|@next/swc-darwin-arm64@16.4.2"
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|@next/swc-darwin-x64@16.4.2"
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|@next/swc-linux-arm64-gnu@16.4.2"
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|@next/swc-linux-arm64-musl@16.4.2"
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|@next/swc-linux-x64-gnu@16.4.2"
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|@next/swc-linux-x64-musl@16.4.2"
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|@next/swc-win32-arm64-msvc@16.4.2"
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|@next/swc-win32-x64-msvc@16.4.2"
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|@swc/helpers@0.5.23",
+      "dependsOn": [
+        "lonkoo-front@1.0.0|tslib@2.8.1"
+      ]
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|baseline-browser-mapping@2.11.29"
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|caniuse-lite@1.0.30001816"
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|next@16.4.2|postcss@8.5.23",
+      "dependsOn": [
+        "lonkoo-front@1.0.0|nanoid@3.3.20",
+        "lonkoo-front@1.0.0|picocolors@1.1.1",
+        "lonkoo-front@1.0.0|source-map-js@1.2.2"
+      ]
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|styled-jsx@5.1.6",
+      "dependsOn": [
+        "lonkoo-front@1.0.0|client-only@0.0.1",
+        "lonkoo-front@1.0.0|react@19.3.1"
+      ]
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|scheduler@0.28.0"
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|isomorphic.js@0.2.5"
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|tslib@2.8.1"
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|nanoid@3.3.20"
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|picocolors@1.1.1"
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|source-map-js@1.2.2"
+    },
+    {
+      "ref": "lonkoo-front@1.0.0|client-only@0.0.1"
+    }
+  ]
+}

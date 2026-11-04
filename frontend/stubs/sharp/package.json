@@ -1,0 +1,8 @@
+{
+  "name": "sharp",
+  "version": "0.35.5",
+  "private": true,
+  "description": "Stub local qui remplace sharp : évite d'installer libvips (LGPL-3.0), interdit par le règlement CADev. Voir docs/LICENCES-TIERCES.md.",
+  "main": "index.js",
+  "license": "UNLICENSED"
+}

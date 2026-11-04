@@ -1,0 +1,43 @@
+# Mises à jour automatiques : actions GitHub, npm (frontend, realtime), Maven (backend) et images de base Docker.
+# Les correctifs de sécurité urgents sont aussi relevés par le job « Avis de sécurité » de la CI.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    ignore:
+      # typescript-eslint ne supporte pas TypeScript 7 (voir docs/LICENCES-TIERCES.md et le commit du lint).
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      # eslint-config-next 16 exige ESLint 9 (peers des plugins).
+      - dependency-name: eslint
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: npm
+    directory: /realtime
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+  - package-ecosystem: npm
+    directory: /e2e
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+  - package-ecosystem: maven
+    directory: /backend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+  - package-ecosystem: docker
+    directory: /backend
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /realtime
+    schedule:
+      interval: weekly
