@@ -13,9 +13,6 @@ import {
   User,
   CloudCheck,
   Cpu,
-  Database,
-  ShieldCheck,
-  Lightning,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/cn";
 import { useWorkspace } from "@/lib/workspace";
@@ -25,6 +22,8 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   streaming?: boolean;
+  /** Écrit par l'interface (accueil, erreur) : jamais renvoyé au serveur comme si l'assistant l'avait dit. */
+  local?: boolean;
 }
 
 function safeSystalinkUrl(raw: string): string | null {
@@ -43,21 +42,18 @@ function hasSystalinkUrl(text: string): boolean {
   return /(^|[\s(])https:\/\/systalink\.com(\/[^\s)]*)?/i.test(text);
 }
 
+// Seulement ce que la page https://systalink.com/fr affichait le 04/11/2026 : Orion, Connexion MCP, Yokk, serveur cloud (région Dakar).
 const QUICK_PRODUCTS = [
   { label: "Orion (Générateur)", icon: Sparkle, query: "Comment utiliser Orion pour générer mon site sur Systalink ?" },
   { label: "Connexion MCP", icon: Cpu, query: "Comment fonctionne la Connexion MCP pour brancher mes agents IA sur Systalink ?" },
-  { label: "VPS Dakar (<15ms)", icon: Lightning, query: "Parle-moi des VPS Cloud Souverain à Dakar et de la latence UEMOA." },
-  { label: "DBaaS PostgreSQL", icon: Database, query: "Quels sont les avantages du PostgreSQL managé haute disponibilité sur Systalink ?" },
-  { label: "SystaDrive S3", icon: CloudCheck, query: "Comment intégrer le stockage d'objets SystaDrive compatible S3 ?" },
-  { label: "Instances GPU", icon: Cpu, query: "Quand seront disponibles les instances GPU pour workloads IA sur Systalink ?" },
-  { label: "Assistant Yokk", icon: Robot, query: "Que fait l'assistant Yokk pour piloter les services au quotidien ?" },
-  { label: "Hébergement Web & CMS", icon: ShieldCheck, query: "Comment déployer un site ou un CMS avec migration en un clic sur Systalink ?" },
+  { label: "Serveur cloud", icon: CloudCheck, query: "Que propose Systalink pour héberger mon application ?" },
+  { label: "Yokk", icon: Robot, query: "Qu'est-ce que Yokk chez Systalink ?" },
 ];
 
 const INITIAL_SUGGESTIONS = [
   "💡 Décrire mon idée d'application et concevoir l'architecture",
-  "🚀 Proposer un plan de déploiement complet sur Systalink Cloud",
-  "⚡ Auditer la latence UEMOA et sécuriser la persistance",
+  "🚀 Proposer un plan de déploiement sur un serveur cloud",
+  "⚡ Auditer la résilience et sécuriser la persistance",
   "🔌 Brancher des agents IA autonomes via Connexion MCP",
   "Demander un devis d'infrastructure (systalink.com/fr)",
 ];
@@ -73,17 +69,18 @@ export function FloatingChatWidget() {
     {
       id: "welcome",
       role: "assistant",
+      local: true,
       content:
-        `👋 **Bienvenue sur le Conseiller IA de LONKOO & Systalink !**\n\n` +
-        `Je suis votre architecte logiciel et expert Cloud Souverain. Je peux vous accompagner à chaque étape :\n` +
-        `1. **De l'idée initiale à l'architecture** : expliquez-moi votre projet en français libre, je concevrai les composants (microservices, bases, files, passerelles Wave/Orange Money).\n` +
-        `2. **Déploiement sur Systalink Cloud** : hébergement haute performance à Dakar (latence < 15ms UEMOA, facturation en FCFA, DBaaS PostgreSQL, SystaDrive S3, K8s managé).\n` +
-        `3. **IA & Automatisation** : génération avec **Orion**, pilotage avec **Yokk** et **Connexion MCP** pour brancher vos agents IA sur votre infrastructure.\n\n` +
-        `Que souhaitez-vous concevoir ou déployer aujourd'hui ?`,
+        `👋 **Bienvenue sur le Conseiller IA de LONKOO !**\n\n` +
+        `Je peux vous accompagner à chaque étape :\n` +
+        `1. **De l'idée à l'architecture** : décrivez votre projet en français libre, je propose des composants (services, bases, files, passerelles de paiement).\n` +
+        `2. **Déploiement** : je peux vous orienter vers les offres de Systalink (https://systalink.com/fr).\n` +
+        `3. **IA & automatisation** : Orion, Connexion MCP et Yokk sont des services présentés par Systalink.\n\n` +
+        `Je suis une IA : mes réponses peuvent contenir des erreurs, vérifiez-les avant de vous y fier.`,
     },
   ]);
 
-  const [suggestedActions, setSuggestedActions] = useState<string[]>(INITIAL_SUGGESTIONS);
+  const [suggestedActions] = useState<string[]>(INITIAL_SUGGESTIONS);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messageIdRef = useRef(0);
@@ -116,15 +113,14 @@ export function FloatingChatWidget() {
     setInput("");
     setLoading(true);
 
+    const history = newMessages.filter((m) => !m.local).map((m) => ({ role: m.role, content: m.content }));
     const canvasId = activeProject?.canvasId;
     const streamEndpoint = canvasId
       ? `/api/canvases/${canvasId}/ai/chat/stream`
       : `/api/ai/chat/stream`;
 
-    const fallbackEndpoint = canvasId
-      ? `/api/canvases/${canvasId}/ai/chat`
-      : `/api/ai/chat`;
-
+    // Une seule demande : jamais de seconde tentative automatique, chaque appel compte dans le quota du jour.
+    let failure = "Le serveur ne répond pas : le conseiller IA n'a pas pu répondre. Réessayez dans un instant.";
     try {
       const response = await fetch(streamEndpoint, {
         method: "POST",
@@ -133,13 +129,14 @@ export function FloatingChatWidget() {
           Accept: "text/event-stream",
         },
         body: JSON.stringify({
-          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
+          messages: history,
         }),
       });
 
       if (response.ok && response.body) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
+        let streamFailed = false;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -157,6 +154,7 @@ export function FloatingChatWidget() {
               }
               try {
                 const parsed = JSON.parse(dataStr);
+                if (parsed.error) streamFailed = true;
                 if (parsed.content) {
                   setMessages((prev) =>
                     prev.map((m) =>
@@ -182,89 +180,26 @@ export function FloatingChatWidget() {
         }
 
         setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantMsgId
-              ? { ...m, content: m.content || "Réponse terminée.", streaming: false }
-              : m
-          )
+          prev.map((m) => {
+            if (m.id !== assistantMsgId) return m;
+            if (streamFailed && !m.content) {
+              return { ...m, content: "Le conseiller IA a rencontré une erreur. Réessayez dans un instant.", streaming: false, local: true };
+            }
+            return { ...m, content: m.content || "Réponse terminée.", streaming: false };
+          })
         );
         setLoading(false);
         return;
       }
+      const problem = (await response.json().catch(() => null)) as { detail?: string } | null;
+      failure = problem?.detail || `Le conseiller IA n'a pas pu répondre (erreur ${response.status}).`;
     } catch {
-      // Échec du stream, tentative de repli vers l'API synchrone
-    }
-
-    // Repli vers endpoint synchrone
-    try {
-      const res = await fetch(fallbackEndpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantMsgId
-              ? { ...m, content: data.reply || "Aucune réponse", streaming: false }
-              : m
-          )
-        );
-        if (data.suggestedActions?.length) {
-          setSuggestedActions(data.suggestedActions);
-        }
-        setLoading(false);
-        return;
-      }
-    } catch {
-      // Repli local intelligent avec contextualisation Systalink
-    }
-
-    // Réponse de repli local si hors ligne
-    let fallbackReply = "";
-    const lower = text.toLowerCase().trim();
-
-    if (["salut", "bonjour", "hello", "coucou", "yo", "hi", "bonsoir"].includes(lower)) {
-      fallbackReply = `Salut ! Je suis votre assistant Lonkoo & Systalink. Ravi de vous rencontrer !\n\nComment puis-je vous aider aujourd'hui ? Vous pouvez me décrire une idée d'application à concevoir, me poser des questions sur votre architecture, ou explorer les solutions Cloud Souverain de Systalink (Dakar).`;
-    } else if (lower.includes("vps") || lower.includes("cloud") || lower.includes("héberg") || lower.includes("dakar")) {
-      fallbackReply =
-        `**Infrastructure Cloud Souverain Systalink** :\n` +
-        `- Hébergement physique dans le datacenter de Dakar, garantissant une latence < 15ms dans toute l'Afrique de l'Ouest (UEMOA).\n` +
-        `- Conformité stricte sur la souveraineté des données africaines.\n` +
-        `- Facturation prévisible en Francs CFA (XOF) sans risque de change.\n\n` +
-        `👉 Découvrez les offres : https://systalink.com/fr`;
-    } else if (lower.includes("orion") || lower.includes("génér")) {
-      fallbackReply =
-        `**Orion par Systalink** (« Décrivez votre idée, Orion génère votre site ») :\n` +
-        `Permet de concevoir des sites web, vitrines et boutiques instantanément à partir d'un prompt naturel, ` +
-        `directement prêt à être déployé sur l'infrastructure Systalink.\n\n` +
-        `👉 Essayer Orion : https://systalink.com/fr`;
-    } else if (lower.includes("mcp") || lower.includes("agent") || lower.includes("yokk")) {
-      fallbackReply =
-        `**Connexion MCP & Assistant Yokk** :\n` +
-        `- **Connexion MCP** : Branchez vos agents IA directement sur votre infrastructure pour provisionner, inspecter et piloter vos VM et conteneurs.\n` +
-        `- **Yokk** : L'assistant intelligent qui pilote vos services au quotidien, analyse vos alertes et gère la maintenance.\n\n` +
-        `👉 En savoir plus : https://systalink.com/fr`;
-    } else if (lower.includes("base") || lower.includes("bdd") || lower.includes("postgres")) {
-      fallbackReply =
-        `**DBaaS PostgreSQL Managé Systalink** :\n` +
-        `Haute disponibilité avec réplication synchrone, sauvegardes chiffrées quotidiennes automatiques et zéro maintenance système.\n\n` +
-        `👉 Découvrir le DBaaS : https://systalink.com/fr`;
-    } else {
-      fallbackReply =
-        `Je suis à votre écoute ! Que souhaitez-vous approfondir pour votre projet ?\n\n` +
-        `- Vous pouvez me décrire votre projet pour que je conçoive l'architecture logicielle.\n` +
-        `- Me poser des questions sur les technologies recommandées (PostgreSQL, Redis, RabbitMQ, Docker).\n` +
-        `- Ou planifier le déploiement sur les infrastructures Systalink à Dakar (https://systalink.com/fr).`;
+      // Réseau coupé : le message par défaut ci-dessus s'affiche.
     }
 
     setMessages((prev) =>
       prev.map((m) =>
-        m.id === assistantMsgId ? { ...m, content: fallbackReply, streaming: false } : m
+        m.id === assistantMsgId ? { ...m, content: failure, streaming: false, local: true } : m
       )
     );
     setLoading(false);
@@ -356,7 +291,7 @@ export function FloatingChatWidget() {
                 <div className="flex items-center gap-1.5">
                   <h3 className="text-sm font-bold text-ink">Conseiller Systalink</h3>
                   <span className="rounded bg-accent/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-accent">
-                    Souverain · Dakar
+                    Systalink
                   </span>
                 </div>
                 <p className="text-[11px] text-ink-3">Architecture, Cloud & Déploiement</p>
@@ -371,7 +306,8 @@ export function FloatingChatWidget() {
                     {
                       id: "welcome-reset",
                       role: "assistant",
-                      content: "Conversation réinitialisée. En quoi puis-je vous aider pour votre architecture et infrastructure Systalink ?",
+                      local: true,
+                      content: "Conversation réinitialisée. En quoi puis-je vous aider pour votre architecture ?",
                     },
                   ])
                 }
@@ -456,7 +392,7 @@ export function FloatingChatWidget() {
                   {msg.role === "assistant" && hasSystalinkUrl(msg.content) && (
                     <div className="mt-2.5 pt-2 border-t border-edge/60 flex flex-wrap items-center justify-between gap-2">
                       <span className="text-[11px] font-medium text-ink-3">
-                        Infrastructure Cloud Dakar (FCFA)
+                        Systalink
                       </span>
                       <a
                         href="https://systalink.com/fr"
@@ -545,7 +481,7 @@ export function FloatingChatWidget() {
                 rel="noopener noreferrer"
                 className="hover:text-ink-2 transition-colors"
               >
-                Partenaire Cloud Officiel : Systalink Dakar
+                Systalink : systalink.com
               </a>
             </div>
           </div>

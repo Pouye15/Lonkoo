@@ -15,6 +15,7 @@ import { LiveTeamPanel } from "@/components/studio/live/LiveTeamPanel";
 import { ShareDialog } from "@/components/studio/live/ShareDialog";
 import { VersionsPanel } from "@/components/studio/live/VersionsPanel";
 import { ChatbotPanel } from "@/components/studio/ChatbotPanel";
+import { toSuggestions, type LiveAuditResponse } from "@/lib/audit-findings";
 import {
   AI_SUGGESTIONS,
   ARCHITECTURE_VERSIONS,
@@ -23,7 +24,6 @@ import {
   DEFAULT_PROJECT_TEAMS,
   type ArchitectureVersion,
   type AIDocSection,
-  type AISuggestion,
   type GitHubRole,
   type ProjectCollaborator,
   type ProjectTeamGroup,
@@ -67,23 +67,6 @@ const API_ROLE_BY_LABEL: Record<GitHubRole, ApiRole> = {
   Write: "WRITE",
   Triage: "TRIAGE",
   Read: "READ",
-};
-
-type LiveAuditFinding = {
-  id?: string;
-  severity?: string;
-  category?: string;
-  title?: string;
-  targetNodeId?: string;
-  currentConfig?: string;
-  proposedConfig?: string;
-  rationale?: string;
-  impactScore?: string;
-  patch?: AISuggestion["patch"];
-};
-
-type LiveAuditResponse = {
-  findings?: LiveAuditFinding[];
 };
 
 export default function StudioPage() {
@@ -150,6 +133,7 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [hasAnalyzed, setHasAnalyzed] = useState<boolean>(false);
   const [analysisStep, setAnalysisStep] = useState<string>("");
+  const [auditError, setAuditError] = useState<string | null>(null);
 
   const [simulatedRps, setSimulatedRps] = useState<number>(8500);
 
@@ -202,144 +186,43 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
   const [requireTwoApprovals, setRequireTwoApprovals] = useState<boolean>(true);
   const [requireAiCheck, setRequireAiCheck] = useState<boolean>(true);
 
-  const aiHealthScore = Math.min(100, 86 + appliedSuggestionIds.length * 5);
+  // Le serveur ne calcule aucun score : il n'y en a que dans la démonstration locale (sans serveur), jamais pour un vrai canvas.
+  const aiHealthScore = live ? null : Math.min(100, 86 + appliedSuggestionIds.length * 5);
 
   const runArchitectureAudit = React.useCallback(async () => {
     setIsAnalyzing(true);
-    setAnalysisStep("Cartographie des composants et détection des SPOF...");
+    setAuditError(null);
 
-    if (live && currentProject.canvasId) {
-      try {
-        setAnalysisStep("Interrogation de l'Agent IA Lonkoo & Systalink...");
-        const res = await fetch(`/api/canvases/${currentProject.canvasId}/ai/audit`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-        });
-        if (res.ok) {
-          const data = (await res.json()) as LiveAuditResponse;
-          if (data.findings && data.findings.length > 0) {
-            const mapped: typeof AI_SUGGESTIONS = data.findings.map((f: LiveAuditFinding, idx: number) => {
-              const sev = (f.severity || "RECOMMENDED").toLowerCase();
-              const categoryMap: Record<string, AISuggestion["category"]> = {
-                RESILIENCE: "Résilience",
-                STACK: "Stack Technique",
-                SECURITY: "Sécurité",
-                PERFORMANCE: "Performance",
-              };
-              const severityMap: Record<string, AISuggestion["severity"]> = {
-                critical: "critique",
-                recommended: "recommandé",
-                optimization: "optimisation",
-              };
-              return {
-                id: f.id || `live-sug-${idx}`,
-                severity: severityMap[sev] ?? "recommandé",
-                category: categoryMap[f.category ?? ""] || "Stack Technique",
-                title: f.title || "Optimisation recommandée",
-                targetNodeId: f.targetNodeId || nodes[0]?.id || "",
-                currentConfig: f.currentConfig || "Configuration standard",
-                proposedConfig: f.proposedConfig || "Configuration optimisée",
-                rationale: f.rationale || "Améliore la résilience et la scalabilité de l'infrastructure.",
-                impactScore: f.impactScore || "+15 pts Score IA",
-                patch: f.patch || {
-                  tech: f.proposedConfig?.slice(0, 32) || "Optimisé",
-                  version: "v-ha",
-                  replicas: 2,
-                  status: "Optimisé",
-                  metricValue: "+40% RPS",
-                },
-              };
-            });
-            setSuggestions(mapped);
-            setHasAnalyzed(true);
-            setIsAnalyzing(false);
-            return;
-          }
-        }
-      } catch {
-        // Repli gracieux
+    // Sans serveur (démonstration locale) : les remarques d'exemple, étiquetées comme telles dans l'onglet.
+    if (!live || !currentProject.canvasId) {
+      setSuggestions(AI_SUGGESTIONS);
+      setHasAnalyzed(true);
+      setIsAnalyzing(false);
+      return;
+    }
+
+    // Avec un serveur : sa réponse, ou l'explication de l'échec. Jamais une analyse inventée à la place.
+    setAnalysisStep("Interrogation de l'agent IA...");
+    try {
+      const res = await fetch(`/api/canvases/${currentProject.canvasId}/ai/audit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (res.ok) {
+        const data = (await res.json()) as LiveAuditResponse;
+        setSuggestions(toSuggestions(data));
+      } else {
+        const problem = (await res.json().catch(() => null)) as { detail?: string } | null;
+        setSuggestions([]);
+        setAuditError(problem?.detail || `L'analyse n'a pas pu être faite (erreur ${res.status}).`);
       }
+    } catch {
+      setSuggestions([]);
+      setAuditError("Le serveur ne répond pas : l'analyse n'a pas pu être faite.");
     }
-
-    await new Promise((r) => setTimeout(r, 600));
-    setAnalysisStep("Contrôle de la sécurité des passerelles et de la latence UEMOA...");
-    await new Promise((r) => setTimeout(r, 600));
-    setAnalysisStep("Génération des correctifs haute disponibilité Systalink...");
-    await new Promise((r) => setTimeout(r, 500));
-
-    const dbNode = nodes.find((n) => n.tech?.toLowerCase().includes("sql") || n.id.includes("pg") || n.id.includes("db") || n.title.toLowerCase().includes("data"));
-    const edgeNode = nodes.find((n) => n.id.includes("edge") || n.id.includes("gateway") || n.title.toLowerCase().includes("gateway") || n.title.toLowerCase().includes("web"));
-    const serviceNode = nodes.find((n) => n.id !== dbNode?.id && n.id !== edgeNode?.id) || nodes[0];
-
-    const dynamicSuggestions: typeof AI_SUGGESTIONS = [];
-
-    if (dbNode) {
-      dynamicSuggestions.push({
-        id: `sug-db-systalink-${dbNode.id}`,
-        severity: "critique",
-        category: "Résilience",
-        title: `Migrer ${dbNode.title} vers PostgreSQL HA (DBaaS Systalink Dakar)`,
-        targetNodeId: dbNode.id,
-        currentConfig: `${dbNode.title} - ${dbNode.tech || "PostgreSQL"} (Mono-instance)`,
-        proposedConfig: `PostgreSQL 16 HA + Patroni sur DBaaS Systalink (3 nœuds répliqués à Dakar, latence < 10ms)`,
-        rationale: `L'instance actuelle présente un point de défaillance unique (SPOF). En cas d'incident, l'accès est bloqué. Le DBaaS souverain Systalink assure le basculement automatique et des sauvegardes quotidiennes chiffrées.`,
-        impactScore: "+18 pts Score IA",
-        patch: {
-          tech: "PostgreSQL HA Systalink",
-          version: "v16.4-ha-dakar",
-          replicas: 3,
-          status: "Optimisé",
-          metricValue: "28.5k RPS",
-        },
-      });
-    }
-
-    if (edgeNode) {
-      dynamicSuggestions.push({
-        id: `sug-edge-protection-${edgeNode.id}`,
-        severity: "recommandé",
-        category: "Sécurité",
-        title: `Activer la protection Anti-DDoS et la terminaison SSL Systalink`,
-        targetNodeId: edgeNode.id,
-        currentConfig: `${edgeNode.title} - Exposition directe sans filtrage de trafic`,
-        proposedConfig: `Reverse-proxy souverain avec filtrage Anti-DDoS, SSL Let's Encrypt et cache JWKS à Dakar`,
-        rationale: `Les attaques DDoS et la latence TLS peuvent impacter les usagers en Afrique de l'Ouest. Le réseau Systalink Anycast absorbe les attaques et accélère les requêtes.`,
-        impactScore: "+14 pts Score IA",
-        patch: {
-          tech: "Gateway Anti-DDoS Systalink",
-          version: "v2.1-ddos-shield",
-          replicas: 2,
-          status: "Optimisé",
-          metricValue: "99.99% SLA",
-        },
-      });
-    }
-
-    if (serviceNode && serviceNode.id !== dbNode?.id && serviceNode.id !== edgeNode?.id) {
-      dynamicSuggestions.push({
-        id: `sug-k8s-autoscale-${serviceNode.id}`,
-        severity: "optimisation",
-        category: "Performance",
-        title: `Déployer ${serviceNode.title} sur Kubernetes Managé Systalink`,
-        targetNodeId: serviceNode.id,
-        currentConfig: `${serviceNode.title} (${serviceNode.replicas || 1} instance)`,
-        proposedConfig: `Cluster K8s Managé Systalink avec Horizontal Pod Autoscaling (HPA)`,
-        rationale: `Permet d'absorber les pics de trafic en Afrique de l'Ouest tout en optimisant la facturation en FCFA (XOF).`,
-        impactScore: "+12 pts Score IA",
-        patch: {
-          tech: "K8s Managé Systalink",
-          version: "k8s-v1.30",
-          replicas: 3,
-          status: "Optimisé",
-          metricValue: "+50% Capacité",
-        },
-      });
-    }
-
-    setSuggestions(dynamicSuggestions.length > 0 ? dynamicSuggestions : AI_SUGGESTIONS);
     setHasAnalyzed(true);
     setIsAnalyzing(false);
-  }, [currentProject.canvasId, live, nodes]);
+  }, [currentProject.canvasId, live]);
 
   React.useEffect(() => {
     if (activeTab === "scanner" && !hasAnalyzed && !isAnalyzing) {
@@ -352,18 +235,19 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
 
   const applySuggestion = (sugId: string) => {
     const sug = suggestions.find((s) => s.id === sugId) || AI_SUGGESTIONS.find((s) => s.id === sugId);
-    if (!sug || appliedSuggestionIds.includes(sugId)) return;
+    const patch = sug?.patch;
+    if (!sug || !patch || appliedSuggestionIds.includes(sugId)) return;
 
     setNodes((prev) =>
       prev.map((node) =>
         node.id === sug.targetNodeId
           ? {
               ...node,
-              tech: sug.patch.tech ?? node.tech,
-              version: sug.patch.version ?? node.version,
-              replicas: sug.patch.replicas ?? node.replicas,
-              status: sug.patch.status ?? node.status,
-              metricValue: sug.patch.metricValue ?? node.metricValue,
+              tech: patch.tech ?? node.tech,
+              version: patch.version ?? node.version,
+              replicas: patch.replicas ?? node.replicas,
+              status: patch.status ?? node.status,
+              metricValue: patch.metricValue ?? node.metricValue,
               maxRpsCapacity: Math.round(node.maxRpsCapacity * 1.45),
             }
           : node
@@ -390,7 +274,7 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
             : `Synthèse de la topologie : Le graphe contient ${nodes.length} briques actives (${stackSummary}).`,
           highlights: [
             `${nodes.length} composants présents dans le graphe`,
-            `Score de cohérence évalué à ${aiHealthScore}%`,
+            ...(aiHealthScore === null ? [] : [`Score de cohérence évalué à ${aiHealthScore}%`]),
             `Synchronisé avec le dépôt ${currentProject.githubRepo}`,
           ],
         },
@@ -677,6 +561,11 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
                       <span className="rounded bg-accent/10 px-2 py-0.5 font-mono text-[11px] font-semibold text-accent">
                         Agent IA & Systalink
                       </span>
+                      {!live && (
+                        <span className="rounded bg-subtle px-2 py-0.5 font-mono text-[11px] font-semibold text-ink-2">
+                          Démonstration : remarques d&apos;exemple, hors connexion au serveur
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-ink-3 mt-0.5">
                       Analyse des {nodes.length} blocs du projet {currentProject.name}.
@@ -693,13 +582,17 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
                       <span>Relancer l&apos;analyse</span>
                     </button>
                     <div className="flex items-center gap-4 bg-sunken px-4 py-2.5 rounded-lg border border-edge">
-                      <div>
-                        <div className="text-[11px] text-ink-3">Score de cohérence</div>
-                        <div className="text-xl font-bold font-mono text-ink">
-                          {aiHealthScore}%
-                        </div>
-                      </div>
-                      <div className="h-7 w-px bg-strong" />
+                      {aiHealthScore !== null && (
+                        <>
+                          <div>
+                            <div className="text-[11px] text-ink-3">Score de cohérence</div>
+                            <div className="text-xl font-bold font-mono text-ink">
+                              {aiHealthScore}%
+                            </div>
+                          </div>
+                          <div className="h-7 w-px bg-strong" />
+                        </>
+                      )}
                       <div>
                         <div className="text-[11px] text-ink-3">Correctifs</div>
                         <div className="text-sm font-bold font-mono text-accent">
@@ -709,6 +602,17 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
                     </div>
                   </div>
                 </div>
+
+                {auditError && (
+                  <div role="alert" className="rounded-xl border border-danger bg-surface p-4 text-sm text-danger">
+                    {auditError}
+                  </div>
+                )}
+                {!auditError && hasAnalyzed && suggestions.length === 0 && (
+                  <div role="status" className="rounded-xl border border-edge bg-surface p-4 text-sm text-ink-2">
+                    Aucune remarque : l&apos;agent IA n&apos;a rien relevé sur ce canvas.
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 gap-3">
                   {suggestions.map((sug) => {
@@ -725,14 +629,18 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
                             {sug.severity}
                           </span>
                           <span className="text-ink-3">{sug.category}</span>
-                          <span className="text-ink-4">·</span>
-                          <span className="font-mono text-accent font-medium">
-                            {sug.impactScore}
-                          </span>
+                          {sug.impactScore && (
+                            <>
+                              <span className="text-ink-4">·</span>
+                              <span className="font-mono text-accent font-medium">
+                                {sug.impactScore}
+                              </span>
+                            </>
+                          )}
                         </div>
 
                         <h3 className="text-sm font-bold text-ink">{sug.title}</h3>
-                        <p className="text-xs text-ink-2 leading-relaxed">{sug.rationale}</p>
+                        {sug.rationale && <p className="text-xs text-ink-2 leading-relaxed">{sug.rationale}</p>}
 
                         <div className="pt-1 grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs font-mono">
                           <div className="p-2.5 rounded-lg bg-sunken border border-edge text-ink-2">
@@ -756,6 +664,8 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
                             <CheckCircle size={15} weight="fill" className="text-ok" />
                             <span>Appliqué</span>
                           </div>
+                        ) : !sug.patch ? (
+                          <span className="text-xs text-ink-3">Remarque à appliquer à la main</span>
                         ) : (
                           <button
                             type="button"

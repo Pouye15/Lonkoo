@@ -152,8 +152,10 @@ export interface AISuggestion {
   currentConfig: string;
   proposedConfig: string;
   rationale: string;
-  impactScore: string;
-  patch: {
+  /** Absent des remarques du serveur (il ne chiffre rien) ; présent dans les exemples de démonstration. */
+  impactScore?: string;
+  /** Absent des remarques du serveur : une remarque réelle est consultative, elle ne modifie pas le canvas. */
+  patch?: {
     tech?: string;
     version?: string;
     replicas?: number;

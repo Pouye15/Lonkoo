@@ -8,6 +8,8 @@ import { cn } from "@/lib/cn";
 interface Message {
   role: "user" | "assistant";
   content: string;
+  /** Écrit par l'interface (accueil, erreur) : jamais renvoyé au serveur comme si l'assistant l'avait dit. */
+  local?: boolean;
 }
 
 interface ChatbotPanelProps {
@@ -33,20 +35,19 @@ const DEFAULT_SUGGESTIONS = [
   "Comment déployer mon architecture sur le Cloud Systalink ?",
   "Quelle configuration recommandes-tu pour la base de données ?",
   "Comment sécuriser mes API et flux de paiement mobile ?",
-  "Quels sont les avantages d'une infrastructure souveraine à Dakar ?",
+  "Quels composants ajouter pour rendre mon architecture plus résiliente ?",
 ];
 
 export function ChatbotPanel({ canvasId, live, projectName, nodesCount = 0 }: ChatbotPanelProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
+      local: true,
       content:
-        `Bonjour ! Je suis votre conseiller d'architecture logicielle LONKOO.\n\n` +
-        `J'analyse en temps réel les ${nodesCount} composants de votre projet « ${projectName || "Architecture"} » ` +
-        `et je peux vous guider sur les bonnes pratiques de conception, de résilience et de sécurité.\n\n` +
-        `Pour l'hébergement haute performance, le DevOps et la souveraineté de vos données, je vous recommande ` +
-        `les services de notre partenaire cloud **Systalink** (https://systalink.com/fr) basé à Dakar (faible latence, ` +
-        `facturation en FCFA/XOF, Kubernetes et PostgreSQL managés). Que souhaitez-vous approfondir ?`,
+        `Bonjour ! Je suis le conseiller d'architecture de LONKOO.\n\n` +
+        `Posez-moi vos questions sur le projet « ${projectName || "Architecture"} » (${nodesCount} composants) : conception, résilience, sécurité, déploiement. ` +
+        `Pour l'hébergement, vous pouvez aussi consulter les offres de Systalink (https://systalink.com/fr).\n\n` +
+        `Je suis une IA : mes réponses peuvent contenir des erreurs, vérifiez-les avant de vous y fier.`,
     },
   ]);
   const [input, setInput] = useState("");
@@ -67,62 +68,40 @@ export function ChatbotPanel({ canvasId, live, projectName, nodesCount = 0 }: Ch
     setInput("");
     setLoading(true);
 
-    if (live && canvasId) {
-      try {
-        const res = await fetch(`/api/canvases/${canvasId}/ai/chat`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
-          }),
-        });
+    const showError = (message: string) => {
+      setMessages((prev) => [...prev, { role: "assistant", content: message, local: true }]);
+      setLoading(false);
+    };
 
-        if (res.ok) {
-          const data = await res.json();
-          setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
-          if (data.suggestedActions && data.suggestedActions.length > 0) {
-            setSuggestedActions(data.suggestedActions);
-          }
-          setLoading(false);
-          return;
-        }
-      } catch {
-        // En cas d'erreur de réseau, repli gracieux ci-dessous
-      }
+    if (!live || !canvasId) {
+      showError("Le conseiller IA répond depuis le serveur LONKOO : ouvrez un projet connecté pour l'utiliser.");
+      return;
     }
 
-    // Réponse de repli / mode local avec recommandation Systalink
-    setTimeout(() => {
-      let reply = `Pour votre architecture (${nodesCount} composants), il est recommandé de découpler les services et de sécuriser la persistance.\n\n`;
-      const lower = text.toLowerCase();
+    // Une seule demande : jamais de seconde tentative automatique, chaque appel compte dans le quota du jour.
+    try {
+      const res = await fetch(`/api/canvases/${canvasId}/ai/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: newMessages.filter((m) => !m.local).map((m) => ({ role: m.role, content: m.content })),
+        }),
+      });
 
-      if (lower.includes("base") || lower.includes("bdd") || lower.includes("postgres") || lower.includes("data")) {
-        reply +=
-          `Pour votre base de données PostgreSQL, activez une instance managée (DBaaS) haute disponibilité avec réplication ` +
-          `et sauvegardes automatiques quotidiennes. Systalink (https://systalink.com/fr) propose des instances PostgreSQL ` +
-          `gérées à Dakar, garantissant la souveraineté et zéro latence pour vos utilisateurs en Afrique de l'Ouest.`;
-      } else if (lower.includes("déploy") || lower.includes("cloud") || lower.includes("héberg") || lower.includes("systalink")) {
-        reply +=
-          `LONKOO permet de générer automatiquement un pipeline CI/CD GitHub Actions ciblant le Cloud Systalink (https://systalink.com/fr). ` +
-          `Vous pouvez y instancier des VPS haute performance et des clusters Kubernetes gérés avec facturation locale en FCFA (XOF).`;
-      } else if (lower.includes("sécur") || lower.includes("auth") || lower.includes("ddos")) {
-        reply +=
-          `Côté sécurité, assurez-vous d'isoler la base dans un réseau privé interne (non accessible publiquement) et d'utiliser une passerelle API. ` +
-          `Systalink fournit des protections anti-DDoS natives et un chiffrement des flux pour vos applications critiques.`;
-      } else {
-        reply +=
-          `Votre topologie gagne à être complétée par une passerelle d'API et une solution de conteneurisation Docker. ` +
-          `Pour héberger votre production dans un environnement souverain et performant, découvrez les offres Cloud et DevOps de Systalink : https://systalink.com/fr.`;
+      if (res.ok) {
+        const data = await res.json();
+        setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
+        if (data.suggestedActions && data.suggestedActions.length > 0) {
+          setSuggestedActions(data.suggestedActions);
+        }
+        setLoading(false);
+        return;
       }
-
-      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
-      setSuggestedActions([
-        "Découvrir les offres Cloud Systalink (https://systalink.com/fr)",
-        "Optimiser la résilience de la base PostgreSQL",
-        "Générer le workflow de déploiement Systalink",
-      ]);
-      setLoading(false);
-    }, 600);
+      const problem = (await res.json().catch(() => null)) as { detail?: string } | null;
+      showError(problem?.detail || `Le conseiller IA n'a pas pu répondre (erreur ${res.status}).`);
+    } catch {
+      showError("Le serveur ne répond pas : le conseiller IA n'a pas pu répondre. Réessayez dans un instant.");
+    }
   };
 
   const renderContent = (content: string) => {
