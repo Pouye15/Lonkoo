@@ -1,0 +1,189 @@
+# Environnement Docker complet pour LONKOO (Local / Developpement).
+# Permet de lancer toute la pile avec : docker compose up -d --build
+# Services : PostgreSQL (db), Spring Boot (backend), Hocuspocus Node (realtime), Next.js (frontend) et Caddy (gateway).
+
+name: lonkoo
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lonkoo}
+      POSTGRES_USER: ${POSTGRES_USER:-lonkoo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lonkoo_dev_secret}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-lonkoo} -d $${POSTGRES_DB:-lonkoo}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - data
+      - web
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: lonkoo-backend:dev
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      SERVER_PORT: "8080"
+      DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-lonkoo}
+      POSTGRES_USER: ${POSTGRES_USER:-lonkoo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lonkoo_dev_secret}
+      REALTIME_TICKET_SECRET: ${REALTIME_TICKET_SECRET:-lonkoo_dev_ticket_secret_32_characters_minimum_ok}
+      REALTIME_SERVICE_TOKEN: ${REALTIME_SERVICE_TOKEN:-lonkoo_dev_service_token_16_chars_min}
+      REALTIME_INTERNAL_URL: http://realtime:1234
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost:3000}
+      GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:-change-me}
+      GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET:-change-me}
+      GITHUB_OAUTH_REDIRECT_URI: ${GITHUB_OAUTH_REDIRECT_URI:-http://localhost:3000/api/auth/github/callback}
+      GUEST_TTL_HOURS: ${GUEST_TTL_HOURS:-24}
+      GUEST_RATE_LIMIT_PER_HOUR: ${GUEST_RATE_LIMIT_PER_HOUR:-1000}
+      MAX_PROJECTS_PER_GUEST: ${MAX_PROJECTS_PER_GUEST:-20}
+      MAX_PROJECTS_PER_ACCOUNT: ${MAX_PROJECTS_PER_ACCOUNT:-100}
+      MAX_CANVASES_PER_PROJECT: ${MAX_CANVASES_PER_PROJECT:-10}
+      MAX_VERSIONS_PER_CANVAS: ${MAX_VERSIONS_PER_CANVAS:-50}
+      MAX_SHARE_LINKS_PER_CANVAS: ${MAX_SHARE_LINKS_PER_CANVAS:-20}
+      MAX_SNAPSHOT_BYTES: ${MAX_SNAPSHOT_BYTES:-1048576}
+      MAX_GENERATIONS_PER_CANVAS: ${MAX_GENERATIONS_PER_CANVAS:-20}
+      MAX_GENERATED_BYTES: ${MAX_GENERATED_BYTES:-8388608}
+      MAX_DEPLOYMENTS_PER_GENERATION: ${MAX_DEPLOYMENTS_PER_GENERATION:-20}
+      JOB_STALE_MINUTES: ${JOB_STALE_MINUTES:-30}
+      AI_PROVIDER: ${AI_PROVIDER:-agent_ia}
+      AI_AGENT_URL: http://agent_ia:8000
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:-lonkoo_dev_service_token_16_chars_min}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_DAILY_QUOTA: ${AI_DAILY_QUOTA:-30}
+      AI_GUEST_DAILY_QUOTA: ${AI_GUEST_DAILY_QUOTA:-100}
+      AI_GLOBAL_DAILY_CAP: ${AI_GLOBAL_DAILY_CAP:-500}
+      AI_MAX_INPUT_CHARS: ${AI_MAX_INPUT_CHARS:-8000}
+      AI_API_KEY: ${AI_API_KEY:-change-me}
+      AI_MODEL: ${AI_MODEL:-gemini-3.8-flash}
+      AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-30}
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - |
+          bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080 && printf "GET /api/actuator/health HTTP/1.0\r\n\r\n" >&3 && grep -q UP <&3'
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 40s
+    networks:
+      - data
+      - web
+
+  agent_ia:
+    build:
+      context: ./agent_ia
+      dockerfile: Dockerfile
+    image: lonkoo-agent-ia:dev
+    restart: unless-stopped
+    environment:
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_BASE_URL: ${AI_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai}
+      AI_MODEL: ${AI_MODEL:-gemini-3.8-flash}
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:-lonkoo_dev_service_token_16_chars_min}
+      REALTIME_SERVICE_TOKEN: ${REALTIME_SERVICE_TOKEN:-lonkoo_dev_service_token_16_chars_min}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - data
+      - web
+
+  realtime:
+    build:
+      context: ./realtime
+      dockerfile: Dockerfile
+    image: lonkoo-realtime:dev
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      REALTIME_PORT: "1234"
+      BACKEND_INTERNAL_URL: http://backend:8080
+      REALTIME_SERVICE_TOKEN: ${REALTIME_SERVICE_TOKEN:-lonkoo_dev_service_token_16_chars_min}
+      REALTIME_TICKET_SECRET: ${REALTIME_TICKET_SECRET:-lonkoo_dev_ticket_secret_32_characters_minimum_ok}
+    ports:
+      - "1234:1234"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:1234/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    networks:
+      - web
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_MODE: live
+        NEXT_PUBLIC_REALTIME_URL: /ws
+    image: lonkoo-frontend:dev
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    networks:
+      - web
+
+  caddy:
+    build:
+      context: ./infra
+      dockerfile: caddy.Dockerfile
+    image: lonkoo-caddy:dev
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+      realtime:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    environment:
+      DOMAIN: ${DOMAIN:-:3000}
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/config/"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 10s
+    networks:
+      - web
+
+networks:
+  web:
+  data:
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

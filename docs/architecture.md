@@ -55,11 +55,13 @@ Le format du canvas est défini dans [schema-canvas.md](schema-canvas.md) et [ca
 | 2026-10-16 | Gouvernance GitHub | Dépôt privé sur un compte personnel, sans organisation. Pas de protection de branche (indisponible en offre gratuite) : revue obligatoire par règle d'équipe et hook local `no-commit-to-branch` | Voir `CONTRIBUTING.md`. |
 | 2026-10-25 | Sessions | En base (Spring Session JDBC, migration V13) ; le jeton GitHub reste hors de la session, en mémoire du serveur (`GithubTokenStore`). Remplace « sessions en mémoire » du 16/10 | Un déploiement déconnectait tout le monde (et un invité perdait son projet de démonstration). La règle de fond du 16/10, jamais de jeton GitHub en base, est gardée. Limite assumée : après un redémarrage, reconnecter GitHub avant un envoi ; une seule instance du serveur. |
 
+| 2026-10-29 | Fournisseur et architecture de l'IA | Google Gemini (`gemini-3.8-flash`) via un microservice dédié Python `agent_ia` (FastAPI), raccordé au backend Spring Boot par `AgentIaClient` (interface `AiClient`). Ajout d'un assistant conversationnel (Chatbot) d'architecture (`/ai/chat`). | Décision de Serigne Fallou Ngom. `agent_ia` est un service interne isolé (non routé par Caddy, authentification par jeton de service). Validation stricte du schéma et des règles du canvas avec boucle de rattrapage automatique, zéro fuite de secrets, respect des quotas et des délais. |
+
 ## Décisions ouvertes
 
 | Sujet | Responsable | Échéance | Critères |
 |---|---|---|---|
-| Fournisseur et modèle d'IA | Serine Fallou Ngom | 2026-10-17 (dépassée ; le point de raccordement `AiClient` est prêt depuis le 25/10, sans fournisseur) | Sortie JSON contrainte par `canvas.schema.json`, clé côté serveur, quota par utilisateur et plafond de coût, délai maximal, conditions d'utilisation vérifiées, démo enregistrée si l'IA est indisponible. Un seul fournisseur, derrière une interface `AiClient`. |
+| ~~Fournisseur et modèle d'IA~~ | Serine Fallou Ngom | Résolu le 29/10/2026 | Google Gemini (`gemini-3.8-flash`) via microservice Python `agent_ia` et raccordement Spring Boot `AgentIaClient`. Chatbot d'architecture inclus. |
 | ~~Exposition des applications générées (sous-domaine par projet ou ports)~~ | Gnatam Gaye | Sans objet depuis le lot R8 (25/10) | L'application générée est déployée sur le serveur de la personne, par le workflow de son dépôt : c'est elle qui choisit son adresse. Seule l'adresse de Lonkoo lui-même reste à choisir ([DEPLOIEMENT.md](DEPLOIEMENT.md), étape 0). |
 | Réponses de l'organisateur | Mouhamadoul Moustapha Diagne | Dès l'envoi | Voir [QUESTIONS-ORGANISATEUR.md](QUESTIONS-ORGANISATEUR.md). |
 

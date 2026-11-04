@@ -112,6 +112,33 @@ class ConfigurationCheckTest {
     }
 
     @Test
+    void aiProviderValuesAreCheckedInProduction() {
+        var validAi = new ConfigurationCheck(true, "un-mot-de-passe-solide", SECRET, TOKEN, "https://lonkoo.example.org",
+                "Iv1.id", "secret", "https://lonkoo.example.org/api/auth/github/callback",
+                "gemini", "AIzaSySolide", "gemini-1.5-flash");
+        assertThat(validAi.problems()).isEmpty();
+
+        var placeholderAi = new ConfigurationCheck(true, "un-mot-de-passe-solide", SECRET, TOKEN, "https://lonkoo.example.org",
+                "Iv1.id", "secret", "https://lonkoo.example.org/api/auth/github/callback",
+                "gemini", "change-me", "change-me");
+        assertThat(placeholderAi.problems()).containsExactlyInAnyOrder(
+                "AI_API_KEY porte une valeur d'exemple",
+                "AI_MODEL porte une valeur d'exemple");
+
+        var emptyAi = new ConfigurationCheck(true, "un-mot-de-passe-solide", SECRET, TOKEN, "https://lonkoo.example.org",
+                "Iv1.id", "secret", "https://lonkoo.example.org/api/auth/github/callback",
+                "gemini", "", "");
+        assertThat(emptyAi.problems()).containsExactlyInAnyOrder(
+                "AI_API_KEY est vide alors qu'un fournisseur d'IA est configuré",
+                "AI_MODEL est vide alors qu'un fournisseur d'IA est configuré");
+
+        var fakeOrOff = new ConfigurationCheck(true, "un-mot-de-passe-solide", SECRET, TOKEN, "https://lonkoo.example.org",
+                "Iv1.id", "secret", "https://lonkoo.example.org/api/auth/github/callback",
+                "fake", "change-me", "change-me");
+        assertThat(fakeOrOff.problems()).isEmpty();
+    }
+
+    @Test
     void theProductionProfileMakesTheSessionCookieSecure() throws IOException {
         Properties prod = new Properties();
         try (InputStream in = new ClassPathResource("application-prod.properties").getInputStream()) {

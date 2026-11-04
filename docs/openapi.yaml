@@ -858,6 +858,70 @@ paths:
         "504":
           $ref: "#/components/responses/GatewayTimeout"
 
+  /canvases/{canvasId}/ai/chat:
+    post:
+      tags: [IA]
+      summary: Dialogue avec l'assistant conversationnel (Chatbot) d'architecture
+      description: |
+        Assistant interactif d'architecture logicielle prenant en compte l'état actuel du canvas et l'historique
+        de conversation. Réservé aux membres du projet. Laisse une trace ai.chat dans le journal d'audit.
+      parameters:
+        - $ref: "#/components/parameters/CanvasId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [messages]
+              properties:
+                messages:
+                  type: array
+                  maxItems: 20
+                  items:
+                    type: object
+                    required: [role, content]
+                    properties:
+                      role:
+                        type: string
+                        enum: [user, assistant]
+                      content:
+                        type: string
+                        maxLength: 8000
+      responses:
+        "200":
+          description: Réponse du conseiller d'architecture
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [reply, suggestedActions, demo]
+                properties:
+                  reply:
+                    type: string
+                  suggestedActions:
+                    type: array
+                    items:
+                      type: string
+                  demo:
+                    type: boolean
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "501":
+          $ref: "#/components/responses/AiNotImplemented"
+        "502":
+          $ref: "#/components/responses/AiBadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
+
   # ---------------------------------------------------------------------
   # Génération, GitHub, déploiement (T2)
   # ---------------------------------------------------------------------
