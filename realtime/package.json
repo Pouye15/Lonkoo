@@ -13,7 +13,7 @@
     "test": "node --test \"test/**/*.test.js\""
   },
   "dependencies": {
-    "@hocuspocus/server": "4.7.1",
+    "@hocuspocus/server": "4.8.0",
     "jose": "6.2.13",
     "ws": "8.22.0",
     "yjs": "13.6.33"
