@@ -77,6 +77,12 @@ services:
       MAX_DEPLOYMENTS_PER_GENERATION:
       JOB_STALE_MINUTES:
       AI_PROVIDER:
+      AI_AGENT_URL:
+      AI_SERVICE_TOKEN:
+      AI_BASE_URL:
+      AI_API_KEY:
+      AI_MODEL:
+      AI_TIMEOUT_SECONDS:
       AI_DAILY_QUOTA:
       AI_GUEST_DAILY_QUOTA:
       AI_GLOBAL_DAILY_CAP:
@@ -94,6 +100,29 @@ services:
     networks: [web, data]
     logging: *journaux
     mem_limit: 1536m
+    <<: *durcissement
+
+  agent_ia:
+    build:
+      context: ../agent_ia
+      dockerfile: Dockerfile
+    image: lonkoo-agent-ia:prod
+    restart: unless-stopped
+    environment:
+      AI_API_KEY:
+      AI_BASE_URL:
+      AI_MODEL:
+      AI_SERVICE_TOKEN:
+      REALTIME_SERVICE_TOKEN:
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks: [data, web]
+    logging: *journaux
+    mem_limit: 512m
     <<: *durcissement
 
   realtime:
