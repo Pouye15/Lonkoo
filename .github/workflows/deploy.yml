@@ -115,8 +115,8 @@ jobs:
           fi
           curl -fsS "$base/ws/health" | grep -q '"UP"'
           curl -fsS "$base/login" | grep -q 'data-api-mode="live"'
-          internal="$(curl -s -o /dev/null -w '%{http_code}' "$base/internal/canvases/00000000-0000-0000-0000-000000000000/snapshot")"
-          [ "$internal" = "404" ] || { echo "::error::Une route interne est joignable depuis Internet ($internal)."; exit 1; }
+          # Routes internes : refus par Caddy (404 sans corps), à la racine comme derrière /ws (scripts/check_internal_routes.sh).
+          bash scripts/check_internal_routes.sh "$base" || { echo "::error::Une route interne est joignable depuis Internet (détail ci-dessus)."; exit 1; }
 
           # Parcours minimal d'un invité : session, projet d'accueil, canvas, instantané lu à travers le temps réel.
           jar="$(mktemp)"

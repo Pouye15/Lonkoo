@@ -344,8 +344,10 @@ jobs:
           has 'data-api-mode="live"' "$(c "$base/login")" || fail "interface construite hors du mode API"
           redirect="$(c -o /dev/null -w '%{http_code} %{redirect_url}' http://lonkoo.internal/login)"
           [ "$redirect" = "308 https://lonkoo.internal/login" ] || fail "redirection HTTP vers HTTPS : $redirect"
-          internal="$(c -o /dev/null -w '%{http_code}' "$base/internal/canvases/00000000-0000-0000-0000-000000000000/snapshot")"
-          [ "$internal" = "404" ] || fail "une route interne est joignable depuis l'extérieur : $internal"
+          # Routes internes : refus par Caddy (404 sans corps), à la racine comme derrière /ws. Un simple « 404 » ne suffit pas :
+          # l'interface répond aussi 404. Voir scripts/check_internal_routes.sh.
+          bash scripts/check_internal_routes.sh "$base" -k --resolve lonkoo.internal:443:127.0.0.1 --resolve lonkoo.internal:80:127.0.0.1 \
+            || fail "une route interne est joignable depuis l'extérieur (détail ci-dessus)"
           hasi 'strict-transport-security' "$(c -D - -o /dev/null "$base/login")" || fail "en-tête HSTS absent"
           ws="$(curl -sk --resolve lonkoo.internal:443:127.0.0.1 --http1.1 -i --max-time 3 \
             -H 'Connection: Upgrade' -H 'Upgrade: websocket' -H 'Sec-WebSocket-Version: 13' \
