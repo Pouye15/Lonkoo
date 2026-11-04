@@ -311,6 +311,14 @@ class ProjectGeneratorTest {
         assertThat(files.values()).noneMatch(content -> content.contains("BEGIN OPENSSH") || content.contains("ghp_"));
     }
 
+    @Test
+    void theGeneratedWorkflowUsesCurrentVersionsOfTheActions() throws IOException {
+        String workflow = generator.generate(example(), "x").files().get(".github/workflows/deploy-systalink.yml");
+
+        // Les versions « v4 » sont annoncées dépréciées par GitHub (A-16, PR-2). Le projet généré ne doit pas démarrer périmé.
+        assertThat(workflow).contains("actions/checkout@v7").doesNotContain("actions/checkout@v4");
+    }
+
     private static final List<String> WORKFLOW_SECRETS =
             List.of("SYSTALINK_SSH_HOST", "SYSTALINK_SSH_USER", "SYSTALINK_SSH_PRIVATE_KEY", "SYSTALINK_SSH_KNOWN_HOSTS");
 

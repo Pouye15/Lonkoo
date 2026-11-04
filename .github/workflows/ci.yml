@@ -24,7 +24,7 @@ jobs:
       run:
         working-directory: ${{ matrix.dir }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Vérifier la présence du projet
         id: has
@@ -36,7 +36,7 @@ jobs:
             echo "Pas encore de package.json dans ${{ matrix.dir }} : étapes ignorées."
           fi
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.has.outputs.present == 'true'
         with:
           node-version: 24
@@ -69,7 +69,7 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Vérifier la présence du projet
         id: has
@@ -81,7 +81,7 @@ jobs:
             echo "Pas encore de pom.xml dans backend : étapes ignorées."
           fi
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         if: steps.has.outputs.present == 'true'
         with:
           distribution: temurin
@@ -89,7 +89,7 @@ jobs:
           cache: maven
 
       # Le test de chaîne (RealtimeChainIntegrationTest) lance le vrai serveur temps réel Node.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.has.outputs.present == 'true'
         with:
           node-version: 24
@@ -110,7 +110,7 @@ jobs:
     name: Contrat du canvas
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Valider le schéma et les exemples
         run: |
           python3 -m pip install --quiet jsonschema
@@ -137,9 +137,9 @@ jobs:
     env:
       ALLOWED: "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD;BlueOak-1.0.0;CC0-1.0;Unlicense;MIT-0;Python-2.0;CC-BY-4.0"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
 
@@ -155,7 +155,7 @@ jobs:
             fi
           done
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         if: hashFiles('backend/pom.xml') != ''
         with:
           distribution: temurin
@@ -196,13 +196,13 @@ jobs:
     name: SBOM des composants
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 21
@@ -214,7 +214,7 @@ jobs:
       - name: Produire les SBOM de cette version
         run: python3 scripts/make_sbom.py --out "$RUNNER_TEMP/sbom"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sbom
           path: ${{ runner.temp }}/sbom
@@ -233,7 +233,7 @@ jobs:
       matrix:
         dir: [backend, realtime, frontend]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Vérifier la présence du Dockerfile
         id: has
@@ -304,7 +304,7 @@ jobs:
     env:
       COMPOSE_FILE: infra/docker-compose.prod.yml
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Configuration jetable
         run: |
@@ -417,9 +417,9 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
 
@@ -435,7 +435,7 @@ jobs:
         working-directory: realtime
         run: npm audit --omit=dev
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         if: hashFiles('backend/pom.xml') != ''
         with:
           distribution: temurin
@@ -455,7 +455,7 @@ jobs:
     name: Détection de secrets (gitleaks)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 

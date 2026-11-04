@@ -436,7 +436,7 @@ Les responsables sont ceux du backlog (`docs/BACKLOG-INITIAL.md`) ou **proposés
 | ID | Tâche | Qui | Dépend de | Fini quand |
 |---|---|---|---|---|
 | `PR-1` | **Relire et fusionner la pull request n° 2** (par une autre personne qu'Ibrahima ; fusion par « merge commit ») | Diagne, Fall ou Gaye | | fusionnée dans `main` ; Dependabot actif ; `deploy.yml` ne déploie rien tant qu'il n'y a pas de secrets (un avis le dit) |
-| `PR-2` | Traiter les propositions de Dependabot : `actions/checkout`, `setup-node`, `setup-java`, `upload-artifact` sont en v4, annoncées dépréciées (versions actuelles : checkout 7, setup-node 7, setup-java 6, upload-artifact 7). **Le workflow généré** (`InfraWriter`) utilise aussi `checkout@v4` | Fallou, Ibrahima | `PR-1` | la CI est verte avec les nouvelles versions |
+| `PR-2` | Traiter les propositions de Dependabot : `actions/checkout`, `setup-node`, `setup-java`, `upload-artifact` sont en v4, annoncées dépréciées (versions actuelles : checkout 7, setup-node 7, setup-java 6, upload-artifact 7). **Le workflow généré** (`InfraWriter`) utilise aussi `checkout@v4` | Fallou, Ibrahima | `PR-1` | la CI est verte avec les nouvelles versions (**monté le 04/11 dans la branche `chore/oauth-doc-et-actions`, non poussée ; CI jamais lancée sur GitHub avec elles**) |
 | `IA-1` à `IA-9` | l'agent IA | Fallou | | § 4.3 |
 | `DK-1` à `DK-4` | ce qui demande Docker | Fallou (ou qui a Docker) | | § 5.2 |
 | `FRONT-1` | Écrans sans backend (Communauté hors galerie, Revues, MCP, Orion) : les **étiqueter « démonstration » ou les masquer** ; supprimer les chiffres inventés (score de l'onglet « Analyse IA » tant que l'IA n'est pas branchée) | Fall | | aucune donnée fictive présentée comme réelle (décision D10) |
@@ -614,6 +614,7 @@ Comptes GitHub qui ont un accès *Write* au 25/10 : `mouhaa-md`, `mifall-cloud`,
 | Date | Qui | Fait | Bloqué ou à décider | Prochaine action |
 |---|---|---|---|---|
 | 2026-10-25 | Ibrahima | Ce document ; audit des derniers travaux (A-12 à A-16) ; quota de l'IA (`ai_usage`, V20) ; revérification des accès temps réel ; mise en ligne (R7) fusionnée dans la branche ; essai réel contre GitHub ; pull request n° 2 à jour, CI verte (12 jobs) ; script manuel `e2e/manuel/github-reel.mjs` | Serigne Fallou n'est pas encore collaborateur du dépôt ; pull request n° 2 sans relecteur ; aucun serveur | pousser, inviter Serigne Fallou, faire relire la pull request n° 2 |
+| 2026-11-04 | Ibrahima (avec Claude Code) | `PR-2` : `checkout` v7, `setup-node` v7, `setup-java` v6, `upload-artifact` v7 dans `ci.yml`, `deploy.yml` et le workflow généré (`InfraWriter`) ; changements de version lus dans les notes de publication, aucun ne touche l'usage (pas de `packageManager`, pas de `pull_request_target`, `.git` exclu de l'envoi) ; test du workflow généré, vérifié en échec avant la correction ; `actionlint` sans erreur ; 76 tests du générateur et du déploiement verts. Doc OAuth : chaque poste crée sa propre application de développement, cas du Codespace | **Pas essayé** : la CI sur GitHub avec ces versions ; un déploiement réel du workflow généré ; la connexion GitHub dans un Codespace (valeurs déduites du code) | pousser avec l'accord de l'équipe, ouvrir la PR, lire la CI ; Fallou crée sa propre application OAuth s'il veut tester la connexion GitHub |
 | | | | | |
 
 ---

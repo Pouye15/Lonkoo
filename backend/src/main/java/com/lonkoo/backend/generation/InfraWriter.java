@@ -154,7 +154,7 @@ final class InfraWriter {
                             exit 1
                           fi
 
-                      - uses: actions/checkout@v4
+                      - uses: actions/checkout@v7
 
                       - name: Préparer la connexion SSH
                         env:

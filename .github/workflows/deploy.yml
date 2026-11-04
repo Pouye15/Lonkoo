@@ -68,7 +68,7 @@ jobs:
           fi
           echo "::notice::Déploiement ignoré : le serveur n'est pas encore configuré. Secrets manquants :$missing"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.config.outputs.enabled == 'true'
         with:
           ref: ${{ inputs.ref }}
