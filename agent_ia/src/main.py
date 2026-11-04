@@ -3,8 +3,8 @@ import json
 import logging
 import os
 from typing import Any, Dict, List, Tuple
-from fastapi import FastAPI, Header, HTTPException, status
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from gemini import GeminiClient
 from prompts import AUDIT_SYSTEM_PROMPT, CHAT_SYSTEM_PROMPT, COMPLETE_SYSTEM_PROMPT, SKETCH_SYSTEM_PROMPT
@@ -28,6 +28,9 @@ app = FastAPI(
     title="LONKOO Agent IA",
     description="Microservice interne dédié à l'IA pour LONKOO (esquisse, complétion, audit et assistant conversationnel Systalink)",
     version="1.2.0",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
 )
 
 # Pas de CORS : seul le backend appelle ce service, jamais un navigateur.
@@ -39,18 +42,39 @@ if not SERVICE_TOKEN:
 gemini_client = GeminiClient()
 
 
-def verify_service_token(x_service_token: str = Header(default="")):
-    """Refuse tout appel sans le bon jeton de service ; sans jeton configuré, refuse tout (jamais d'accès ouvert)."""
+OPEN_PATHS = {"/health"}
+
+
+def token_failure(received: bytes):
+    """None si l'appel porte le bon jeton, sinon (code, message). Sans jeton configuré, tout est refusé : jamais d'accès ouvert."""
     if not SERVICE_TOKEN:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Service non configuré : AI_SERVICE_TOKEN est vide."
-        )
-    if not hmac.compare_digest(x_service_token.encode("utf-8"), SERVICE_TOKEN.encode("utf-8")):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Accès interdit : jeton de service invalide"
-        )
+        return 503, "Service non configuré : AI_SERVICE_TOKEN est vide."
+    if not hmac.compare_digest(received, SERVICE_TOKEN.encode("utf-8")):
+        return 403, "Accès interdit : jeton de service invalide"
+    return None
+
+
+class ServiceTokenMiddleware:
+    """Refuse tout appel sans le bon jeton, sauf /health.
+
+    Middleware ASGI et non dépendance de route : FastAPI lit et valide le corps de la requête avant d'exécuter les dépendances,
+    donc un appel sans jeton recevait 422 (le détail des champs attendus, ou « JSON invalide ») au lieu de 403.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and scope["path"] not in OPEN_PATHS:
+            failure = token_failure(dict(scope["headers"]).get(b"x-service-token", b""))
+            if failure:
+                response = JSONResponse({"detail": failure[1]}, status_code=failure[0])
+                await response(scope, receive, send)
+                return
+        await self.app(scope, receive, send)
+
+
+app.add_middleware(ServiceTokenMiddleware)
 
 
 @app.get("/health")
@@ -63,16 +87,14 @@ async def health():
 
 
 @app.post("/sketch", response_model=ProposalResponse)
-async def sketch(req: SketchRequest, x_service_token: str = Header(default="")):
-    verify_service_token(x_service_token)
+async def sketch(req: SketchRequest):
     user_prompt = f"Voici le cahier des charges de l'application à concevoir :\n\n{req.brief}"
     result = await gemini_client.ask_for_canvas(SKETCH_SYSTEM_PROMPT, user_prompt)
     return ProposalResponse(**result)
 
 
 @app.post("/complete", response_model=ProposalResponse)
-async def complete(req: CompleteRequest, x_service_token: str = Header(default="")):
-    verify_service_token(x_service_token)
+async def complete(req: CompleteRequest):
     node_filter = f"\n\nBlocs ciblés par la demande : {', '.join(req.nodeIds)}" if req.nodeIds else ""
     user_prompt = (
         f"Voici l'état actuel de l'architecture du canvas (au format JSON) :\n"
@@ -85,8 +107,7 @@ async def complete(req: CompleteRequest, x_service_token: str = Header(default="
 
 
 @app.post("/audit", response_model=AuditResponse)
-async def audit(req: AuditRequest, x_service_token: str = Header(default="")):
-    verify_service_token(x_service_token)
+async def audit(req: AuditRequest):
     snapshot = req.snapshot or {}
     user_prompt = f"Voici le canvas d'architecture à auditer (au format JSON) :\n{_snapshot_json(snapshot)}"
 
@@ -207,8 +228,7 @@ def _extract_suggestions(last_user_msg: str, reply: str) -> List[str]:
 
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat(req: ChatRequest, x_service_token: str = Header(default="")):
-    verify_service_token(x_service_token)
+async def chat(req: ChatRequest):
     messages = _build_chat_messages(req)
 
     reply = await gemini_client.call_llm(
@@ -224,8 +244,7 @@ async def chat(req: ChatRequest, x_service_token: str = Header(default="")):
 
 
 @app.post("/chat/stream")
-async def chat_stream(req: ChatRequest, x_service_token: str = Header(default="")):
-    verify_service_token(x_service_token)
+async def chat_stream(req: ChatRequest):
     messages = _build_chat_messages(req)
 
     return StreamingResponse(

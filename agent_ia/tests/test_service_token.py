@@ -30,6 +30,16 @@ def test_mauvais_jeton_toute_route_refuse(client, path, body):
     assert client.post(path, json=body, headers={"X-Service-Token": TOKEN + "x"}).status_code == 403
 
 
+@pytest.mark.parametrize("path,_corps", ROUTES)
+def test_le_jeton_est_verifie_avant_le_corps_de_la_requete(client, monkeypatch, path, _corps):
+    # Essayé en vrai en HTTP : le corps était validé d'abord, donc un appel sans jeton et sans corps valide recevait 422 (et le
+    # détail des champs attendus) au lieu de 403.
+    assert client.post(path, json={}).status_code == 403
+    assert client.post(path, content=b"pas du json", headers={"Content-Type": "application/json"}).status_code == 403
+    monkeypatch.setattr(main, "SERVICE_TOKEN", "")
+    assert client.post(path, json={}).status_code == 503
+
+
 def test_le_bon_jeton_laisse_passer(client, auth, llm):
     llm.replies.append('{"findings": []}')
     reponse = client.post("/audit", json={"snapshot": {"nodes": []}}, headers=auth)
@@ -54,6 +64,13 @@ def test_le_jeton_du_temps_reel_n_est_pas_un_repli(monkeypatch):
     finally:
         monkeypatch.setenv("AI_SERVICE_TOKEN", TOKEN)
         importlib.reload(main)
+
+
+def test_pas_de_documentation_ni_de_schema_servis(client, auth):
+    # Un service interne n'a pas à décrire son API : ni /docs, ni /redoc, ni /openapi.json, même avec le bon jeton.
+    for chemin in ("/docs", "/redoc", "/openapi.json"):
+        assert client.get(chemin, headers=auth).status_code == 404, chemin
+        assert client.get(chemin).status_code == 403, chemin
 
 
 def test_aucun_en_tete_cors(client):
