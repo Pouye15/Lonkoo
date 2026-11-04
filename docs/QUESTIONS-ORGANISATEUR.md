@@ -26,6 +26,7 @@ Journal des questions posées au comité CADev. Une ligne par question : date d'
 | Le Serveur Cloud est-il hébergé à Dakar ? Donne-t-il un accès root ou sudo en SSH et autorise-t-il Docker ? | | | |
 | Un domaine ou sous-domaine est-il fourni avec le produit acheté pour le concours ? | | | |
 | L'échéance de soumission est le 20 novembre 2026 : à quelle heure précisément (et dans quel fuseau) ? Quelles sont les nouvelles dates du vote des pairs, de la campagne et de la notation par le jury ? | | | |
+| Les projets que notre plateforme génère pour ses utilisateurs (du code livré, qui dépend par exemple d'Hibernate 6 sous LGPL et de Logback) entrent-ils dans le périmètre de l'interdiction des licences à réciprocité, ou seulement le code de la plateforme elle-même ? | | | |
 
 ## Message prêt à envoyer (courriel, ou WhatsApp en version courte)
 
@@ -43,6 +44,7 @@ Journal des questions posées au comité CADev. Une ligne par question : date d'
 > 6. Le Serveur Cloud est-il hébergé à Dakar ? Donne-t-il un accès root ou sudo en SSH et autorise-t-il Docker ? Un domaine est-il fourni ?
 > 7. Quel est le format attendu pour la déclaration d'usage de l'IA, et faut-il une déclaration par membre ?
 > 8. Calendrier : l'échéance de soumission est-elle bien le 20 novembre 2026, à quelle heure et dans quel fuseau ? Quelles sont les nouvelles dates du vote des pairs, de la campagne et de la notation par le jury ?
+> 9. Projets générés : notre plateforme génère un projet de démarrage pour l'utilisateur (du code qui dépend par exemple d'Hibernate 6, sous LGPL, et de Logback). Ce code livré à l'utilisateur entre-t-il dans le périmètre des licences interdites, ou seulement le code de notre plateforme ?
 >
 > Merci d'avance pour votre réponse.
 >

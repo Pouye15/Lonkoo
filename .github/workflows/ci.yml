@@ -404,6 +404,22 @@ jobs:
           if bash infra/restore.sh --live "$dump" > /dev/null 2>&1; then fail "restore --live s'est exécuté sans confirmation"; fi
           [ "$(count)" = "$before" ] || fail "la base de production a changé pendant le test de restauration"
 
+          echo "== Restauration en production (--live) : copie de sécurité d'abord, puis retour à la sauvegarde"
+          c -b "$jar" -o /dev/null -X POST -H 'Content-Type: application/json' --data-binary '{"name":"apres sauvegarde"}' "$base/api/projects"
+          [ "$(count)" = "$((before + 1))" ] || fail "le projet créé après la sauvegarde n'est pas compté : $(count)"
+          sleep 1  # le nom d'une sauvegarde porte la seconde : la copie de sécurité ne doit pas écraser la sauvegarde
+          if ! CONFIRM=oui bash infra/restore.sh --live "$dump" > "$RUNNER_TEMP/live.log" 2>&1; then
+            cat "$RUNNER_TEMP/live.log"; fail "restore --live a échoué"
+          fi
+          has 'Copie de sécurité de la base actuelle' "$(cat "$RUNNER_TEMP/live.log")" || fail "restore --live n'annonce pas de copie de sécurité"
+          [ "$(count)" = "$before" ] || fail "après la restauration : $(count) projets, $before attendus"
+          safety="$(find "$BACKUP_DIR" -name 'lonkoo-*.dump' -newer "$dump" | sort | tail -1)"
+          [ -n "$safety" ] || fail "aucune copie de sécurité écrite avant la restauration"
+          has "$((before + 1)) projets" "$(bash infra/restore.sh --test "$safety")" || fail "la copie de sécurité ne garde pas l'état d'avant la restauration"
+          compose up -d --wait --wait-timeout 300
+          code="$(c -o /dev/null -w '%{http_code}' "$base/api/actuator/health")"
+          [ "$code" = "200" ] || fail "santé après la restauration en production : $code"
+
       - name: État de la pile en cas d'échec
         if: failure()
         run: |
