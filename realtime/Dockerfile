@@ -1,5 +1,5 @@
 # Serveur temps réel Lonkoo (Hocuspocus + Yjs)
-FROM node:24-slim
+FROM node:26-slim
 WORKDIR /app
 
 # Dépendances de production uniquement.
