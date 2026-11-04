@@ -23,6 +23,7 @@ import {
   DEFAULT_PROJECT_TEAMS,
   type ArchitectureVersion,
   type AIDocSection,
+  type AISuggestion,
   type GitHubRole,
   type ProjectCollaborator,
   type ProjectTeamGroup,
@@ -66,6 +67,23 @@ const API_ROLE_BY_LABEL: Record<GitHubRole, ApiRole> = {
   Write: "WRITE",
   Triage: "TRIAGE",
   Read: "READ",
+};
+
+type LiveAuditFinding = {
+  id?: string;
+  severity?: string;
+  category?: string;
+  title?: string;
+  targetNodeId?: string;
+  currentConfig?: string;
+  proposedConfig?: string;
+  rationale?: string;
+  impactScore?: string;
+  patch?: AISuggestion["patch"];
+};
+
+type LiveAuditResponse = {
+  findings?: LiveAuditFinding[];
 };
 
 export default function StudioPage() {
@@ -186,7 +204,7 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
 
   const aiHealthScore = Math.min(100, 86 + appliedSuggestionIds.length * 5);
 
-  const runArchitectureAudit = async () => {
+  const runArchitectureAudit = React.useCallback(async () => {
     setIsAnalyzing(true);
     setAnalysisStep("Cartographie des composants et détection des SPOF...");
 
@@ -198,22 +216,27 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
           headers: { "Content-Type": "application/json" },
         });
         if (res.ok) {
-          const data = await res.json();
+          const data = (await res.json()) as LiveAuditResponse;
           if (data.findings && data.findings.length > 0) {
-            const mapped: typeof AI_SUGGESTIONS = data.findings.map((f: any, idx: number) => {
+            const mapped: typeof AI_SUGGESTIONS = data.findings.map((f: LiveAuditFinding, idx: number) => {
               const sev = (f.severity || "RECOMMENDED").toLowerCase();
-              const categoryMap: Record<string, any> = {
+              const categoryMap: Record<string, AISuggestion["category"]> = {
                 RESILIENCE: "Résilience",
                 STACK: "Stack Technique",
                 SECURITY: "Sécurité",
                 PERFORMANCE: "Performance",
               };
+              const severityMap: Record<string, AISuggestion["severity"]> = {
+                critical: "critique",
+                recommended: "recommandé",
+                optimization: "optimisation",
+              };
               return {
                 id: f.id || `live-sug-${idx}`,
-                severity: (sev === "critical" ? "critique" : sev === "optimization" ? "optimisation" : "recommandé") as any,
-                category: categoryMap[f.category] || "Stack Technique",
+                severity: severityMap[sev] ?? "recommandé",
+                category: categoryMap[f.category ?? ""] || "Stack Technique",
                 title: f.title || "Optimisation recommandée",
-                targetNodeId: f.targetNodeId,
+                targetNodeId: f.targetNodeId || nodes[0]?.id || "",
                 currentConfig: f.currentConfig || "Configuration standard",
                 proposedConfig: f.proposedConfig || "Configuration optimisée",
                 rationale: f.rationale || "Améliore la résilience et la scalabilité de l'infrastructure.",
@@ -316,13 +339,16 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
     setSuggestions(dynamicSuggestions.length > 0 ? dynamicSuggestions : AI_SUGGESTIONS);
     setHasAnalyzed(true);
     setIsAnalyzing(false);
-  };
+  }, [currentProject.canvasId, live, nodes]);
 
   React.useEffect(() => {
     if (activeTab === "scanner" && !hasAnalyzed && !isAnalyzing) {
-      void runArchitectureAudit();
+      const timer = window.setTimeout(() => {
+        void runArchitectureAudit();
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
-  }, [activeTab, hasAnalyzed, isAnalyzing]);
+  }, [activeTab, hasAnalyzed, isAnalyzing, runArchitectureAudit]);
 
   const applySuggestion = (sugId: string) => {
     const sug = suggestions.find((s) => s.id === sugId) || AI_SUGGESTIONS.find((s) => s.id === sugId);
@@ -630,7 +656,7 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
                   </div>
                 </div>
                 <div className="max-w-md mx-auto space-y-2">
-                  <h3 className="text-base font-bold text-ink">Analyse en cours de l'architecture…</h3>
+                  <h3 className="text-base font-bold text-ink">Analyse en cours de l&apos;architecture…</h3>
                   <p className="text-xs text-accent font-mono animate-pulse">{analysisStep}</p>
                   <p className="text-[11px] text-ink-3">
                     Diagnostic des points uniques de panne (SPOF), latence UEMOA et recommandations Cloud Souverain Systalink.
@@ -664,7 +690,7 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
                       className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-edge bg-subtle hover:bg-edge text-ink-2 text-xs font-medium transition-colors cursor-pointer"
                     >
                       <ArrowsClockwise size={14} />
-                      <span>Relancer l'analyse</span>
+                      <span>Relancer l&apos;analyse</span>
                     </button>
                     <div className="flex items-center gap-4 bg-sunken px-4 py-2.5 rounded-lg border border-edge">
                       <div>

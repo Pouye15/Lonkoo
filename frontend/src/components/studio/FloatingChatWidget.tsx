@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import {
-  ChatCircleDots,
   X,
   PaperPlaneRight,
   Sparkle,
@@ -12,13 +11,11 @@ import {
   ArrowSquareOut,
   Robot,
   User,
-  CheckCircle,
   CloudCheck,
   Cpu,
   Database,
   ShieldCheck,
   Lightning,
-  CaretDown,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/cn";
 import { useWorkspace } from "@/lib/workspace";
@@ -73,6 +70,7 @@ export function FloatingChatWidget() {
   const [suggestedActions, setSuggestedActions] = useState<string[]>(INITIAL_SUGGESTIONS);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const messageIdRef = useRef(0);
 
   useEffect(() => {
     if (isOpen) {
@@ -85,8 +83,10 @@ export function FloatingChatWidget() {
     const text = (textToSend || input).trim();
     if (!text || loading) return;
 
-    const userMsgId = `u-${Date.now()}`;
-    const assistantMsgId = `a-${Date.now()}`;
+    messageIdRef.current += 1;
+    const userMsgId = `u-${messageIdRef.current}`;
+    messageIdRef.current += 1;
+    const assistantMsgId = `a-${messageIdRef.current}`;
 
     const newMessages: Message[] = [
       ...messages,
@@ -124,7 +124,6 @@ export function FloatingChatWidget() {
       if (response.ok && response.body) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-        let accumulated = "";
 
         while (true) {
           const { done, value } = await reader.read();
@@ -143,22 +142,20 @@ export function FloatingChatWidget() {
               try {
                 const parsed = JSON.parse(dataStr);
                 if (parsed.content) {
-                  accumulated += parsed.content;
                   setMessages((prev) =>
                     prev.map((m) =>
                       m.id === assistantMsgId
-                        ? { ...m, content: accumulated, streaming: true }
+                        ? { ...m, content: `${m.content}${parsed.content}`, streaming: true }
                         : m
                     )
                   );
                 }
               } catch {
                 if (dataStr && !dataStr.startsWith("{")) {
-                  accumulated += dataStr;
                   setMessages((prev) =>
                     prev.map((m) =>
                       m.id === assistantMsgId
-                        ? { ...m, content: accumulated, streaming: true }
+                        ? { ...m, content: `${m.content}${dataStr}`, streaming: true }
                         : m
                     )
                   );
@@ -170,7 +167,9 @@ export function FloatingChatWidget() {
 
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === assistantMsgId ? { ...m, content: accumulated || "Réponse terminée.", streaming: false } : m
+            m.id === assistantMsgId
+              ? { ...m, content: m.content || "Réponse terminée.", streaming: false }
+              : m
           )
         );
         setLoading(false);

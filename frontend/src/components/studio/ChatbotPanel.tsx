@@ -74,7 +74,7 @@ export function ChatbotPanel({ canvasId, live, projectName, nodesCount = 0 }: Ch
           setLoading(false);
           return;
         }
-      } catch (e) {
+      } catch {
         // En cas d'erreur de réseau, repli gracieux ci-dessous
       }
     }
@@ -146,7 +146,7 @@ export function ChatbotPanel({ canvasId, live, projectName, nodesCount = 0 }: Ch
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold text-ink">Conseiller IA d'Architecture</h2>
+              <h2 className="text-sm font-bold text-ink">Conseiller IA d&apos;Architecture</h2>
               <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-semibold text-accent font-mono">
                 Systalink Cloud
               </span>
