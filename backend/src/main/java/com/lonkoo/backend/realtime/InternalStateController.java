@@ -24,6 +24,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.lonkoo.backend.web.BadRequestException;
 import com.lonkoo.backend.web.NotFoundException;
+import com.lonkoo.backend.web.PayloadTooLargeException;
 
 import tools.jackson.databind.json.JsonMapper;
 
@@ -35,7 +36,9 @@ import tools.jackson.databind.json.JsonMapper;
  * <p>Contrat (§ 7.2) :</p>
  * <ul>
  *   <li>{@code GET /internal/canvases/{id}/state} &rarr; {@code {state: base64|null, seed: {...}|null}}</li>
- *   <li>{@code PUT /internal/canvases/{id}/state} &rarr; {@code {state: base64}} &rarr; {@code 204}</li>
+ *   <li>{@code PUT /internal/canvases/{id}/state} &rarr; {@code {state: base64}} &rarr; {@code 204}, ou {@code 413}
+ *       si l'état décodé dépasse {@code realtime.max-stored-state-bytes} (dernier filet : le serveur temps réel limite
+ *       déjà la taille des documents, voir realtime/src/limits.js ; ce plafond doit rester au-dessus du sien)</li>
  *   <li>{@code POST /internal/canvases/{id}/access} &rarr; {@code {userIds: [...]}} &rarr; {@code {roles: {id: role}}} :
  *       le rôle que chacune de ces personnes a <em>maintenant</em> sur le canvas (les autres sont absentes). Le serveur
  *       temps réel s'en sert pour couper les connexions de qui a perdu l'accès, même si la demande de fermeture
@@ -48,17 +51,20 @@ public class InternalStateController {
 
     private final JdbcClient jdbcClient;
     private final byte[] serviceToken;
+    private final long maxStateBytes;
     private final JsonMapper jsonMapper = JsonMapper.shared();
 
     public InternalStateController(
             JdbcClient jdbcClient,
-            @Value("${realtime.service-token}") String serviceToken) {
+            @Value("${realtime.service-token}") String serviceToken,
+            @Value("${realtime.max-stored-state-bytes}") long maxStateBytes) {
         // Un jeton vide laisserait passer « Authorization: Bearer » sans rien derrière.
         if (serviceToken == null || serviceToken.isBlank()) {
             throw new IllegalStateException("realtime.service-token (REALTIME_SERVICE_TOKEN) ne doit pas être vide");
         }
         this.jdbcClient = jdbcClient;
         this.serviceToken = serviceToken.getBytes(StandardCharsets.UTF_8);
+        this.maxStateBytes = maxStateBytes;
     }
 
     @GetMapping("/canvases/{canvasId}/state")
@@ -98,11 +104,18 @@ public class InternalStateController {
         if (base64State == null || base64State.isBlank()) {
             throw new BadRequestException("Champ « state » manquant");
         }
+        // La longueur du texte est vérifiée avant de le décoder : on ne fabrique pas un gros tableau pour le refuser ensuite.
+        if (maxStateBytes > 0 && base64State.length() > (maxStateBytes + 2) / 3 * 4) {
+            throw tooLarge();
+        }
         byte[] state;
         try {
             state = Base64.getDecoder().decode(base64State);
         } catch (IllegalArgumentException e) {
             throw new BadRequestException("Le champ « state » n'est pas du Base64 valide");
+        }
+        if (maxStateBytes > 0 && state.length > maxStateBytes) {
+            throw tooLarge();
         }
 
         // Un seul ordre SQL : aucune ligne n'est écrite si le canvas n'existe pas.
@@ -120,6 +133,10 @@ public class InternalStateController {
         }
 
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    private PayloadTooLargeException tooLarge() {
+        return new PayloadTooLargeException("L'état du canvas dépasse " + maxStateBytes + " octets");
     }
 
     /** Nombre maximal de personnes dans une demande (un canvas n'en réunit que quelques-unes à la fois). */

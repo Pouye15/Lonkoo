@@ -78,6 +78,32 @@ class HardeningIntegrationTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void internalStateRefusesAnOversizedStateAndKeepsTheStoredOne() throws Exception {
+        MockHttpSession session = newGuest();
+        String canvasId = firstCanvasId(session, firstProjectId(session));
+        String url = "/internal/canvases/" + canvasId + "/state";
+
+        // Plafond du profil de test : 65 536 octets. Un état valide juste en dessous passe…
+        String atTheLimit = java.util.Base64.getEncoder().encodeToString(new byte[65536]);
+        mockMvc.perform(put(url).header("Authorization", SERVICE_TOKEN)
+                .contentType("application/json").content("{\"state\":\"" + atTheLimit + "\"}"))
+                .andExpect(status().isNoContent());
+
+        // …un octet de plus est refusé en 413 (problem+json), et l'état enregistré reste celui d'avant.
+        String overTheLimit = java.util.Base64.getEncoder().encodeToString(new byte[65537]);
+        mockMvc.perform(put(url).header("Authorization", SERVICE_TOKEN)
+                .contentType("application/json").content("{\"state\":\"" + overTheLimit + "\"}"))
+                .andExpect(status().isContentTooLarge());
+        assertThat(internalGet(canvasId).get("state").asText()).isEqualTo(atTheLimit);
+
+        // Un texte Base64 bien plus long que le plafond est refusé avant même d'être décodé.
+        String enormous = "A".repeat(10_000_000);
+        mockMvc.perform(put(url).header("Authorization", SERVICE_TOKEN)
+                .contentType("application/json").content("{\"state\":\"" + enormous + "\"}"))
+                .andExpect(status().isContentTooLarge());
+    }
+
+    @Test
     void internalStateRejectsBadInput() throws Exception {
         MockHttpSession session = newGuest();
         String canvasId = firstCanvasId(session, firstProjectId(session));

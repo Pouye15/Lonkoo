@@ -24,6 +24,9 @@
  *   - onLoadDocument : charge l'état depuis le backend ; sinon initialise depuis
  *     le seed (modèle d'exemple).
  *   - onStoreDocument : réécrit l'état Yjs (base64) vers le backend, avec debounce.
+ *   - beforeHandleMessage : refuse l'écriture qui ferait dépasser la taille maximale du document (limites.js).
+ *
+ * Limites (A-18, voir limits.js) : débit par connexion (fermeture 4429) et taille du document (fermeture 4413).
  */
 import http from 'node:http';
 
@@ -41,6 +44,15 @@ import {
   replaceWithSnapshot,
   yjsToSnapshot,
 } from './canvasCodec.js';
+import {
+  CLOSE_CANVAS_TOO_LARGE,
+  CLOSE_TOO_MANY_MESSAGES,
+  createDocumentSizeGuard,
+  createMessageBudget,
+  isDocumentWrite,
+  limitsFromEnv,
+  resolveLimits,
+} from './limits.js';
 
 const READ_ONLY_ROLES = new Set(['READ', 'TRIAGE']);
 
@@ -166,6 +178,8 @@ function rejectUpgrade(socket, status, message) {
  *                                                   un ticket vit 5 min, il n'a plus d'effet après).
  * @param {number} [options.accessCheckIntervalMs]   Intervalle de revérification des accès des personnes connectées
  *                                                   auprès du backend (30 s ; 0 pour ne pas le faire).
+ * @param {object} [options.limits]                  Limites du canvas en direct (voir `DEFAULT_LIMITS` dans limits.js) :
+ *                                                   mode `enforce`, `log` ou `off`, débit par connexion, taille du document.
  */
 export function createCanvasServer({
   backendUrl,
@@ -180,7 +194,10 @@ export function createCanvasServer({
   backendTimeoutMs = 5000,
   revocationMemoryMs = 10 * 60 * 1000,
   accessCheckIntervalMs = 30 * 1000,
+  limits: limitOverrides = {},
 }) {
+  const limits = resolveLimits(limitOverrides);
+  const documentSizeGuard = createDocumentSizeGuard(limits);
   const backend = createBackendClient(backendUrl, serviceToken, { timeoutMs: backendTimeoutMs });
   const verifyTicket = createTicketVerifier(ticketSecret);
   const hasServiceToken = createServiceTokenVerifier(serviceToken);
@@ -265,6 +282,27 @@ export function createCanvasServer({
   const accessTimer = accessCheckIntervalMs > 0 ? setInterval(checkAccess, accessCheckIntervalMs) : null;
   accessTimer?.unref();
 
+  /**
+   * Journalise une limite dépassée, au plus une fois par minute et par clé : un client qui inonde le serveur ne doit pas
+   * aussi inonder les journaux.
+   */
+  const lastLimitWarning = new Map();
+  function warnLimit(key, message) {
+    const now = Date.now();
+    for (const [other, at] of lastLimitWarning) {
+      if (now - at > 60_000) lastLimitWarning.delete(other);
+    }
+    if (lastLimitWarning.has(key)) return;
+    lastLimitWarning.set(key, now);
+    const prefix = limits.mode === 'log' ? 'limite dépassée (mode log, rien n\'est refusé)' : 'limite appliquée';
+    console.warn(`[realtime] ${prefix} : ${message}`);
+  }
+
+  /** Si le client ne répond pas à la fermeture qu'on lui demande, la socket est coupée au bout de 5 s. */
+  function terminateLater(webSocket) {
+    setTimeout(() => webSocket.terminate(), 5000).unref();
+  }
+
   /** Enregistre l'état Yjs d'un document auprès du backend, avec de nouvelles tentatives si besoin. */
   async function persist(documentName, document, retryDelaysMs) {
     const base64 = Buffer.from(Y.encodeStateAsUpdate(document)).toString('base64');
@@ -295,6 +333,22 @@ export function createCanvasServer({
       } catch (err) {
         console.error(`[realtime] échec de persistance du canvas ${documentName}:`, err.message);
       }
+    },
+    async beforeHandleMessage({ connection, document, documentName, update }) {
+      // Une connexion en lecture seule n'écrit rien : Hocuspocus ignore ses modifications.
+      if (limits.mode === 'off' || connection.readOnly || !isDocumentWrite(update)) return;
+      if (!documentSizeGuard.refuses(document, update.length)) return;
+      warnLimit(
+        `taille:${documentName}`,
+        `canvas ${documentName} trop volumineux, modification de ${update.length} octets refusée (plafond ${limits.maxDocumentBytes} octets)`,
+      );
+      if (limits.mode === 'log') return;
+      // Lever l'erreur empêche d'appliquer la modification ; fermer la socket empêche d'insister (Hocuspocus ne ferme
+      // que la connexion au document, pas la socket). L'erreur est un simple objet {code, reason}, comme `Forbidden` de
+      // Hocuspocus : Hocuspocus le lit pour fermer la connexion, et ne journalise pas de pile d'appels.
+      connection.webSocket.close(CLOSE_CANVAS_TOO_LARGE.code, CLOSE_CANVAS_TOO_LARGE.reason);
+      terminateLater(connection.webSocket);
+      throw { ...CLOSE_CANVAS_TOO_LARGE };
     },
     async onAuthenticate({ token, documentName, connectionConfig }) {
       const payload = await verifyTicket(token, documentName);
@@ -446,8 +500,29 @@ export function createCanvasServer({
     ws.on('error', (err) => {
       console.warn(`[realtime] connexion fermée sur erreur : ${err.message}`);
     });
+    // Budget de débit : contrôlé avant que le message n'entre dans la file de Hocuspocus, pour qu'un flot de messages ne
+    // s'y accumule pas. Une fois la connexion coupée, ce qui arrive encore est ignoré.
+    const budget = limits.mode === 'off' ? null : createMessageBudget(limits);
+    let cut = false;
     ws.on('message', (data) => {
-      clientConnection.handleMessage(toUint8Array(data));
+      if (cut) return;
+      const message = toUint8Array(data);
+      const exceeded = budget?.take(message.length);
+      if (exceeded) {
+        warnLimit(
+          'debit',
+          exceeded === 'messages'
+            ? `une connexion dépasse ${limits.messagesPerSecond} messages par seconde`
+            : `une connexion dépasse ${limits.bytesPerWindow} octets par ${limits.windowMs / 1000} s`,
+        );
+        if (limits.mode === 'enforce') {
+          cut = true;
+          clientConnection.terminate(CLOSE_TOO_MANY_MESSAGES);
+          terminateLater(ws);
+          return;
+        }
+      }
+      clientConnection.handleMessage(message);
     });
     ws.on('close', (code, reason) => {
       clientConnection.handleClose({ code, reason: reason?.toString() ?? '' });
@@ -521,7 +596,9 @@ if (isMain) {
     process.exit(1);
   }
 
-  const server = createCanvasServer({ backendUrl, serviceToken, ticketSecret, port, storeDebounceMs, maxMessageBytes });
+  const limits = limitsFromEnv(process.env);
+
+  const server = createCanvasServer({ backendUrl, serviceToken, ticketSecret, port, storeDebounceMs, maxMessageBytes, limits });
   server.start().then(() => {
     console.log(`[realtime] écoute sur ws://localhost:${port} (backend ${backendUrl})`);
   });

@@ -26,7 +26,7 @@ class SecretsValidationTest {
 
     @Test
     void blankServiceTokenIsRejected() {
-        assertThatThrownBy(() -> new InternalStateController(null, "  "))
+        assertThatThrownBy(() -> new InternalStateController(null, "  ", 1024))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("REALTIME_SERVICE_TOKEN");
     }

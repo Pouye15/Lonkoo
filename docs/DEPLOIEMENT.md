@@ -170,6 +170,14 @@ docker compose -f infra/docker-compose.prod.yml --env-file /opt/lonkoo/.env rest
 - Redémarrage du serveur : Docker se relance au démarrage et `restart: unless-stopped` remonte la pile. À essayer une fois (`sudo reboot`) avant la soumission, puis vérifier la santé et les données.
 - Disque : `docker system df`, puis `docker image prune -f` si besoin (le pipeline le fait après chaque déploiement).
 
+### Limites du canvas en direct
+
+Le serveur temps réel coupe deux abus (code `realtime/src/limits.js`) : une connexion qui envoie plus de 100 messages par seconde en moyenne (rafale de 300) ou plus de 4 Mio en 10 s est fermée avec le code **4429** ; une modification qui ferait dépasser 4 Mio à l'état d'un canvas est refusée et la connexion qui l'a envoyée est fermée avec le code **4413**. Un navigateur normal en est très loin (curseurs : 20 messages par seconde au plus). Au-dessus de 4 Mio seules les petites modifications (déplacer, supprimer) passent, pour qu'un canvas trop plein puisse être allégé, et au double plus rien ne passe : on le ramène alors à une version enregistrée avec « restaurer » dans l'application. Le backend refuse de son côté en 413 un état de plus de 16 Mio.
+
+- **Voir les coupures** : `docker compose … logs realtime | grep "limite appliquée"` (au plus une ligne par minute et par cause).
+- **Si une limite gêne de vraies personnes** : dans le `.env` du serveur, `REALTIME_LIMITS_MODE=log` (journalise sans rien refuser) ou `off`, puis `docker compose … up -d realtime`. Sans reconstruire d'image. Les valeurs se règlent par `REALTIME_MAX_MESSAGES_PER_SECOND`, `REALTIME_MAX_BYTES_PER_10S`, `REALTIME_MAX_STATE_BYTES` (0 désactive une limite), voir `infra/production.env.example`.
+- **L'interface** ne sait pas encore afficher un message pour 4429 et 4413 (à voir avec la personne qui s'occupe de l'interface) : la personne voit la connexion tomber puis se rétablir.
+
 ## Étape 4 : déploiement B (applications générées)
 
 Le projet généré contient son propre workflow `.github/workflows/deploy-systalink.yml`. Lonkoo le lance dans le dépôt GitHub de la personne et suit son exécution ; **le serveur de Lonkoo ne se connecte à aucune machine** et ne détient aucune clé : l'hôte et la clé SSH sont des secrets du dépôt de la personne. Sans les autorisations GitHub nécessaires (`repo` et `workflow`) ou sans le fichier, le déploiement passe en **mode manuel** : Lonkoo affiche les étapes à suivre soi-même.
