@@ -60,7 +60,7 @@ NEXT_PUBLIC_API_MODE=live
 NEXT_PUBLIC_REALTIME_URL=/ws
 ```
 
-Puis redémarrer `npm run dev` (cette variable est lue au démarrage). Essayé en local avec les parcours de bout en bout (Studio, présence, curseurs, versions, discussion) ; **pas encore dans le navigateur d'un vrai Codespace**.
+Puis redémarrer `npm run dev` (cette variable est lue au démarrage). Essayé en local avec les parcours de bout en bout (Studio, présence, curseurs, versions, discussion) et **confirmé dans le navigateur d'un vrai Codespace le 05/11** : le Studio s'affiche.
 
 ### Si l'adresse du Codespace affiche « 404 » alors que le serveur tourne
 
