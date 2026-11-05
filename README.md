@@ -17,7 +17,7 @@ Lonkoo est un studio collaboratif où une équipe de développeurs conçoit l'ar
 5. Générer le projet de démarrage et le pousser sur GitHub.
 6. Déployer sur Systalink et ouvrir l'application en ligne.
 
-## État d'avancement (25 octobre 2026)
+## État d'avancement (5 novembre 2026)
 
 Échéance de soumission : **20 novembre 2026** (heure à confirmer). Détail, constats et reste à faire : [docs/AUDIT-ET-ROADMAP-BACKEND.md](docs/AUDIT-ET-ROADMAP-BACKEND.md).
 
