@@ -20,7 +20,7 @@ La colonne « Vérifié » se coche seulement après avoir lu la licence dans le
 | caniuse-lite (dépendance de next) | 1.0.30001816 | CC-BY-4.0 | Oui (données, attribution) | Table de compatibilité des navigateurs, livrée avec next | npm | [x] |
 | Yjs | 13.6.33 | MIT | Oui | Document partagé du canvas (serveur temps réel et navigateur) | npm | [x] |
 | Hocuspocus (`@hocuspocus/server`, `@hocuspocus/common` ; `@hocuspocus/provider` : tests du serveur et navigateur) | 4.8.0 | MIT | Oui | Serveur de synchronisation temps réel (remplace y-websocket, qui n'a plus de serveur) et client du studio | npm | [x] |
-| jose | 6.2.14 | MIT | Oui | Vérification des tickets JWT du temps réel | npm | [x] |
+| jose | 6.2.15 | MIT | Oui | Vérification des tickets JWT du temps réel | npm | [x] |
 | ws | 8.22.1 | MIT | Oui | Serveur WebSocket (8.18.3 écarté : deux avis de sécurité) | npm | [x] |
 | Dépendances de Hocuspocus et Yjs : async-mutex 0.5.0, crossws 0.4.17, isomorphic.js 0.2.5, kleur 4.1.5, lib0 0.2.119, y-protocols 1.0.7 | voir `package-lock.json` | MIT | Oui | Serveur temps réel | npm | [x] |
 | tslib (dépendance de Hocuspocus) | 2.8.1 | 0BSD | Oui | Serveur temps réel | npm | [x] |
