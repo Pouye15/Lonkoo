@@ -138,6 +138,37 @@ class GithubOAuthIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(GITHUB.userAuthorizations).containsExactly("Bearer " + GITHUB.tokenFor(code));
     }
 
+    /**
+     * Le nom d'une personne connectée avec GitHub dans la discussion d'un projet : son nom GitHub, ou son identifiant à
+     * défaut, sans le suffixe réservé aux invités. Parcours complet contre le faux GitHub : connexion, projet, message.
+     */
+    @Test
+    void aGithubAccountSpeaksInTheProjectDiscussionUnderItsOwnName() throws Exception {
+        MockHttpSession named = signInAs("octocat", "Octo Cat");
+        MockHttpSession unnamed = signInAs("sans-nom", null);
+
+        for (var entry : Map.of(named, "Octo Cat", unnamed, "sans-nom").entrySet()) {
+            String projectId = JSON.readTree(mockMvc.perform(post("/api/projects").session(entry.getKey())
+                    .contentType("application/json").content("{\"name\":\"discussion\"}"))
+                    .andReturn().getResponse().getContentAsString()).get("id").asText();
+
+            String created = mockMvc.perform(post("/api/projects/" + projectId + "/messages").session(entry.getKey())
+                    .contentType("application/json").content("{\"body\":\"Bonjour de GitHub\"}"))
+                    .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+
+            assertThat(JSON.readTree(created).get("authorName").asText()).isEqualTo(entry.getValue());
+            assertThat(JSON.readTree(created).get("mine").asBoolean()).isTrue();
+        }
+    }
+
+    private MockHttpSession signInAs(String login, String name) throws Exception {
+        String code = GITHUB.register(newGithubId(), login, name, null);
+        MvcResult start = startLogin(null);
+        MvcResult callback = mockMvc.perform(callback(code, stateOf(start), sessionOf(start)))
+                .andExpect(status().isFound()).andReturn();
+        return sessionOf(callback);
+    }
+
     @Test
     void neitherTheTokenNorTheAppSecretIsStoredOrReturned() throws Exception {
         String code = GITHUB.register(newGithubId(), "discret", "Discret", null);

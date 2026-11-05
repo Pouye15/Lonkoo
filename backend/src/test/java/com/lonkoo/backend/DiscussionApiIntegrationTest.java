@@ -9,6 +9,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -165,6 +172,64 @@ class DiscussionApiIntegrationTest extends AbstractPostgresIntegrationTest {
 
         assertThat(messages(team, team.owner(), "?limit=1000").size()).isEqualTo(100);
         assertThat(messages(team, team.owner(), "").size()).as("50 par défaut").isEqualTo(50);
+    }
+
+    // ------------------------------------------------------------------ Lire par curseur pendant que d'autres écrivent
+
+    /**
+     * L'interface ne demande que ce qui suit le dernier identifiant reçu. Si un message de numéro 11 était validé après un
+     * message de numéro 12, un lecteur qui passe entre les deux verrait le 12, avancerait son curseur à 12, et ne verrait
+     * jamais le 11. L'envoi est donc sérialisé par projet : les numéros suivent l'ordre de validation.
+     */
+    @Test
+    void aReaderFollowingACursorNeverMissesAMessageWhileOthersWriteAtTheSameTime() throws Exception {
+        Team team = newTeam();
+        List<Person> writers = new ArrayList<>();
+        for (int i = 0; i < 12; i++) {
+            writers.add(addMember(team, Role.WRITE));
+        }
+        Set<Long> received = ConcurrentHashMap.newKeySet();
+        AtomicBoolean writing = new AtomicBoolean(true);
+        ExecutorService pool = Executors.newFixedThreadPool(writers.size() + 1);
+        try {
+            Future<?> reader = pool.submit(() -> {
+                long cursor = -1;
+                boolean last = false;
+                while (!last) {
+                    last = !writing.get();
+                    JsonNode batch = messages(team, team.owner(), cursor < 0 ? "?limit=100" : "?after=" + cursor + "&limit=100");
+                    for (JsonNode message : batch) {
+                        received.add(message.get("id").asLong());
+                        cursor = Math.max(cursor, message.get("id").asLong());
+                    }
+                }
+                return null;
+            });
+            CountDownLatch start = new CountDownLatch(1);
+            List<Future<?>> posts = new ArrayList<>();
+            for (Person writer : writers) {
+                posts.add(pool.submit(() -> {
+                    start.await();
+                    for (int i = 0; i < 15; i++) {
+                        send(team, writer, "message " + i);
+                    }
+                    return null;
+                }));
+            }
+            start.countDown();
+            for (Future<?> post : posts) {
+                post.get(60, TimeUnit.SECONDS);
+            }
+            writing.set(false);
+            reader.get(60, TimeUnit.SECONDS);
+        } finally {
+            pool.shutdownNow();
+        }
+
+        Set<Long> stored = new java.util.HashSet<>(jdbc.sql("select id from project_messages where project_id = ?")
+                .param(team.project()).query(Long.class).list());
+        assertThat(stored).as("12 personnes × 15 messages").hasSize(180);
+        assertThat(received).as("rien n'a échappé au lecteur à curseur").containsExactlyInAnyOrderElementsOf(stored);
     }
 
     // ------------------------------------------------------------------ Garde-fous

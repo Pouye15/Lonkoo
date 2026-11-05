@@ -25,7 +25,8 @@ import com.lonkoo.backend.web.TooManyRequestsException;
  *
  * <p>Garde-fous : 2 000 caractères par message, 20 messages par minute et par personne (429 avec {@code Retry-After}),
  * et les 1 000 derniers messages d'un projet seulement (les plus anciens sont élagués à l'envoi). Le texte est gardé
- * tel quel : c'est l'interface qui l'affiche sans l'interpréter.</p>
+ * tel quel : c'est l'interface qui l'affiche sans l'interpréter. Les envois d'un même projet passent l'un après l'autre
+ * (voir {@link #lockProject}).</p>
  */
 @Service
 public class DiscussionService {
@@ -92,6 +93,7 @@ public class DiscussionService {
         return transactions.execute(status -> {
             requireMember(user, projectId);
             requireRoomToWrite(user);
+            lockProject(projectId);
 
             long id = jdbcClient.sql("""
                     insert into project_messages (project_id, user_id, author_name, body)
@@ -167,6 +169,19 @@ public class DiscussionService {
             throw new TooManyRequestsException(
                     "Trop de messages en peu de temps : " + messagesPerMinute + " par minute au plus.", wait);
         }
+    }
+
+    /**
+     * Sérialise les envois d'un même projet jusqu'à leur validation. L'interface lit « ce qui suit le dernier numéro
+     * reçu » : si le message 11 était validé après le 12, un lecteur passant entre les deux verrait le 12, avancerait son
+     * curseur et ne verrait jamais le 11. Avec ce verrou (relâché à la validation, une fois le message visible), les
+     * numéros d'un projet suivent l'ordre de validation. Le verrou est propre au projet : deux projets ne s'attendent pas.
+     */
+    private void lockProject(UUID projectId) {
+        jdbcClient.sql("select pg_advisory_xact_lock(hashtextextended(?, 0))")
+                .param(projectId.toString())
+                .query()
+                .listOfRows();
     }
 
     /** Ne garde que les {@code messagesPerProject} derniers messages du projet. */

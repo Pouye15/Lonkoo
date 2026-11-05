@@ -7,6 +7,7 @@ import {
   COUNTER_FROM_CHARS,
   MAX_MESSAGE_CHARS,
   draftProblem,
+  enterSends,
   fullDate,
   isBlank,
   isNearBottom,
@@ -16,6 +17,7 @@ import {
   type DiscussionMessage,
 } from "@/lib/discussion";
 import { listMessages, sendMessage } from "@/lib/discussion-api";
+import { markSeen } from "@/lib/discussion-seen";
 import { avatarColor, memberInitials } from "@/lib/members";
 import { listMembers } from "@/lib/members-api";
 
@@ -114,6 +116,12 @@ export function ProjectDiscussion({ projectId }: { projectId: string }) {
     if (list && followRef.current) list.scrollTop = list.scrollHeight;
   }, [messages, status]);
 
+  // Ce qui est affiché dans un onglet visible est lu : la pastille de « Revues » n'en tient plus compte.
+  useEffect(() => {
+    const last = lastMessageId(messages);
+    if (last !== undefined && document.visibilityState === "visible") markSeen(projectId, last);
+  }, [messages, projectId]);
+
   async function submit(event?: React.FormEvent) {
     event?.preventDefault();
     if (sending || isBlank(draft) || draftProblem(draft)) return;
@@ -134,8 +142,9 @@ export function ProjectDiscussion({ projectId }: { projectId: string }) {
   }
 
   function onKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
-    // Entrée envoie, Maj+Entrée va à la ligne. Pas pendant une composition (accents, saisie en plusieurs temps).
-    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+    // Entrée envoie au clavier ; sur un écran tactile elle va à la ligne et le bouton envoie (voir enterSends).
+    const touchScreen = window.matchMedia("(pointer: coarse)").matches;
+    if (enterSends({ key: event.key, shiftKey: event.shiftKey, isComposing: event.nativeEvent.isComposing }, touchScreen)) {
       event.preventDefault();
       void submit();
     }
@@ -145,7 +154,8 @@ export function ProjectDiscussion({ projectId }: { projectId: string }) {
   const length = draft.trim().length;
 
   return (
-    <div className="flex h-[660px] flex-col overflow-hidden rounded-xl border border-edge bg-surface lg:col-span-5">
+    // Sur un petit écran la discussion passe avant les propositions (fictives et longues) : elle reste à portée de pouce.
+    <div className="order-first flex h-[660px] flex-col overflow-hidden rounded-xl border border-edge bg-surface lg:order-none lg:col-span-5">
       <div className="flex items-center justify-between border-b border-edge bg-surface p-3.5">
         <h2 className="text-xs font-bold text-ink">Discussion d&apos;équipe</h2>
         {memberCount !== null && (
@@ -225,7 +235,7 @@ export function ProjectDiscussion({ projectId }: { projectId: string }) {
                 onChange={(event) => setDraft(event.target.value)}
                 onKeyDown={onKeyDown}
                 rows={2}
-                placeholder="Écrire à l'équipe… (Entrée pour envoyer, Maj+Entrée pour aller à la ligne)"
+                placeholder="Écrire à l'équipe…"
                 className="min-h-[3rem] flex-1 resize-none rounded-lg border border-edge bg-sunken px-3 py-2 text-xs text-ink focus:border-accent focus:bg-surface focus:outline-none"
               />
               <button
@@ -237,6 +247,9 @@ export function ProjectDiscussion({ projectId }: { projectId: string }) {
                 <span>Envoyer</span>
               </button>
             </div>
+            <p className="hidden text-[11px] text-ink-4 pointer-fine:block">
+              Entrée pour envoyer, Maj+Entrée pour aller à la ligne
+            </p>
             {length >= COUNTER_FROM_CHARS && (
               <p className={`text-right text-[11px] ${length > MAX_MESSAGE_CHARS ? "text-danger" : "text-ink-3"}`}>
                 {length} / {MAX_MESSAGE_CHARS}

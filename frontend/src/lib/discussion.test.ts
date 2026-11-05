@@ -3,11 +3,16 @@ import { test } from "node:test";
 import {
   MAX_MESSAGE_CHARS,
   draftProblem,
+  enterSends,
   isBlank,
   isNearBottom,
   lastMessageId,
   mergeMessages,
   pollDelayMs,
+  badgeText,
+  unreadFrom,
+  unreadLabel,
+  unreadPollDelayMs,
   type DiscussionMessage,
 } from "./discussion.ts";
 
@@ -74,4 +79,35 @@ test("la liste suit les nouveaux messages seulement si on est déjà en bas", ()
   assert.equal(isNearBottom({ scrollHeight: 1000, scrollTop: 600, clientHeight: 400 }), true);
   assert.equal(isNearBottom({ scrollHeight: 1000, scrollTop: 530, clientHeight: 400 }), true, "à 70 px du bas");
   assert.equal(isNearBottom({ scrollHeight: 1000, scrollTop: 100, clientHeight: 400 }), false, "on relit plus haut");
+});
+
+test("Entrée envoie au clavier, sauf avec Maj, pendant une composition, ou sur un écran tactile", () => {
+  const press = (overrides = {}) => ({ key: "Enter", shiftKey: false, isComposing: false, ...overrides });
+  assert.equal(enterSends(press(), false), true);
+  assert.equal(enterSends(press({ shiftKey: true }), false), false, "Maj+Entrée va à la ligne");
+  assert.equal(enterSends(press({ isComposing: true }), false), false, "la composition d'un accent n'envoie pas");
+  assert.equal(enterSends(press(), true), false, "sur écran tactile, Entrée va à la ligne : le bouton envoie");
+  assert.equal(enterSends(press({ key: "a" }), false), false);
+});
+
+test("les messages non lus sont ceux des autres arrivés après le dernier vu : jamais les siens", () => {
+  const batch = [message(5), message(6, { mine: true }), message(7), message(3)];
+  assert.equal(unreadFrom(batch, 4), 2, "5 et 7 ; 6 est le mien, 3 est déjà vu");
+  assert.equal(unreadFrom(batch, 7), 0);
+  assert.equal(unreadFrom([], 0), 0);
+});
+
+test("la pastille ne grandit pas au-delà de 99 et se lit correctement", () => {
+  assert.equal(badgeText(1), "1");
+  assert.equal(badgeText(99), "99");
+  assert.equal(badgeText(100), "99+");
+  assert.equal(unreadLabel(1), "1 message non lu");
+  assert.equal(unreadLabel(3), "3 messages non lus");
+  assert.equal(unreadLabel(250), "99+ messages non lus");
+});
+
+test("le recomptage des non lus est plus lent que la discussion ouverte, et lent onglet caché", () => {
+  assert.equal(unreadPollDelayMs(true), 10000);
+  assert.equal(unreadPollDelayMs(false), 60000);
+  assert.ok(unreadPollDelayMs(true) > pollDelayMs({ visible: true, failures: 0 }));
 });

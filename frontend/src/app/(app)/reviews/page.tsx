@@ -262,7 +262,7 @@ export default function ArchitectureReviewsAndChatPage() {
           activeProject && !activeProject.visitor ? (
             <ProjectDiscussion key={activeProject.id} projectId={activeProject.id} />
           ) : (
-            <div className="flex h-[660px] items-center justify-center rounded-xl border border-edge bg-surface p-6 text-center text-xs text-ink-3 lg:col-span-5">
+            <div className="order-first flex h-[660px] items-center justify-center rounded-xl border border-edge bg-surface p-6 text-center text-xs text-ink-3 lg:order-none lg:col-span-5">
               {activeProject
                 ? "La discussion est réservée aux membres du projet."
                 : workspaceStatus === "loading" || workspaceStatus === "idle"

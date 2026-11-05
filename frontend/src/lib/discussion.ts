@@ -31,6 +31,18 @@ export function draftProblem(text: string): string | null {
   return null;
 }
 
+/**
+ * Vrai si cette touche envoie le message. Entrée envoie, sauf avec Maj (aller à la ligne), pendant une composition
+ * (accents, saisie en plusieurs temps) et sur un écran tactile : le clavier à l'écran n'a pas de Maj+Entrée, donc
+ * Entrée y va à la ligne et c'est le bouton qui envoie.
+ */
+export function enterSends(
+  event: { key: string; shiftKey: boolean; isComposing: boolean },
+  touchScreen: boolean,
+): boolean {
+  return event.key === "Enter" && !event.shiftKey && !event.isComposing && !touchScreen;
+}
+
 export function isBlank(text: string): boolean {
   return text.trim().length === 0;
 }
@@ -75,4 +87,27 @@ export function isNearBottom(metrics: { scrollHeight: number; scrollTop: number;
 /** Date complète d'un message, pour l'infobulle de l'heure relative. */
 export function fullDate(iso: string): string {
   return new Date(iso).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" });
+}
+
+/** Messages d'autres personnes arrivés après le dernier que celle-ci a vu : ce que compte la pastille de « Revues ». */
+export function unreadFrom(messages: readonly DiscussionMessage[], seenId: number): number {
+  return messages.filter((message) => message.id > seenId && !message.mine).length;
+}
+
+/** Au-delà de 99, la pastille dit « 99+ » : elle ne grandit pas dans la barre latérale. */
+export function badgeText(count: number): string {
+  return count > 99 ? "99+" : String(count);
+}
+
+/** Le texte lu par un lecteur d'écran pour la pastille. */
+export function unreadLabel(count: number): string {
+  return `${badgeText(count)} message${count > 1 ? "s" : ""} non lu${count > 1 ? "s" : ""}`;
+}
+
+const UNREAD_POLL_VISIBLE_MS = 10000;
+const UNREAD_POLL_HIDDEN_MS = 60000;
+
+/** Attente avant de recompter les messages non lus : plus lente que la discussion ouverte, lente onglet caché. */
+export function unreadPollDelayMs(visible: boolean): number {
+  return visible ? UNREAD_POLL_VISIBLE_MS : UNREAD_POLL_HIDDEN_MS;
 }
