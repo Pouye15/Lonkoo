@@ -404,11 +404,98 @@ jobs:
           if bash infra/restore.sh --live "$dump" > /dev/null 2>&1; then fail "restore --live s'est exécuté sans confirmation"; fi
           [ "$(count)" = "$before" ] || fail "la base de production a changé pendant le test de restauration"
 
+          echo "== Restauration en production (--live) : copie de sécurité d'abord, puis retour à la sauvegarde"
+          c -b "$jar" -o /dev/null -X POST -H 'Content-Type: application/json' --data-binary '{"name":"apres sauvegarde"}' "$base/api/projects"
+          [ "$(count)" = "$((before + 1))" ] || fail "le projet créé après la sauvegarde n'est pas compté : $(count)"
+          sleep 1  # le nom d'une sauvegarde porte la seconde : la copie de sécurité ne doit pas écraser la sauvegarde
+          if ! CONFIRM=oui bash infra/restore.sh --live "$dump" > "$RUNNER_TEMP/live.log" 2>&1; then
+            cat "$RUNNER_TEMP/live.log"; fail "restore --live a échoué"
+          fi
+          has 'Copie de sécurité de la base actuelle' "$(cat "$RUNNER_TEMP/live.log")" || fail "restore --live n'annonce pas de copie de sécurité"
+          [ "$(count)" = "$before" ] || fail "après la restauration : $(count) projets, $before attendus"
+          safety="$(find "$BACKUP_DIR" -name 'lonkoo-*.dump' -newer "$dump" | sort | tail -1)"
+          [ -n "$safety" ] || fail "aucune copie de sécurité écrite avant la restauration"
+          has "$((before + 1)) projets" "$(bash infra/restore.sh --test "$safety")" || fail "la copie de sécurité ne garde pas l'état d'avant la restauration"
+          compose up -d --wait --wait-timeout 300
+          code="$(c -o /dev/null -w '%{http_code}' "$base/api/actuator/health")"
+          [ "$code" = "200" ] || fail "santé après la restauration en production : $code"
+
       - name: État de la pile en cas d'échec
         if: failure()
         run: |
           docker compose --env-file "$ENV_FILE" ps
           docker compose --env-file "$ENV_FILE" logs --tail=80
+
+  # ---------------------------------------------------------------
+  # Projet généré : ce que LONKOO livre, et que la démo déploie, doit se construire et démarrer (DK-2).
+  # ProjectGeneratorTest ne prouve que l'analyse du projet (javac, YAML, XML, SQL sur un vrai PostgreSQL). Ce job génère le
+  # projet d'exemple, construit ses deux images (Maven et Next.js), le démarre avec docker compose, interroge la santé, l'API
+  # et l'interface, puis l'arrête. Les chemins de l'API sont ceux du modèle d'exemple (docs/exemples/marketplace-mobile.canvas.json).
+  # ---------------------------------------------------------------
+  projet-genere:
+    name: Projet généré (construction et démarrage)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Générer le projet d'exemple
+        working-directory: backend
+        run: mvn -B -ntp test -Dtest='ProjectGeneratorTest#dumpForInspection' -Dlonkoo.generator.dump="$RUNNER_TEMP/projet-genere"
+
+      - name: Construire et démarrer le projet généré
+        working-directory: ${{ runner.temp }}/projet-genere
+        run: docker compose up -d --build --wait --wait-timeout 600
+
+      - name: Vérifier le projet généré
+        working-directory: ${{ runner.temp }}/projet-genere
+        shell: bash
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$*"; exit 1; }
+          # Le backend met quelques secondes à démarrer : on réessaie jusqu'à 2 minutes.
+          code=""
+          for _ in $(seq 1 40); do
+            code="$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/actuator/health || true)"
+            [ "$code" = "200" ] && break
+            sleep 3
+          done
+          [ "$code" = "200" ] || fail "santé du backend généré : $code (200 attendu)"
+          curl -fsS http://localhost:8080/actuator/health | grep -q '"UP"' || fail "le backend généré n'est pas UP"
+          # La migration a créé les tables : la liste est vide mais répond.
+          [ "$(curl -fsS http://localhost:8080/produits)" = "[]" ] || fail "GET /produits n'a pas répondu une liste vide"
+          post() {
+            curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' \
+              -d '{"reference":"CI-1","total":10,"creeLe":"2026-01-01T00:00:00Z"}' http://localhost:8080/commandes || true
+          }
+          code="$(post)"
+          [ "$code" = "201" ] || fail "POST /commandes : $code (201 attendu)"
+          code="$(post)"
+          [ "$code" = "409" ] || fail "une référence en double doit donner 409 : $code"
+          for page in "" accueil panier commandes; do
+            code="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:3000/$page" || true)"
+            [ "$code" = "200" ] || fail "interface générée /$page : $code (200 attendu)"
+          done
+          echo "Projet généré vérifié : santé, API et interface."
+
+      - name: État du projet généré en cas d'échec
+        if: failure()
+        run: |
+          cd "$RUNNER_TEMP/projet-genere" 2>/dev/null || exit 0
+          docker compose ps
+          docker compose logs --tail=80
+
+      - name: Arrêter le projet généré
+        if: always()
+        run: |
+          cd "$RUNNER_TEMP/projet-genere" 2>/dev/null || exit 0
+          docker compose down -v
 
   # ---------------------------------------------------------------
   # Avis de sécurité connus sur les dépendances (informatif : ne bloque pas la fusion).

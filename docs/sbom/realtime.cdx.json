@@ -3,15 +3,15 @@
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
   "version": 1,
-  "serialNumber": "urn:uuid:f7d3d41d-2c30-4362-998f-bb021c82e796",
+  "serialNumber": "urn:uuid:5e4b91db-7583-4322-9a28-e57971eba0d7",
   "metadata": {
-    "timestamp": "2026-10-25T11:32:52.266Z",
+    "timestamp": "2026-11-04T20:17:06.879Z",
     "tools": {
       "components": [
         {
           "type": "application",
           "name": "npm",
-          "version": "10.9.3"
+          "version": "11.19.0"
         },
         {
           "type": "application",
@@ -59,7 +59,7 @@
           "type": "library",
           "name": "cyclonedx-library",
           "group": "@cyclonedx",
-          "version": "10.3.0",
+          "version": "10.4.0",
           "author": "Jan Kowalleck",
           "description": "Core functionality of CycloneDX for JavaScript (Node.js or WebBrowser).",
           "licenses": [
@@ -123,8 +123,8 @@
       "type": "library",
       "name": "server",
       "group": "@hocuspocus",
-      "version": "4.7.1",
-      "bom-ref": "lonkoo-realtime@0.1.0|@hocuspocus/server@4.7.1",
+      "version": "4.8.0",
+      "bom-ref": "lonkoo-realtime@0.1.0|@hocuspocus/server@4.8.0",
       "licenses": [
         {
           "license": {
@@ -133,15 +133,15 @@
           }
         }
       ],
-      "purl": "pkg:npm/%40hocuspocus/server@4.7.1",
+      "purl": "pkg:npm/%40hocuspocus/server@4.8.0",
       "externalReferences": [
         {
-          "url": "https://registry.npmjs.org/@hocuspocus/server/-/server-4.7.1.tgz",
+          "url": "https://registry.npmjs.org/@hocuspocus/server/-/server-4.8.0.tgz",
           "type": "distribution",
           "hashes": [
             {
               "alg": "SHA-512",
-              "content": "7f64d6362e6b1678eed6db4e7acc6447590f22e90598c0a51d8e29031d1194804cce30285159448229444c801096bc26c3550cc6ccb7d5fb1ed2d981cd8129c1"
+              "content": "3fc53823847816df81dfb778085b38b46f283c9deb9c9262171dc25c126929222b5d3cf960395d466bfb786aa652ae10452a1647a1633780d4217d503b43dc70"
             }
           ],
           "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
@@ -157,8 +157,8 @@
     {
       "type": "library",
       "name": "jose",
-      "version": "6.2.13",
-      "bom-ref": "lonkoo-realtime@0.1.0|jose@6.2.13",
+      "version": "6.2.14",
+      "bom-ref": "lonkoo-realtime@0.1.0|jose@6.2.14",
       "licenses": [
         {
           "license": {
@@ -167,15 +167,15 @@
           }
         }
       ],
-      "purl": "pkg:npm/jose@6.2.13",
+      "purl": "pkg:npm/jose@6.2.14",
       "externalReferences": [
         {
-          "url": "https://registry.npmjs.org/jose/-/jose-6.2.13.tgz",
+          "url": "https://registry.npmjs.org/jose/-/jose-6.2.14.tgz",
           "type": "distribution",
           "hashes": [
             {
               "alg": "SHA-512",
-              "content": "ed3220d74644d71f3661e76237e95cacf36f18c2a07bdc851d00fe421a3f6fccb669d7ee814dc0b2fbc77f15747f3c859654fa97dc428dfe11598f60fd9f4f25"
+              "content": "dc96ac2ee922d4d44b42f638c02a02dfb299938ab1a01c76936685a8bc53f3821ecea5b46e424a9cdb719d98ff16ed71b108afa1cfe5cadc5a44726818b8c9d4"
             }
           ],
           "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
@@ -191,8 +191,8 @@
     {
       "type": "library",
       "name": "ws",
-      "version": "8.22.0",
-      "bom-ref": "lonkoo-realtime@0.1.0|ws@8.22.0",
+      "version": "8.22.1",
+      "bom-ref": "lonkoo-realtime@0.1.0|ws@8.22.1",
       "licenses": [
         {
           "license": {
@@ -201,15 +201,15 @@
           }
         }
       ],
-      "purl": "pkg:npm/ws@8.22.0",
+      "purl": "pkg:npm/ws@8.22.1",
       "externalReferences": [
         {
-          "url": "https://registry.npmjs.org/ws/-/ws-8.22.0.tgz",
+          "url": "https://registry.npmjs.org/ws/-/ws-8.22.1.tgz",
           "type": "distribution",
           "hashes": [
             {
               "alg": "SHA-512",
-              "content": "61d82073df3bf913b40275ad67fed6abd16d36f72b2f56ff44ed2e77d9968d43e00ebb00030412179d6c9b6866d57a1f6d4ff88e4a4612c2c5b1967153ed433a"
+              "content": "a322fa38f6267bf0a6885bcdb86cdea31089e273ab644d8ed45c0cf4c58cd40b06ae2ea72d7076a60fa5340f1a2de5cc49abf427a788552d63eaf50fcd4b4af6"
             }
           ],
           "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
@@ -260,8 +260,8 @@
       "type": "library",
       "name": "common",
       "group": "@hocuspocus",
-      "version": "4.7.1",
-      "bom-ref": "lonkoo-realtime@0.1.0|@hocuspocus/common@4.7.1",
+      "version": "4.8.0",
+      "bom-ref": "lonkoo-realtime@0.1.0|@hocuspocus/common@4.8.0",
       "licenses": [
         {
           "license": {
@@ -270,15 +270,15 @@
           }
         }
       ],
-      "purl": "pkg:npm/%40hocuspocus/common@4.7.1",
+      "purl": "pkg:npm/%40hocuspocus/common@4.8.0",
       "externalReferences": [
         {
-          "url": "https://registry.npmjs.org/@hocuspocus/common/-/common-4.7.1.tgz",
+          "url": "https://registry.npmjs.org/@hocuspocus/common/-/common-4.8.0.tgz",
           "type": "distribution",
           "hashes": [
             {
               "alg": "SHA-512",
-              "content": "f8de2df007412160542bec87b2e06f09c066f7a795d84deab887b099af7e4d8a26a9531786ba2f01fddd03a5c56d81d133b820b579251edda616a4dca6231d01"
+              "content": "508f15c9ede676cd9a3141da59fc240ead3edb9ec9529bca6b49f200e8d758b7f28581ec02af1e92efb29d973f3da4a1c8e722fd50f9e1c5bfacb4091871cf2a"
             }
           ],
           "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
@@ -328,8 +328,8 @@
     {
       "type": "library",
       "name": "crossws",
-      "version": "0.4.15",
-      "bom-ref": "lonkoo-realtime@0.1.0|crossws@0.4.15",
+      "version": "0.4.17",
+      "bom-ref": "lonkoo-realtime@0.1.0|crossws@0.4.17",
       "licenses": [
         {
           "license": {
@@ -338,15 +338,15 @@
           }
         }
       ],
-      "purl": "pkg:npm/crossws@0.4.15",
+      "purl": "pkg:npm/crossws@0.4.17",
       "externalReferences": [
         {
-          "url": "https://registry.npmjs.org/crossws/-/crossws-0.4.15.tgz",
+          "url": "https://registry.npmjs.org/crossws/-/crossws-0.4.17.tgz",
           "type": "distribution",
           "hashes": [
             {
               "alg": "SHA-512",
-              "content": "36c50ea43668b33ee7c88faa108974e726a25ce59a5c7da84de33e5c15ad892599b5be6bcdc22c9750124ff1f33368f3527efa785bb2ae49fcdc4ea2481454bf"
+              "content": "606da4c9f69f3572a6bbb7ba93ae32ae3eb086bc3b9b9b0122c3925ce949ffbd97dd3416450bb0f0386f5c50dc064f0717becf9d34b28279bbc696024e7169a3"
             }
           ],
           "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
@@ -534,18 +534,18 @@
     {
       "ref": "lonkoo-realtime@0.1.0",
       "dependsOn": [
-        "lonkoo-realtime@0.1.0|@hocuspocus/server@4.7.1",
-        "lonkoo-realtime@0.1.0|jose@6.2.13",
-        "lonkoo-realtime@0.1.0|ws@8.22.0",
+        "lonkoo-realtime@0.1.0|@hocuspocus/server@4.8.0",
+        "lonkoo-realtime@0.1.0|jose@6.2.14",
+        "lonkoo-realtime@0.1.0|ws@8.22.1",
         "lonkoo-realtime@0.1.0|yjs@13.6.33"
       ]
     },
     {
-      "ref": "lonkoo-realtime@0.1.0|@hocuspocus/server@4.7.1",
+      "ref": "lonkoo-realtime@0.1.0|@hocuspocus/server@4.8.0",
       "dependsOn": [
-        "lonkoo-realtime@0.1.0|@hocuspocus/common@4.7.1",
+        "lonkoo-realtime@0.1.0|@hocuspocus/common@4.8.0",
         "lonkoo-realtime@0.1.0|async-mutex@0.5.0",
-        "lonkoo-realtime@0.1.0|crossws@0.4.15",
+        "lonkoo-realtime@0.1.0|crossws@0.4.17",
         "lonkoo-realtime@0.1.0|kleur@4.1.5",
         "lonkoo-realtime@0.1.0|lib0@0.2.119",
         "lonkoo-realtime@0.1.0|y-protocols@1.0.7",
@@ -553,10 +553,10 @@
       ]
     },
     {
-      "ref": "lonkoo-realtime@0.1.0|jose@6.2.13"
+      "ref": "lonkoo-realtime@0.1.0|jose@6.2.14"
     },
     {
-      "ref": "lonkoo-realtime@0.1.0|ws@8.22.0"
+      "ref": "lonkoo-realtime@0.1.0|ws@8.22.1"
     },
     {
       "ref": "lonkoo-realtime@0.1.0|yjs@13.6.33",
@@ -565,7 +565,7 @@
       ]
     },
     {
-      "ref": "lonkoo-realtime@0.1.0|@hocuspocus/common@4.7.1",
+      "ref": "lonkoo-realtime@0.1.0|@hocuspocus/common@4.8.0",
       "dependsOn": [
         "lonkoo-realtime@0.1.0|lib0@0.2.119"
       ]
@@ -577,7 +577,7 @@
       ]
     },
     {
-      "ref": "lonkoo-realtime@0.1.0|crossws@0.4.15"
+      "ref": "lonkoo-realtime@0.1.0|crossws@0.4.17"
     },
     {
       "ref": "lonkoo-realtime@0.1.0|kleur@4.1.5"

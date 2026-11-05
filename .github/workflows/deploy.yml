@@ -72,6 +72,18 @@ jobs:
         if: steps.config.outputs.enabled == 'true'
         with:
           ref: ${{ inputs.ref }}
+          fetch-depth: 0
+
+      - name: Vérifier que la version à déployer fait partie de main
+        if: steps.config.outputs.enabled == 'true'
+        run: |
+          # Un lancement manuel pourrait envoyer en production le code d'une branche que personne n'a relue. Seuls les commits
+          # de main passent, retour arrière compris (un commit antérieur de main). Voir A-20.
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor HEAD FETCH_HEAD; then
+            echo "::error::$(git rev-parse --short HEAD) n'est pas un commit de main : le déploiement en production est limité à main."
+            exit 1
+          fi
 
       - name: Préparer la connexion SSH
         if: steps.config.outputs.enabled == 'true'

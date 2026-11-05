@@ -37,7 +37,15 @@ updates:
     directory: /backend
     schedule:
       interval: weekly
+    ignore:
+      # Décision d'architecture : Java 21 (docs/architecture.md). Un changement de version majeure se décide, il ne se subit pas.
+      - dependency-name: eclipse-temurin
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: docker
     directory: /realtime
     schedule:
       interval: weekly
+    ignore:
+      # Décision d'architecture : Node 24 LTS (docs/architecture.md), supporté jusqu'en avril 2028.
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
