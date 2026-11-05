@@ -231,6 +231,55 @@ class ProjectGeneratorTest {
     }
 
     @Test
+    void aMissingRequiredFieldIsRefusedWith400BeforeReachingTheDatabase() throws IOException {
+        Map<String, String> files = generator.generate(example(), "x").files();
+        String commande = files.get("backend/src/main/java/com/example/x/domain/Commande.java");
+        String produit = files.get("backend/src/main/java/com/example/x/domain/Produit.java");
+
+        // Un texte obligatoire est non vide ; un autre type obligatoire est présent ; un champ facultatif n'a aucune contrainte.
+        assertThat(commande)
+                .contains("import jakarta.validation.constraints.NotBlank;")
+                .contains("import jakarta.validation.constraints.NotNull;")
+                .contains("@NotBlank(message = \"est obligatoire\")\n    @Column(name = \"reference\"")
+                .contains("@NotNull(message = \"est obligatoire\")\n    @Column(name = \"total\"")
+                .contains("@NotNull(message = \"est obligatoire\")\n    @Column(name = \"cree_le\"");
+        assertThat(produit)
+                .contains("@NotBlank(message = \"est obligatoire\")\n    @Column(name = \"nom\"")
+                .doesNotContain("@NotNull(message = \"est obligatoire\")\n    @Column(name = \"stock\"")
+                .doesNotContain("@NotBlank(message = \"est obligatoire\")\n    @Column(name = \"stock\"");
+
+        // Le corps des requêtes est validé, et le refus est un 400 qui nomme les champs (409 réservé aux doublons).
+        assertThat(files.get("backend/src/main/java/com/example/x/web/ApiMarketplaceController.java"))
+                .contains("import jakarta.validation.Valid;")
+                .contains("(@Valid @RequestBody Commande body)");
+        assertThat(files.get("backend/src/main/java/com/example/x/web/ApiErrorHandler.java"))
+                .contains("MethodArgumentNotValidException")
+                .contains("HttpStatus.BAD_REQUEST")
+                .contains("HttpStatus.CONFLICT");
+        assertThat(files.get("backend/pom.xml")).contains("<artifactId>spring-boot-starter-validation</artifactId>");
+
+        // Le contrat écrit ce que le code répond : 400 et 409 déclarés sur la création.
+        Map<String, Object> openapi = map(yaml(files.get("openapi.yaml")));
+        Map<String, Object> post = map(map(map(openapi.get("paths")).get("/commandes")).get("post"));
+        assertThat(map(post.get("responses")).keySet()).containsExactly("201", "400", "409");
+        assertThat(files.get("openapi.yaml")).contains("champs:");
+
+        // Un doublon est une erreur du client : pas d'ERROR dans le journal (« OFF » entre guillemets : YAML 1.1 lit off comme faux).
+        Map<String, Object> logging = map(map(yaml(files.get("backend/src/main/resources/application.yml"))).get("logging"));
+        assertThat(map(logging.get("level")).get("org.hibernate.engine.jdbc.spi.SqlExceptionHelper")).isEqualTo("OFF");
+    }
+
+    @Test
+    void anEntityWithoutRequiredFieldsHasNoValidationAnnotation() {
+        JsonNode canvas = snapshot(
+                node("n1", "database", "{\"name\":\"base\",\"entities\":[{\"name\":\"note\",\"fields\":[{\"name\":\"texte\",\"type\":\"string\"}]}]}"),
+                "");
+
+        assertThat(generator.generate(canvas, "x").files().get("backend/src/main/java/com/example/x/domain/Note.java"))
+                .doesNotContain("jakarta.validation").doesNotContain("@NotNull").doesNotContain("@NotBlank");
+    }
+
+    @Test
     void endpointsNamedLikeATableGetACrudAndTheOthersAreStubs() {
         JsonNode canvas = snapshot(
                 node("n1", "database", "{\"name\":\"base\",\"entities\":[{\"name\":\"produit\",\"fields\":[{\"name\":\"nom\",\"type\":\"string\"}]}]}")

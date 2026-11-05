@@ -81,10 +81,18 @@ final class OpenApiWriter {
         String ref = entity == null ? "" : "#/components/schemas/" + entity.className();
         switch (op.kind()) {
             case LIST -> response(y, "200", "Liste", "type: array\n                items:\n                  $ref: " + Texts.yaml(ref));
-            case CREATE -> response(y, "201", "Créé", "$ref: " + Texts.yaml(ref));
-            case GET, UPDATE -> {
+            case CREATE -> {
+                response(y, "201", "Créé", "$ref: " + Texts.yaml(ref));
+                invalidAndConflict(y);
+            }
+            case GET -> {
                 response(y, "200", "Enregistrement", "$ref: " + Texts.yaml(ref));
                 y.append("        \"404\":\n          description: Introuvable\n");
+            }
+            case UPDATE -> {
+                response(y, "200", "Enregistrement", "$ref: " + Texts.yaml(ref));
+                y.append("        \"404\":\n          description: Introuvable\n");
+                invalidAndConflict(y);
             }
             case DELETE -> {
                 y.append("        \"204\":\n          description: Supprimé\n");
@@ -92,6 +100,15 @@ final class OpenApiWriter {
             }
             case STUB -> y.append("        \"501\":\n          description: À implémenter\n");
         }
+    }
+
+    /** Ce que le projet généré répond (ApiErrorHandler) : 400 nomme les champs obligatoires manquants, 409 un doublon. */
+    private void invalidAndConflict(StringBuilder y) {
+        response(y, "400", "Données invalides : un champ obligatoire manque ou est vide",
+                "type: object\n                properties:\n                  detail:\n                    type: string\n"
+                        + "                  champs:\n                    type: object\n                    additionalProperties:\n                      type: string");
+        response(y, "409", "Valeur déjà utilisée ou contrainte de la base non respectée",
+                "type: object\n                properties:\n                  detail:\n                    type: string");
     }
 
     private void response(StringBuilder y, String status, String description, String schema) {

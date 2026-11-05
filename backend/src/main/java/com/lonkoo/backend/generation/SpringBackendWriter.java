@@ -222,6 +222,10 @@ final class SpringBackendWriter {
                                 <artifactId>spring-boot-starter-data-jpa</artifactId>
                             </dependency>
                             <dependency>
+                                <groupId>org.springframework.boot</groupId>
+                                <artifactId>spring-boot-starter-validation</artifactId>
+                            </dependency>
+                            <dependency>
                                 <groupId>org.flywaydb</groupId>
                                 <artifactId>flyway-core</artifactId>
                             </dependency>
@@ -296,6 +300,12 @@ final class SpringBackendWriter {
                           ddl-auto: validate
                       flyway:
                         enabled: true
+
+                    logging:
+                      level:
+                        # Un doublon est une erreur du client, traduite en 409 : pas d'ERROR dans le journal (« OFF » entre guillemets :
+                        # YAML 1.1 lit off comme faux).
+                        org.hibernate.engine.jdbc.spi.SqlExceptionHelper: "OFF"
                     """);
         }
         files.put("backend/src/main/resources/application.yml", yml.toString());
@@ -364,6 +374,9 @@ final class SpringBackendWriter {
                 imports.add("org.hibernate.annotations.JdbcTypeCode");
                 imports.add("org.hibernate.type.SqlTypes");
             }
+            if (field.field().required()) {
+                imports.add("jakarta.validation.constraints." + (isText(field) ? "NotBlank" : "NotNull"));
+            }
         }
 
         StringBuilder java = new StringBuilder();
@@ -375,7 +388,12 @@ final class SpringBackendWriter {
         java.append("public class ").append(entity.className()).append(" {\n\n");
         java.append("    @Id\n    @GeneratedValue(strategy = GenerationType.UUID)\n    private UUID id;\n");
         for (FieldInfo field : entity.fields()) {
-            java.append("\n    @Column(name = ").append(Texts.javaString(field.column()));
+            java.append('\n');
+            if (field.field().required()) {
+                // Refusé avec un 400 qui nomme le champ, avant d'atteindre la base (voir ApiErrorHandler).
+                java.append("    @").append(isText(field) ? "NotBlank" : "NotNull").append("(message = \"est obligatoire\")\n");
+            }
+            java.append("    @Column(name = ").append(Texts.javaString(field.column()));
             if (field.field().required()) {
                 java.append(", nullable = false");
             }
@@ -400,6 +418,11 @@ final class SpringBackendWriter {
         files.put(javaPath("domain", entity.className()), java.toString());
     }
 
+    /** Un texte obligatoire ne doit pas non plus être vide ; les autres types seulement présents. */
+    private static boolean isText(FieldInfo field) {
+        return "String".equals(field.javaType());
+    }
+
     private void writeRepository(EntityInfo entity) {
         files.put(javaPath("repository", entity.repositoryName()), """
                 package %s.repository;
@@ -415,26 +438,40 @@ final class SpringBackendWriter {
                 Texts.javaComment(entity.entity().name(), 40), entity.repositoryName(), entity.className()));
     }
 
-    /** Une contrainte de la base (valeur en double, champ obligatoire absent) est une erreur du client : 409, pas 500. */
+    /**
+     * Un champ obligatoire absent ou vide est refusé avec un 400 qui nomme le champ ; une contrainte de la base (valeur en
+     * double, par exemple) est une erreur du client aussi : 409, pas 500.
+     */
     private void writeErrorHandler() {
         files.put(javaPath("web", "ApiErrorHandler"), """
                 package %s.web;
 
                 import java.util.Map;
+                import java.util.TreeMap;
                 import org.springframework.dao.DataIntegrityViolationException;
                 import org.springframework.http.HttpStatus;
                 import org.springframework.http.ResponseEntity;
+                import org.springframework.web.bind.MethodArgumentNotValidException;
                 import org.springframework.web.bind.annotation.ExceptionHandler;
                 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-                /** Traduit les refus de la base de données en réponses HTTP lisibles (généré par LONKOO). */
+                /** Traduit les refus de validation et de la base de données en réponses HTTP lisibles (généré par LONKOO). */
                 @RestControllerAdvice
                 public class ApiErrorHandler {
+
+                    @ExceptionHandler(MethodArgumentNotValidException.class)
+                    public ResponseEntity<Map<String, Object>> invalid(MethodArgumentNotValidException e) {
+                        Map<String, String> fields = new TreeMap<>();
+                        e.getBindingResult().getFieldErrors()
+                                .forEach(error -> fields.putIfAbsent(error.getField(), String.valueOf(error.getDefaultMessage())));
+                        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                                .body(Map.of("detail", "Données invalides : un champ obligatoire manque ou est vide.", "champs", fields));
+                    }
 
                     @ExceptionHandler(DataIntegrityViolationException.class)
                     public ResponseEntity<Map<String, String>> conflict() {
                         return ResponseEntity.status(HttpStatus.CONFLICT)
-                                .body(Map.of("detail", "Donnée refusée : valeur déjà utilisée ou champ obligatoire manquant."));
+                                .body(Map.of("detail", "Donnée refusée : valeur déjà utilisée ou contrainte de la base non respectée."));
                     }
                 }
                 """.formatted(model.packageName));
@@ -547,6 +584,7 @@ final class SpringBackendWriter {
             switch (op.kind()) {
                 case LIST -> imports.add("java.util.List");
                 case CREATE -> {
+                    imports.add("jakarta.validation.Valid");
                     imports.add("org.springframework.web.bind.annotation.RequestBody");
                     imports.add("org.springframework.web.bind.annotation.ResponseStatus");
                     imports.add("org.springframework.http.HttpStatus");
@@ -557,7 +595,7 @@ final class SpringBackendWriter {
                 }
                 case UPDATE -> {
                     imports.addAll(List.of("java.util.UUID", "org.springframework.web.bind.annotation.PathVariable",
-                            "org.springframework.web.bind.annotation.RequestBody",
+                            "jakarta.validation.Valid", "org.springframework.web.bind.annotation.RequestBody",
                             "org.springframework.web.server.ResponseStatusException", "org.springframework.http.HttpStatus"));
                 }
                 case DELETE -> {
@@ -627,13 +665,13 @@ final class SpringBackendWriter {
             case LIST -> java.append("    public List<").append(entity.className()).append("> ").append(op.operationId()).append("() {\n")
                     .append("        return ").append(repo).append(".findAll();\n    }\n");
             case CREATE -> java.append("    @ResponseStatus(HttpStatus.CREATED)\n    public ").append(entity.className()).append(' ')
-                    .append(op.operationId()).append("(@RequestBody ").append(entity.className()).append(" body) {\n")
+                    .append(op.operationId()).append("(@Valid @RequestBody ").append(entity.className()).append(" body) {\n")
                     .append("        body.setId(null);\n        return ").append(repo).append(".save(body);\n    }\n");
             case GET -> java.append("    public ").append(entity.className()).append(' ').append(op.operationId()).append('(')
                     .append(idAnnotation).append(") {\n        return ").append(repo).append(".findById(").append(idVariable).append(")\n")
                     .append("                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));\n    }\n");
             case UPDATE -> java.append("    public ").append(entity.className()).append(' ').append(op.operationId()).append('(')
-                    .append(idAnnotation).append(", @RequestBody ").append(entity.className()).append(" body) {\n")
+                    .append(idAnnotation).append(", @Valid @RequestBody ").append(entity.className()).append(" body) {\n")
                     .append("        if (!").append(repo).append(".existsById(").append(idVariable).append(")) {\n")
                     .append("            throw new ResponseStatusException(HttpStatus.NOT_FOUND);\n        }\n")
                     .append("        body.setId(").append(idVariable).append(");\n        return ").append(repo).append(".save(body);\n    }\n");
