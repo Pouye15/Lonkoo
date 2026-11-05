@@ -55,7 +55,13 @@ const nextConfig: NextConfig = {
   async rewrites() {
     if (!isDev) return [];
     const backend = process.env.BACKEND_INTERNAL_URL ?? "http://localhost:8080";
-    return [{ source: "/api/:path*", destination: `${backend}/api/:path*` }];
+    const realtime = process.env.REALTIME_INTERNAL_URL ?? "http://localhost:1234";
+    return [
+      { source: "/api/:path*", destination: `${backend}/api/:path*` },
+      // Le WebSocket du temps réel sur la même origine que le site (NEXT_PUBLIC_REALTIME_URL=/ws), comme Caddy en
+      // production. Indispensable dans un Codespace, où ws://localhost:1234 est la machine du navigateur, pas le serveur.
+      { source: "/ws", destination: `${realtime}/ws` },
+    ];
   },
 };
 

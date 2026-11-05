@@ -53,7 +53,14 @@ L'adresse du site n'est plus `localhost:3000` mais celle du port redirigé (de l
 
 Puis redémarrer le backend. Cette valeur affaiblit le contrôle contre les requêtes intersites (dans un Codespace, le relais donne la même origine à tous les sites) : **réservée au développement**, le backend refuse de démarrer en profil `prod` si elle est renseignée.
 
-La connexion GitHub a été essayée dans un Codespace le 05/11 (compte créé, connexion au journal d'audit). Le **canvas en temps réel** n'y fonctionne pas : le navigateur vise `ws://localhost:1234`, qui n'est pas redirigé (et la politique de sécurité du mode développement n'autorise pas `wss:`).
+La connexion GitHub a été essayée dans un Codespace le 05/11 (compte créé, connexion au journal d'audit). **Le Studio (canvas en temps réel) demande une cinquième valeur** : sans elle il reste sur « Connexion au canvas partagé… », parce que le navigateur vise `ws://localhost:1234`, qui est **sa propre machine** et non le Codespace (et un `ws://` non chiffré est refusé depuis une page en https). Le serveur de développement de Next.js relaie le WebSocket sur la même adresse que le site (`/ws`, comme Caddy en production) ; il suffit de le demander dans `frontend/.env.local` :
+
+```
+NEXT_PUBLIC_API_MODE=live
+NEXT_PUBLIC_REALTIME_URL=/ws
+```
+
+Puis redémarrer `npm run dev` (cette variable est lue au démarrage). Essayé en local avec les parcours de bout en bout (Studio, présence, curseurs, versions, discussion) ; **pas encore dans le navigateur d'un vrai Codespace**.
 
 ## 2. Application de production
 
