@@ -74,6 +74,7 @@ services:
       MAX_SNAPSHOT_BYTES:
       MAX_GENERATIONS_PER_CANVAS:
       MAX_GENERATED_BYTES:
+      REALTIME_MAX_STORED_STATE_BYTES:
       MAX_DEPLOYMENTS_PER_GENERATION:
       JOB_STALE_MINUTES:
       AI_PROVIDER:
@@ -109,6 +110,12 @@ services:
       BACKEND_INTERNAL_URL: http://backend:8080
       REALTIME_SERVICE_TOKEN: ${REALTIME_SERVICE_TOKEN:?Définir REALTIME_SERVICE_TOKEN (openssl rand -hex 16)}
       REALTIME_TICKET_SECRET: ${REALTIME_TICKET_SECRET:?Définir REALTIME_TICKET_SECRET (openssl rand -hex 32)}
+      # Limites du canvas en direct : transmises seulement si elles sont définies dans le .env du serveur (sinon, valeurs
+      # du code : realtime/src/limits.js).
+      REALTIME_LIMITS_MODE:
+      REALTIME_MAX_MESSAGES_PER_SECOND:
+      REALTIME_MAX_BYTES_PER_10S:
+      REALTIME_MAX_STATE_BYTES:
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:1234/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 10s
