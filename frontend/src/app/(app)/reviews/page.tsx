@@ -2,6 +2,9 @@
 
 import React, { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ProjectDiscussion } from "@/components/team/ProjectDiscussion";
+import { IS_LIVE_API } from "@/lib/api";
+import { useWorkspace } from "@/lib/workspace";
 import {
   ARCHITECTURE_REVIEWS,
   TEAM_CHANNELS,
@@ -23,6 +26,7 @@ import {
 } from "@phosphor-icons/react";
 
 export default function ArchitectureReviewsAndChatPage() {
+  const { activeProject, status: workspaceStatus } = useWorkspace();
   const [prs, setPrs] = useState<ArchitectureReviewPR[]>(ARCHITECTURE_REVIEWS);
   const [selectedPrId, setSelectedPrId] = useState<string>(
     ARCHITECTURE_REVIEWS[0]?.id ?? "pr-42"
@@ -252,6 +256,21 @@ export default function ArchitectureReviewsAndChatPage() {
         </div>
 
         {/* COLONNE DROITE : DISCUSSION D'ÉQUIPE */}
+        {/* Mode API : la vraie discussion du projet actif, réservée à ses membres, jamais les messages fictifs.
+            Mode simulé : la démonstration. */}
+        {IS_LIVE_API ? (
+          activeProject && !activeProject.visitor ? (
+            <ProjectDiscussion key={activeProject.id} projectId={activeProject.id} />
+          ) : (
+            <div className="order-first flex h-[660px] items-center justify-center rounded-xl border border-edge bg-surface p-6 text-center text-xs text-ink-3 lg:order-none lg:col-span-5">
+              {activeProject
+                ? "La discussion est réservée aux membres du projet."
+                : workspaceStatus === "loading" || workspaceStatus === "idle"
+                  ? "Chargement…"
+                  : "Ouvrez ou créez un projet pour discuter avec son équipe."}
+            </div>
+          )
+        ) : (
         <div className="lg:col-span-5 bg-surface rounded-xl border border-edge flex flex-col h-[660px] overflow-hidden">
           <div className="p-3.5 border-b border-edge bg-surface">
             <div className="flex items-center justify-between mb-2.5">
@@ -344,6 +363,7 @@ export default function ArchitectureReviewsAndChatPage() {
             </button>
           </form>
         </div>
+        )}
       </div>
     </>
   );

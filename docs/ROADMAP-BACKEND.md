@@ -414,6 +414,7 @@ create table audit_log (
 | `MAX_PROJECTS_PER_GUEST`, `MAX_PROJECTS_PER_ACCOUNT` | projets créés par invité (20) et par compte GitHub (100) ; au-delà, 409 « Limite atteinte » |
 | `MAX_CANVASES_PER_PROJECT`, `MAX_VERSIONS_PER_CANVAS`, `MAX_SHARE_LINKS_PER_CANVAS` | canvas par projet (10), versions par canvas (50), liens de partage actifs par canvas (20) |
 | `MAX_SNAPSHOT_BYTES` | taille maximale d'un instantané enregistré par version, en octets (1 048 576) |
+| `MAX_MESSAGES_PER_MINUTE`, `MAX_MESSAGES_PER_PROJECT` | discussion d'un projet : messages par minute et par personne (20 ; au-delà, 429 avec `Retry-After`) et messages gardés par projet (1 000 ; les plus anciens sont élagués). 0 : sans limite |
 | `NEXT_PUBLIC_API_MODE` | `mock` (défaut, déjà dans `.env.example`) ou `live` : le front appelle l'API ; lue au build, dans `frontend/.env.local` |
 
 ## 8. Front et backend : correspondances
