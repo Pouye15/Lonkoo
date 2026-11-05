@@ -74,6 +74,9 @@ class AccessMatrixIntegrationTest extends AbstractPostgresIntegrationTest {
             new Route("supprimer un projet", HttpMethod.DELETE, "/api/projects/{project}", null, Role.OWNER, 204),
             new Route("lister les membres", HttpMethod.GET, "/api/projects/{project}/members", null, Role.READ, 200),
             new Route("retirer un membre", HttpMethod.DELETE, "/api/projects/{project}/members/{victim}", null, Role.MAINTAINER, 204),
+            // La conversation n'est pas le canvas : tout membre y lit et y écrit, même en lecture seule.
+            new Route("lire la discussion", HttpMethod.GET, "/api/projects/{project}/messages", null, Role.READ, 200),
+            new Route("écrire dans la discussion", HttpMethod.POST, "/api/projects/{project}/messages", "{\"body\":\"Bonjour\"}", Role.READ, 201),
             new Route("lister les canvas", HttpMethod.GET, "/api/projects/{project}/canvases", null, Role.READ, 200),
             new Route("créer un canvas", HttpMethod.POST, "/api/projects/{project}/canvases", "{\"name\":\"Autre\"}", Role.WRITE, 201),
             new Route("lire un canvas", HttpMethod.GET, "/api/canvases/{canvas}", null, Role.READ, 200),

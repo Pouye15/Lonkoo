@@ -37,6 +37,7 @@ Contre un serveur en ligne : `E2E_BASE_URL=https://lonkoo.example.com npm run e2
 | `01-parcours.mjs` | Un invité ouvre le modèle d'exemple ; deux autres le rejoignent par lien (écriture, lecture seule) ; curseurs et blocs en direct ; la lecture seule ne peut rien supprimer ; versions, restauration vue par tous ; lien inconnu | ~1 min |
 | `02-equipe-et-liens.mjs` | Liste de l'équipe, retrait d'un membre (sa connexion temps réel est coupée, son ancien ticket refusé), retour par un lien encore actif, révocation, départ volontaire | ~2 min |
 | `03-projets-publics.mjs` | Un projet public se lit en lecture seule ; le privé d'une autre personne est introuvable ; repasser en privé sort le visiteur et laisse le propriétaire connecté. La galerie n'est vérifiée que si un projet public de compte GitHub est indiqué (ci-dessous) | ~1 min |
+| `04-discussion.mjs` | Trois personnes d'un même projet (propriétaire, écriture, lecture seule du canvas) discutent dans la page Revues : les messages arrivent chez les autres sans recharger, la lecture seule du canvas n'empêche pas d'écrire, un texte avec des balises HTML s'affiche tel quel (aucun script ne s'exécute), l'historique revient au rechargement | ~1 min |
 
 ## Réglages
 
