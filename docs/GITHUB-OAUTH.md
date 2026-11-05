@@ -37,7 +37,7 @@ La procédure est celle ci-dessus, avec **votre** compte GitHub : l'application 
 
 ### Dans un Codespace
 
-L'adresse du site n'est plus `localhost:3000` mais celle du port redirigé (de la forme `https://<nom-du-codespace>-3000.app.github.dev`). Il faut **trois** valeurs identiques à cette adresse, sinon la connexion échoue :
+L'adresse du site n'est plus `localhost:3000` mais celle du port redirigé (de la forme `https://<nom-du-codespace>-3000.app.github.dev`). Il faut **trois** valeurs identiques à cette adresse, **plus une quatrième** (voir sous le tableau), sinon la connexion ou la création d'un projet échoue :
 
 | Où | Valeur |
 |---|---|
@@ -45,7 +45,22 @@ L'adresse du site n'est plus `localhost:3000` mais celle du port redirigé (de l
 | `.env` : `GITHUB_OAUTH_REDIRECT_URI` | la même adresse |
 | `.env` : `APP_PUBLIC_URL` | `https://<nom-du-codespace>-3000.app.github.dev` |
 
-`APP_PUBLIC_URL` compte aussi sans GitHub : le backend refuse toute requête `POST` dont l'origine n'est pas cette adresse (403 « Origine non autorisée »), ce qui touche déjà « Essayer sans compte » et la déconnexion si elle vaut encore `http://localhost:3000`. Le nom d'un Codespace change d'un Codespace à l'autre : une adresse de retour à mettre à jour sur GitHub à chaque nouveau Codespace. Les valeurs ci-dessus sont déduites du code (`OriginCheckFilter`, `GithubOAuthService`) ; **le parcours dans un Codespace n'a pas été essayé en vrai**.
+`APP_PUBLIC_URL` compte aussi sans GitHub : le backend refuse toute requête `POST` dont l'origine n'est pas cette adresse (403 « Origine non autorisée »), ce qui touche déjà « Essayer sans compte » et la déconnexion si elle vaut encore `http://localhost:3000`. Le nom d'un Codespace change d'un Codespace à l'autre : une adresse de retour à mettre à jour sur GitHub à chaque nouveau Codespace. **Quatrième valeur, constatée à l'essai du 05/11** : le relais de port de GitHub Codespaces **réécrit l'en-tête `Origin`** des requêtes du navigateur en `https://localhost:3000` (port privé) ou `http://localhost:3000` (port public) : les deux formes ont été vues, à quelques minutes d'écart, après le passage du port de privé à public. Le contrôle d'origine du backend le prend alors pour un autre site : la connexion GitHub passe (c'est une lecture) mais **créer un projet répond « Origine non autorisée »** (403). Le journal du backend le dit : `Origine refusée : « https://localhost:3000 » (attendue : « https://<nom>-3000.app.github.dev »)`. L'interface montre « Origine non autorisée » à la création d'un projet et, pour le Studio, « Ce canvas n'est pas accessible : Origine non autorisée » (la demande de ticket temps réel est une écriture elle aussi). Dans le `.env` du Codespace, **les deux formes** :
+
+| Où | Valeur |
+|---|---|
+| `.env` : `EXTRA_ALLOWED_ORIGINS` | `https://localhost:3000,http://localhost:3000` |
+
+Puis redémarrer le backend. Cette valeur affaiblit le contrôle contre les requêtes intersites (dans un Codespace, le relais donne la même origine à tous les sites) : **réservée au développement**, le backend refuse de démarrer en profil `prod` si elle est renseignée.
+
+La connexion GitHub a été essayée dans un Codespace le 05/11 (compte créé, connexion au journal d'audit). **Le Studio (canvas en temps réel) demande une cinquième valeur** : sans elle il reste sur « Connexion au canvas partagé… », parce que le navigateur vise `ws://localhost:1234`, qui est **sa propre machine** et non le Codespace (et un `ws://` non chiffré est refusé depuis une page en https). Le serveur de développement de Next.js relaie le WebSocket sur la même adresse que le site (`/ws`, comme Caddy en production) ; il suffit de le demander dans `frontend/.env.local` :
+
+```
+NEXT_PUBLIC_API_MODE=live
+NEXT_PUBLIC_REALTIME_URL=/ws
+```
+
+Puis redémarrer `npm run dev` (cette variable est lue au démarrage). Essayé en local avec les parcours de bout en bout (Studio, présence, curseurs, versions, discussion) ; **pas encore dans le navigateur d'un vrai Codespace**.
 
 ## 2. Application de production
 
