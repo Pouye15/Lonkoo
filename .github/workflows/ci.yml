@@ -484,7 +484,10 @@ jobs:
             -d '{"reference":"CI-2","creeLe":"2026-01-01T00:00:00Z"}' http://localhost:8080/commandes || true)"
           [ "$code" = "400" ] || fail "un champ obligatoire manquant doit donner 400 : $code ($(cat "$body"))"
           jq -e '.champs.total == "est obligatoire"' "$body" > /dev/null || fail "le 400 doit nommer le champ « total » : $(cat "$body")"
-          [ "$(curl -fsS http://localhost:8080/commandes | jq length)" = "1" ] || fail "le refus ne doit rien écrire : une seule commande attendue"
+          # Le refus n'a rien écrit : la même référence, cette fois complète, passe en 201 (elle serait en 409 sinon).
+          code="$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' \
+            -d '{"reference":"CI-2","total":20,"creeLe":"2026-01-01T00:00:00Z"}' http://localhost:8080/commandes || true)"
+          [ "$code" = "201" ] || fail "après le 400, la même référence complète doit donner 201 (rien n'a été écrit) : $code"
           for page in "" accueil panier commandes; do
             code="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:3000/$page" || true)"
             [ "$code" = "200" ] || fail "interface générée /$page : $code (200 attendu)"
