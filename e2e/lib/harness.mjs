@@ -96,6 +96,9 @@ export async function startHarness(scenario) {
       await page.waitForURL(/\/dashboard|\/onboarding/, { timeout: 15000 });
       if (page.url().includes("onboarding")) await page.goto(config.base + "/dashboard");
       await page.getByText("Chargement de vos projets").waitFor({ state: "detached", timeout: 15000 }).catch(() => {});
+      // Juste après la connexion, il existe un court instant où ni « Chargement » ni la liste ne sont affichés : le texte
+      // absent ne prouve pas que la liste est là. Un invité a toujours son projet d'exemple : on attend qu'il s'affiche.
+      await page.locator("article").first().waitFor({ timeout: 15000 }).catch(() => {});
       return person;
     },
 

@@ -17,9 +17,12 @@ import {
   SlidersHorizontal,
   X,
 } from "@phosphor-icons/react";
+import { IS_LIVE_API } from "@/lib/api";
 import { cn } from "@/lib/cn";
+import { badgeText, unreadLabel } from "@/lib/discussion";
 import { ARCHITECTURE_REVIEWS } from "@/lib/lonkoo-data";
 import { useSession } from "@/lib/session";
+import { useUnreadDiscussion } from "@/lib/use-unread-discussion";
 import { useWorkspace } from "@/lib/workspace";
 import { Logo, LogoMark } from "@/components/ui/Logo";
 import { usePersistentFlag } from "@/components/ui/use-persistent-flag";
@@ -35,6 +38,8 @@ interface NavItem {
   /** Le lien conserve le projet actif (?project=…). */
   scoped?: boolean;
   count?: number;
+  /** Ce que lit un lecteur d'écran pour la pastille. */
+  countLabel?: string;
 }
 
 const OPEN_REVIEWS = ARCHITECTURE_REVIEWS.filter((review) => review.status === "open").length;
@@ -101,12 +106,13 @@ function NavLink({
       </span>
       {!collapsed && item.count !== undefined && item.count > 0 && (
         <span
+          aria-label={item.countLabel}
           className={cn(
             "rounded px-1.5 font-mono text-[11px] font-semibold leading-5",
             active ? "bg-white text-brand" : "bg-subtle text-ink-2",
           )}
         >
-          {item.count}
+          {badgeText(item.count)}
         </span>
       )}
     </Link>
@@ -119,6 +125,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { status, user } = useSession();
   const { activeProject, setActiveProjectSlug } = useWorkspace();
+  // Mode API : la pastille de « Revues » compte les vrais messages non lus de la discussion du projet actif.
+  const unread = useUnreadDiscussion(
+    activeProject && !activeProject.visitor ? activeProject.id : null,
+    pathname === "/reviews",
+  );
 
   const [collapsed, setCollapsed] = usePersistentFlag("lonkoo.sidebar.collapsed", false);
   const [bubble, setBubble] = usePersistentFlag("lonkoo.navbar.bubble", false);
@@ -222,16 +233,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <div className="mb-1.5 px-2.5 text-xs font-medium text-ink-3">{group.title}</div>
                   )}
                   <div className="space-y-0.5">
-                    {group.items.map((item) => (
-                      <NavLink
-                        key={item.href}
-                        item={item}
-                        href={hrefFor(item)}
-                        active={isActive(item.href)}
-                        collapsed={collapsed}
-                        onNavigate={() => setMobileOpen(false)}
-                      />
-                    ))}
+                    {group.items.map((entry) => {
+                      // Mode API : plus de revues fictives comptées, seulement les vrais messages non lus.
+                      const item: NavItem =
+                        entry.href === "/reviews" && IS_LIVE_API
+                          ? { ...entry, count: unread, countLabel: unreadLabel(unread) }
+                          : entry;
+                      return (
+                        <NavLink
+                          key={item.href}
+                          item={item}
+                          href={hrefFor(item)}
+                          active={isActive(item.href)}
+                          collapsed={collapsed}
+                          onNavigate={() => setMobileOpen(false)}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
               ))}

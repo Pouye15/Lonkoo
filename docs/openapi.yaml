@@ -31,6 +31,7 @@ tags:
   - name: Projets
   - name: Canvas
   - name: Membres
+  - name: Discussion
   - name: Partage
   - name: Versions
   - name: IA
@@ -353,6 +354,80 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+
+  # ---------------------------------------------------------------------
+  # Discussion
+  # ---------------------------------------------------------------------
+  /projects/{projectId}/messages:
+    get:
+      tags: [Discussion]
+      summary: Lit la discussion du projet (tout membre, quel que soit son rôle)
+      description: |
+        Les messages, du plus ancien au plus récent. Sans `after` : les `limit` derniers. Avec `after` : ceux dont
+        l'identifiant est plus grand, ce qui permet à l'interface de ne demander que les nouveautés (elle interroge
+        toutes les 3 secondes tant que l'onglet est visible). Seuls les 1 000 derniers messages d'un projet sont gardés.
+        Un non-membre reçoit 404.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - name: after
+          in: query
+          required: false
+          description: Identifiant du dernier message déjà reçu.
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+        - name: limit
+          in: query
+          required: false
+          description: Nombre de messages au plus (50 par défaut, 100 au plus ; une valeur hors de 1 à 100 est ramenée dans l'intervalle).
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags: [Discussion]
+      summary: Écrit un message dans la discussion du projet (tout membre, même en lecture seule du canvas)
+      description: |
+        Texte brut, 2 000 caractères au plus (les espaces de bord sont retirés). Le texte est gardé tel quel : l'interface
+        l'affiche sans l'interpréter (ni HTML, ni lien cliquable). Au plus 20 messages par minute et par personne
+        (`MAX_MESSAGES_PER_MINUTE`) : au-delà, 429 avec `Retry-After`.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body:
+                  type: string
+                  maxLength: 2000
+      responses:
+        "201":
+          description: Message enregistré
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   # ---------------------------------------------------------------------
   # Canvas
@@ -1516,6 +1591,35 @@ components:
         demo:
           type: boolean
           description: Vrai si la réponse est figée (agent de démonstration) et non celle d'un agent.
+
+    Message:
+      type: object
+      required: [id, authorName, body, createdAt, mine]
+      description: |
+        Un message de la discussion. `authorId` et `avatarUrl` sont absents quand l'auteur n'existe plus (invité purgé) :
+        le nom affiché à l'envoi reste. Un invité s'appelle « Invité » suivi des quatre premiers caractères de son
+        identifiant, pour qu'on distingue deux invités.
+      properties:
+        id:
+          type: integer
+          format: int64
+        authorId:
+          type: string
+          format: uuid
+          nullable: true
+        authorName:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+        body:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        mine:
+          type: boolean
+          description: Vrai pour l'appelant.
 
     Member:
       type: object
