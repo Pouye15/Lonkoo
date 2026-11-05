@@ -62,6 +62,19 @@ NEXT_PUBLIC_REALTIME_URL=/ws
 
 Puis redémarrer `npm run dev` (cette variable est lue au démarrage). Essayé en local avec les parcours de bout en bout (Studio, présence, curseurs, versions, discussion) ; **pas encore dans le navigateur d'un vrai Codespace**.
 
+### Si l'adresse du Codespace affiche « 404 » alors que le serveur tourne
+
+Constaté le 05/11 (Dakar, box Orange) : `https://<nom>-3000.app.github.dev` répond 404 sur le poste, 200 depuis le Codespace et depuis l'extérieur. Cause : le nom passe par Azure Traffic Manager, qui choisit un relais selon la localisation du résolveur DNS de la personne. Le DNS de sa box la menait au relais d'**Europe du Nord** (`tunnels-prod-rel-eun1…`), alors que le tunnel du Codespace était au relais **UK Sud** (`uks1`, le champ « region » du Codespace) : un relais qui ne connaît pas le tunnel répond 404. Le port privé ou public ne change rien.
+
+Diagnostic, sur le poste (pas dans le terminal du Codespace) :
+
+```
+nslookup <nom>-3000.app.github.dev
+curl.exe --resolve <nom>-3000.app.github.dev:443:<adresse du relais du Codespace> -I https://<nom>-3000.app.github.dev/login
+```
+
+La première commande montre le relais obtenu (`eun1`, `uks1`…) ; la seconde force le bon : si elle répond 200 avec un en-tête `x-served-by` du bon relais, c'est bien ce problème. L'adresse du bon relais se lit depuis le Codespace (`getent hosts <nom>-3000.app.github.dev`). Remèdes : un autre DNS (`1.1.1.1`, `8.8.8.8`) ou, pour ce seul nom, une ligne `<adresse> <nom>-3000.app.github.dev` dans le fichier `hosts` du poste (à retirer ensuite, l'adresse peut changer). La production (serveur à Dakar, nom de domaine, Caddy) ne passe pas par ce système.
+
 ## 2. Application de production
 
 **Reportée à l'étape de déploiement** (décision du 21/10) : rien à créer tant que l'adresse publique n'existe pas. À créer de la même façon **dès que l'adresse publique est connue** (voir `DEPLOIEMENT.md`, étape 0). Si elle n'est pas encore choisie, créer l'application avec une adresse provisoire : les deux adresses se modifient ensuite dans **Settings** de l'application.
