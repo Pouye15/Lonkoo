@@ -95,10 +95,15 @@ export function CanvasGate({ live, children }: { live: LiveCanvasInfo; children:
       {live.error && live.status !== "offline" && (
         <div
           role="alert"
-          className="absolute left-1/2 top-16 z-30 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-danger bg-surface px-3 py-2 text-sm text-danger shadow-card"
+          className="absolute left-1/2 top-16 z-30 flex max-w-[min(36rem,calc(100%-2rem))] -translate-x-1/2 items-center gap-2 rounded-lg border border-danger bg-surface px-3 py-2 text-sm text-danger shadow-card"
         >
-          <WarningCircle size={16} weight="fill" />
-          {live.error}
+          <WarningCircle size={16} weight="fill" className="shrink-0" />
+          <span>{live.error}</span>
+          {live.status === "stopped" && (
+            <Button size="sm" className="shrink-0" onClick={() => window.location.reload()}>
+              Recharger
+            </Button>
+          )}
         </div>
       )}
       {children}

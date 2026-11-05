@@ -5,6 +5,7 @@ import * as Y from "yjs";
 import { HocuspocusProvider, WebSocketStatus } from "@hocuspocus/provider";
 import { ApiError, apiFetch, isReadOnlyRole, messageOf, type ApiRole, type ApiTicket } from "@/lib/api";
 import { LOCAL_ORIGIN, applyEdges, applyNodes, readGraph } from "@/lib/canvas-yjs";
+import { CANVAS_TOO_LARGE_MESSAGE, stopsReconnection } from "@/lib/realtime-close";
 import type { ArchitectureEdge, ArchitectureNode } from "@/lib/lonkoo-data";
 
 /**
@@ -28,9 +29,11 @@ export interface Peer {
  * - `live` : chargé et connecté ;
  * - `offline` : connexion perdue, reconnexion en cours (les modifications restent dans le navigateur et partent au retour) ;
  * - `denied` : le canvas n'existe pas ou n'est pas visible par cet utilisateur ;
- * - `error` : le ticket n'a pas pu être obtenu.
+ * - `error` : le ticket n'a pas pu être obtenu ;
+ * - `stopped` : le serveur a coupé la connexion parce que le canvas est trop volumineux (code 4413) ; elle n'est pas
+ *   rouverte toute seule, et la dernière modification n'a pas été enregistrée (lecture seule jusqu'au rechargement).
  */
-export type CanvasStatus = "connecting" | "live" | "offline" | "denied" | "error";
+export type CanvasStatus = "connecting" | "live" | "offline" | "denied" | "error" | "stopped";
 
 export interface CanvasState {
   status: CanvasStatus;
@@ -180,9 +183,16 @@ export class CanvasConnection {
       this.patch({ synced: true, status: "live", error: null });
     });
     provider.on("status", ({ status }: { status: WebSocketStatus }) => {
-      if (this.destroyed || !this.state.synced) return;
+      if (this.destroyed || !this.state.synced || this.state.status === "stopped") return;
       if (status === WebSocketStatus.Disconnected) this.patch({ status: "offline" });
       else if (status === WebSocketStatus.Connected) this.patch({ status: "live" });
+    });
+    provider.on("close", ({ event }: { event: { code?: number } }) => {
+      if (this.destroyed || !stopsReconnection(event?.code)) return;
+      // Le serveur a refusé une modification qui ferait trop grossir le canvas. Rouvrir la connexion renverrait cette
+      // modification, restée dans le document du navigateur : on s'arrête, en lecture seule, jusqu'au rechargement.
+      provider.disconnect();
+      this.patch({ status: "stopped", readOnly: true, error: CANVAS_TOO_LARGE_MESSAGE });
     });
     provider.on("authenticated", ({ scope }: { scope: string }) => {
       // Le serveur fait foi : un client « lecture seule » pour lui l'est aussi dans l'interface.

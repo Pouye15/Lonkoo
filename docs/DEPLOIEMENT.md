@@ -176,7 +176,8 @@ Le serveur temps réel coupe deux abus (code `realtime/src/limits.js`) : une con
 
 - **Voir les coupures** : `docker compose … logs realtime | grep "limite appliquée"` (au plus une ligne par minute et par cause).
 - **Si une limite gêne de vraies personnes** : dans le `.env` du serveur, `REALTIME_LIMITS_MODE=log` (journalise sans rien refuser) ou `off`, puis `docker compose … up -d realtime`. Sans reconstruire d'image. Les valeurs se règlent par `REALTIME_MAX_MESSAGES_PER_SECOND`, `REALTIME_MAX_BYTES_PER_10S`, `REALTIME_MAX_STATE_BYTES` (0 désactive une limite), voir `infra/production.env.example`.
-- **L'interface** ne sait pas encore afficher un message pour 4429 et 4413 (à voir avec la personne qui s'occupe de l'interface) : la personne voit la connexion tomber puis se rétablir.
+- **Ce que voit la personne** : après 4429, le bandeau « Connexion perdue, reconnexion en cours… » puis le retour du canvas. Après 4413, un bandeau rouge « Ce canvas est trop volumineux… » avec « Recharger », le canvas en lecture seule et aucune reconnexion (le navigateur garde la modification refusée et la renverrait à chaque reconnexion, une seconde après chaque coupure).
+- **Canvas au double du plafond** (8 Mio par défaut, ce qui demande un usage délibéré) : même la poignée de main d'une personne qui peut écrire est refusée, donc le canvas se fige dès son ouverture en écriture. La lecture seule continue de marcher. Issue : restaurer une version (onglet Versions, qui passe par l'API et n'est pas soumis à la limite).
 
 ## Étape 4 : déploiement B (applications générées)
 
