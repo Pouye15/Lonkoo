@@ -40,6 +40,8 @@ export interface NewProjectInput {
   githubRepo?: string;
   stack: string[];
   owner: { login: string; initials: string; name: string };
+  /** Mode API : identifiant d'un modèle de départ (GET /api/templates) ; absent, le canvas du projet est vide. */
+  template?: string;
 }
 
 const SEED_STATE: WorkspaceState = {
@@ -340,6 +342,7 @@ async function createLive(input: NewProjectInput): Promise<WorkspaceProject> {
       name: slugify(input.name) || "projet",
       description: input.description?.trim() || undefined,
       visibility: input.visibility,
+      template: input.template,
     },
   });
   const project = toProject(api);

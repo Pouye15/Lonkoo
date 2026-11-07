@@ -1,0 +1,328 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "École : inscriptions, notes et frais de scolarité",
+    "description": "Exemple de démonstration : inscriptions des élèves, saisie des notes, paiement des frais par paiement mobile et messages aux parents."
+  },
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "webapp",
+      "position": {
+        "x": 0,
+        "y": 160
+      },
+      "data": {
+        "name": "portail_ecole",
+        "label": "Portail école",
+        "pages": [
+          "accueil",
+          "inscriptions",
+          "notes"
+        ]
+      }
+    },
+    {
+      "id": "n2",
+      "type": "auth",
+      "position": {
+        "x": 260,
+        "y": 0
+      },
+      "data": {
+        "name": "connexion",
+        "label": "Connexion",
+        "method": "password"
+      }
+    },
+    {
+      "id": "n3",
+      "type": "service",
+      "position": {
+        "x": 260,
+        "y": 280
+      },
+      "data": {
+        "name": "api_ecole",
+        "label": "API école",
+        "endpoints": [
+          {
+            "method": "GET",
+            "path": "/eleves",
+            "summary": "Lister les élèves"
+          },
+          {
+            "method": "POST",
+            "path": "/eleves",
+            "summary": "Enregistrer un élève"
+          },
+          {
+            "method": "GET",
+            "path": "/classes",
+            "summary": "Lister les classes"
+          },
+          {
+            "method": "POST",
+            "path": "/inscriptions",
+            "summary": "Inscrire un élève dans une classe"
+          },
+          {
+            "method": "GET",
+            "path": "/notes",
+            "summary": "Lister les notes"
+          },
+          {
+            "method": "POST",
+            "path": "/notes",
+            "summary": "Saisir une note"
+          },
+          {
+            "method": "POST",
+            "path": "/frais",
+            "summary": "Enregistrer un paiement de frais"
+          }
+        ]
+      }
+    },
+    {
+      "id": "n4",
+      "type": "database",
+      "position": {
+        "x": 540,
+        "y": 280
+      },
+      "data": {
+        "name": "ecole_db",
+        "label": "Base école",
+        "engine": "postgresql",
+        "entities": [
+          {
+            "name": "eleve",
+            "fields": [
+              {
+                "name": "nom",
+                "type": "string",
+                "required": true
+              },
+              {
+                "name": "prenom",
+                "type": "string",
+                "required": true
+              },
+              {
+                "name": "naissance",
+                "type": "date"
+              },
+              {
+                "name": "contact_parent",
+                "type": "string"
+              }
+            ]
+          },
+          {
+            "name": "classe",
+            "fields": [
+              {
+                "name": "libelle",
+                "type": "string",
+                "required": true,
+                "unique": true
+              },
+              {
+                "name": "niveau",
+                "type": "string"
+              },
+              {
+                "name": "annee",
+                "type": "integer",
+                "required": true
+              }
+            ]
+          },
+          {
+            "name": "inscription",
+            "fields": [
+              {
+                "name": "eleve_id",
+                "type": "uuid",
+                "required": true
+              },
+              {
+                "name": "classe_id",
+                "type": "uuid",
+                "required": true
+              },
+              {
+                "name": "cree_le",
+                "type": "datetime",
+                "required": true
+              }
+            ]
+          },
+          {
+            "name": "note",
+            "fields": [
+              {
+                "name": "eleve_id",
+                "type": "uuid",
+                "required": true
+              },
+              {
+                "name": "matiere",
+                "type": "string",
+                "required": true
+              },
+              {
+                "name": "valeur",
+                "type": "decimal",
+                "required": true
+              },
+              {
+                "name": "periode",
+                "type": "string"
+              }
+            ]
+          },
+          {
+            "name": "frais",
+            "fields": [
+              {
+                "name": "eleve_id",
+                "type": "uuid",
+                "required": true
+              },
+              {
+                "name": "montant",
+                "type": "decimal",
+                "required": true
+              },
+              {
+                "name": "reference",
+                "type": "string",
+                "required": true,
+                "unique": true
+              },
+              {
+                "name": "paye_le",
+                "type": "datetime"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "n5",
+      "type": "mobile-payment",
+      "position": {
+        "x": 540,
+        "y": 460
+      },
+      "data": {
+        "name": "paiement_frais",
+        "label": "Paiement frais",
+        "currency": "XOF",
+        "flow": "collect"
+      }
+    },
+    {
+      "id": "n6",
+      "type": "billing",
+      "position": {
+        "x": 800,
+        "y": 460
+      },
+      "data": {
+        "name": "facturation",
+        "label": "Frais mensuels",
+        "model": "subscription",
+        "currency": "XOF"
+      }
+    },
+    {
+      "id": "n7",
+      "type": "messaging",
+      "position": {
+        "x": 540,
+        "y": 80
+      },
+      "data": {
+        "name": "messages_parents",
+        "label": "Messages parents",
+        "channel": "whatsapp",
+        "templates": [
+          {
+            "name": "bulletin_disponible",
+            "text": "Le bulletin de votre enfant est disponible sur le portail de l'école."
+          },
+          {
+            "name": "frais_recus",
+            "text": "Nous avons bien reçu le paiement des frais de scolarité. Merci."
+          }
+        ]
+      }
+    },
+    {
+      "id": "n8",
+      "type": "generic",
+      "position": {
+        "x": 800,
+        "y": 280
+      },
+      "data": {
+        "name": "stockage_pieces",
+        "label": "Stockage pièces",
+        "description": "Stockage des documents des élèves : certificats, bulletins, pièces d'inscription."
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "n1",
+      "target": "n3",
+      "kind": "http",
+      "label": "appelle l'API"
+    },
+    {
+      "id": "e2",
+      "source": "n1",
+      "target": "n2",
+      "kind": "auth"
+    },
+    {
+      "id": "e3",
+      "source": "n3",
+      "target": "n4",
+      "kind": "data"
+    },
+    {
+      "id": "e4",
+      "source": "n3",
+      "target": "n5",
+      "kind": "http",
+      "label": "demande un paiement"
+    },
+    {
+      "id": "e5",
+      "source": "n5",
+      "target": "n6",
+      "kind": "event",
+      "label": "paiement reçu"
+    },
+    {
+      "id": "e6",
+      "source": "n3",
+      "target": "n7",
+      "kind": "event",
+      "label": "bulletin publié"
+    },
+    {
+      "id": "e7",
+      "source": "n3",
+      "target": "n8",
+      "kind": "data",
+      "label": "range les pièces"
+    }
+  ]
+}

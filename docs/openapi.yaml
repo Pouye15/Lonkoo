@@ -188,7 +188,11 @@ paths:
                   $ref: "#/components/schemas/Project"
     post:
       tags: [Projets]
-      summary: Crée un projet (avec un canvas vide)
+      summary: Crée un projet (avec un canvas vide, ou celui d'un modèle de départ)
+      description: |
+        Sans `template`, le canvas du projet est vide. Avec l'identifiant d'un modèle de départ (`GET /templates`), il reçoit
+        ce modèle, que le serveur temps réel charge à la première ouverture. Un modèle inconnu est refusé en 400, avant que
+        rien ne soit écrit.
       requestBody:
         required: true
         content:
@@ -208,6 +212,27 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "409":
           $ref: "#/components/responses/LimitReached"
+
+  /templates:
+    get:
+      tags: [Projets]
+      summary: Liste les modèles de départ proposés à la création d'un projet
+      description: |
+        Cinq canvas complets (marketplace avec paiement mobile, clinique, école, tontine, livraison de colis), triés par titre.
+        La liste dit de quoi choisir (titre, description, nombre de blocs et de liens), pas le contenu : le serveur le copie
+        lui-même dans le canvas quand on crée le projet avec `template`. Chaque modèle est validé contre le contrat du canvas
+        au démarrage du serveur.
+      responses:
+        "200":
+          description: Modèles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Template"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /projects/public:
     get:
@@ -1724,6 +1749,25 @@ components:
           type: string
           format: date-time
 
+    Template:
+      type: object
+      required: [id, name, description, blocks, links]
+      properties:
+        id:
+          type: string
+          pattern: "^[a-z0-9-]{1,40}$"
+          description: Identifiant à donner à `template` en créant un projet
+        name:
+          type: string
+          maxLength: 80
+        description:
+          type: string
+          maxLength: 500
+        blocks:
+          type: integer
+        links:
+          type: integer
+
     ProjectCreate:
       type: object
       required: [name]
@@ -1737,6 +1781,11 @@ components:
         visibility:
           type: string
           enum: [private, public]
+        template:
+          type: string
+          nullable: true
+          pattern: "^[a-z0-9-]{1,40}$"
+          description: Identifiant d'un modèle de départ (`GET /templates`) ; absent ou `null`, canvas vide
 
     ProjectPatch:
       type: object

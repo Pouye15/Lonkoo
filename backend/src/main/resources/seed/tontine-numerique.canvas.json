@@ -1,0 +1,312 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "Tontine numérique : cotisations et tours",
+    "description": "Exemple de démonstration : cercles d'épargne, cotisations collectées par paiement mobile, versement du tour au bénéficiaire, rappels par USSD et SMS."
+  },
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "webapp",
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "data": {
+        "name": "application_tontine",
+        "label": "Application tontine",
+        "pages": [
+          "accueil",
+          "cotisations",
+          "tours"
+        ]
+      }
+    },
+    {
+      "id": "n2",
+      "type": "auth",
+      "position": {
+        "x": 260,
+        "y": 40
+      },
+      "data": {
+        "name": "connexion",
+        "label": "Connexion",
+        "method": "otp-sms"
+      }
+    },
+    {
+      "id": "n3",
+      "type": "service",
+      "position": {
+        "x": 260,
+        "y": 320
+      },
+      "data": {
+        "name": "api_tontine",
+        "label": "API tontine",
+        "endpoints": [
+          {
+            "method": "GET",
+            "path": "/membres",
+            "summary": "Lister les membres"
+          },
+          {
+            "method": "POST",
+            "path": "/membres",
+            "summary": "Ajouter un membre"
+          },
+          {
+            "method": "GET",
+            "path": "/cercles",
+            "summary": "Lister les cercles"
+          },
+          {
+            "method": "POST",
+            "path": "/cercles",
+            "summary": "Créer un cercle"
+          },
+          {
+            "method": "GET",
+            "path": "/cotisations",
+            "summary": "Lister les cotisations"
+          },
+          {
+            "method": "POST",
+            "path": "/cotisations",
+            "summary": "Enregistrer une cotisation"
+          },
+          {
+            "method": "POST",
+            "path": "/tours",
+            "summary": "Programmer un tour"
+          }
+        ]
+      }
+    },
+    {
+      "id": "n4",
+      "type": "database",
+      "position": {
+        "x": 540,
+        "y": 320
+      },
+      "data": {
+        "name": "tontine_db",
+        "label": "Base tontine",
+        "engine": "postgresql",
+        "entities": [
+          {
+            "name": "membre",
+            "fields": [
+              {
+                "name": "nom",
+                "type": "string",
+                "required": true
+              },
+              {
+                "name": "telephone",
+                "type": "string",
+                "required": true,
+                "unique": true
+              },
+              {
+                "name": "adhesion",
+                "type": "date"
+              }
+            ]
+          },
+          {
+            "name": "cercle",
+            "fields": [
+              {
+                "name": "libelle",
+                "type": "string",
+                "required": true
+              },
+              {
+                "name": "montant",
+                "type": "decimal",
+                "required": true
+              },
+              {
+                "name": "frequence",
+                "type": "string"
+              }
+            ]
+          },
+          {
+            "name": "cotisation",
+            "fields": [
+              {
+                "name": "membre_id",
+                "type": "uuid",
+                "required": true
+              },
+              {
+                "name": "cercle_id",
+                "type": "uuid",
+                "required": true
+              },
+              {
+                "name": "montant",
+                "type": "decimal",
+                "required": true
+              },
+              {
+                "name": "reference",
+                "type": "string",
+                "required": true,
+                "unique": true
+              },
+              {
+                "name": "recu_le",
+                "type": "datetime"
+              }
+            ]
+          },
+          {
+            "name": "tour",
+            "fields": [
+              {
+                "name": "cercle_id",
+                "type": "uuid",
+                "required": true
+              },
+              {
+                "name": "beneficiaire_id",
+                "type": "uuid",
+                "required": true
+              },
+              {
+                "name": "montant",
+                "type": "decimal",
+                "required": true
+              },
+              {
+                "name": "verse_le",
+                "type": "datetime"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "n5",
+      "type": "mobile-payment",
+      "position": {
+        "x": 540,
+        "y": 500
+      },
+      "data": {
+        "name": "collecte_cotisations",
+        "label": "Collecte cotisations",
+        "currency": "XOF",
+        "flow": "collect"
+      }
+    },
+    {
+      "id": "n6",
+      "type": "mobile-payment",
+      "position": {
+        "x": 800,
+        "y": 500
+      },
+      "data": {
+        "name": "versement_tour",
+        "label": "Versement du tour",
+        "currency": "XOF",
+        "flow": "payout"
+      }
+    },
+    {
+      "id": "n7",
+      "type": "queue",
+      "position": {
+        "x": 800,
+        "y": 320
+      },
+      "data": {
+        "name": "file_paiements",
+        "label": "File paiements",
+        "topics": [
+          "cotisations_recues",
+          "tours_a_verser"
+        ]
+      }
+    },
+    {
+      "id": "n8",
+      "type": "messaging",
+      "position": {
+        "x": 800,
+        "y": 120
+      },
+      "data": {
+        "name": "rappels_membres",
+        "label": "Rappels membres",
+        "channel": "ussd",
+        "templates": [
+          {
+            "name": "cotisation_due",
+            "text": "Votre cotisation est due. Tapez 1 pour payer."
+          },
+          {
+            "name": "tour_verse",
+            "text": "Le tour de ce mois a été versé au bénéficiaire."
+          }
+        ]
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "n1",
+      "target": "n3",
+      "kind": "http",
+      "label": "appelle l'API"
+    },
+    {
+      "id": "e2",
+      "source": "n1",
+      "target": "n2",
+      "kind": "auth"
+    },
+    {
+      "id": "e3",
+      "source": "n3",
+      "target": "n4",
+      "kind": "data"
+    },
+    {
+      "id": "e4",
+      "source": "n3",
+      "target": "n5",
+      "kind": "http",
+      "label": "demande une cotisation"
+    },
+    {
+      "id": "e5",
+      "source": "n5",
+      "target": "n7",
+      "kind": "event",
+      "label": "cotisation reçue"
+    },
+    {
+      "id": "e6",
+      "source": "n7",
+      "target": "n6",
+      "kind": "event",
+      "label": "déclenche le versement"
+    },
+    {
+      "id": "e7",
+      "source": "n7",
+      "target": "n8",
+      "kind": "event",
+      "label": "prévient les membres"
+    }
+  ]
+}

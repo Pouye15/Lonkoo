@@ -1,0 +1,305 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "Livraison de colis : suivi et notifications",
+    "description": "Exemple de démonstration : enregistrement des colis, tournées des livreurs, suivi en temps réel, notifications SMS et paiement à la livraison."
+  },
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "webapp",
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "data": {
+        "name": "suivi_colis",
+        "label": "Suivi des colis",
+        "pages": [
+          "accueil",
+          "suivi",
+          "tournees"
+        ]
+      }
+    },
+    {
+      "id": "n2",
+      "type": "auth",
+      "position": {
+        "x": 260,
+        "y": 40
+      },
+      "data": {
+        "name": "connexion",
+        "label": "Connexion",
+        "method": "password"
+      }
+    },
+    {
+      "id": "n3",
+      "type": "service",
+      "position": {
+        "x": 260,
+        "y": 320
+      },
+      "data": {
+        "name": "api_livraison",
+        "label": "API livraison",
+        "endpoints": [
+          {
+            "method": "GET",
+            "path": "/colis",
+            "summary": "Lister les colis"
+          },
+          {
+            "method": "POST",
+            "path": "/colis",
+            "summary": "Enregistrer un colis"
+          },
+          {
+            "method": "GET",
+            "path": "/livreurs",
+            "summary": "Lister les livreurs"
+          },
+          {
+            "method": "POST",
+            "path": "/livreurs",
+            "summary": "Ajouter un livreur"
+          },
+          {
+            "method": "GET",
+            "path": "/tournees",
+            "summary": "Lister les tournées"
+          },
+          {
+            "method": "POST",
+            "path": "/livraisons",
+            "summary": "Enregistrer une livraison"
+          }
+        ]
+      }
+    },
+    {
+      "id": "n4",
+      "type": "database",
+      "position": {
+        "x": 540,
+        "y": 320
+      },
+      "data": {
+        "name": "livraison_db",
+        "label": "Base livraison",
+        "engine": "postgresql",
+        "entities": [
+          {
+            "name": "colis",
+            "fields": [
+              {
+                "name": "reference",
+                "type": "string",
+                "required": true,
+                "unique": true
+              },
+              {
+                "name": "destinataire",
+                "type": "string",
+                "required": true
+              },
+              {
+                "name": "adresse",
+                "type": "text",
+                "required": true
+              },
+              {
+                "name": "poids",
+                "type": "decimal"
+              },
+              {
+                "name": "statut",
+                "type": "string",
+                "required": true
+              }
+            ]
+          },
+          {
+            "name": "livreur",
+            "fields": [
+              {
+                "name": "nom",
+                "type": "string",
+                "required": true
+              },
+              {
+                "name": "telephone",
+                "type": "string",
+                "required": true,
+                "unique": true
+              },
+              {
+                "name": "actif",
+                "type": "boolean"
+              }
+            ]
+          },
+          {
+            "name": "tournee",
+            "fields": [
+              {
+                "name": "livreur_id",
+                "type": "uuid",
+                "required": true
+              },
+              {
+                "name": "jour",
+                "type": "date",
+                "required": true
+              },
+              {
+                "name": "statut",
+                "type": "string"
+              }
+            ]
+          },
+          {
+            "name": "livraison",
+            "fields": [
+              {
+                "name": "colis_id",
+                "type": "uuid",
+                "required": true
+              },
+              {
+                "name": "tournee_id",
+                "type": "uuid",
+                "required": true
+              },
+              {
+                "name": "livre_le",
+                "type": "datetime"
+              },
+              {
+                "name": "signature",
+                "type": "text"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "n5",
+      "type": "generic",
+      "position": {
+        "x": 540,
+        "y": 120
+      },
+      "data": {
+        "name": "cache_suivi",
+        "label": "Cache du suivi",
+        "description": "Cache des statuts de colis les plus consultés, pour alléger la base."
+      }
+    },
+    {
+      "id": "n6",
+      "type": "queue",
+      "position": {
+        "x": 800,
+        "y": 320
+      },
+      "data": {
+        "name": "file_evenements",
+        "label": "File événements",
+        "topics": [
+          "colis_enregistres",
+          "colis_livres"
+        ]
+      }
+    },
+    {
+      "id": "n7",
+      "type": "messaging",
+      "position": {
+        "x": 800,
+        "y": 120
+      },
+      "data": {
+        "name": "notifications_clients",
+        "label": "Notifications SMS",
+        "channel": "sms",
+        "templates": [
+          {
+            "name": "colis_en_route",
+            "text": "Votre colis est en route. Le livreur vous contactera à son arrivée."
+          },
+          {
+            "name": "colis_livre",
+            "text": "Votre colis a été livré. Merci de votre confiance."
+          }
+        ]
+      }
+    },
+    {
+      "id": "n8",
+      "type": "mobile-payment",
+      "position": {
+        "x": 540,
+        "y": 500
+      },
+      "data": {
+        "name": "paiement_livraison",
+        "label": "Paiement livraison",
+        "currency": "XOF",
+        "flow": "collect"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "n1",
+      "target": "n3",
+      "kind": "http",
+      "label": "appelle l'API"
+    },
+    {
+      "id": "e2",
+      "source": "n1",
+      "target": "n2",
+      "kind": "auth"
+    },
+    {
+      "id": "e3",
+      "source": "n3",
+      "target": "n4",
+      "kind": "data"
+    },
+    {
+      "id": "e4",
+      "source": "n3",
+      "target": "n5",
+      "kind": "data",
+      "label": "lit les statuts"
+    },
+    {
+      "id": "e5",
+      "source": "n3",
+      "target": "n6",
+      "kind": "event",
+      "label": "colis ou livraison mis à jour"
+    },
+    {
+      "id": "e6",
+      "source": "n6",
+      "target": "n7",
+      "kind": "event",
+      "label": "prévient le client"
+    },
+    {
+      "id": "e7",
+      "source": "n3",
+      "target": "n8",
+      "kind": "http",
+      "label": "encaisse à la livraison"
+    }
+  ]
+}
