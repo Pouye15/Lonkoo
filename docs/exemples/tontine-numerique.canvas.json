@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "meta": {
     "name": "Tontine numérique : cotisations et tours",
-    "description": "Exemple de démonstration : cercles d'épargne, cotisations collectées par paiement mobile, versement du tour au bénéficiaire, rappels par USSD et SMS."
+    "description": "Exemple de démonstration : cercles d'épargne, cotisations collectées par paiement mobile, versement du tour au bénéficiaire, rappels par SMS et menu USSD."
   },
   "nodes": [
     {
@@ -68,6 +68,16 @@
           },
           {
             "method": "GET",
+            "path": "/participations",
+            "summary": "Lister les membres d'un cercle"
+          },
+          {
+            "method": "POST",
+            "path": "/participations",
+            "summary": "Ajouter un membre à un cercle"
+          },
+          {
+            "method": "GET",
             "path": "/cotisations",
             "summary": "Lister les cotisations"
           },
@@ -75,6 +85,11 @@
             "method": "POST",
             "path": "/cotisations",
             "summary": "Enregistrer une cotisation"
+          },
+          {
+            "method": "GET",
+            "path": "/tours",
+            "summary": "Lister les tours"
           },
           {
             "method": "POST",
@@ -109,10 +124,6 @@
                 "type": "string",
                 "required": true,
                 "unique": true
-              },
-              {
-                "name": "adhesion",
-                "type": "date"
               }
             ]
           },
@@ -126,42 +137,28 @@
               },
               {
                 "name": "montant",
-                "type": "decimal",
+                "type": "long",
                 "required": true
               },
               {
                 "name": "frequence",
-                "type": "string"
+                "type": "string",
+                "required": true
               }
             ]
           },
           {
-            "name": "cotisation",
+            "name": "participation",
             "fields": [
-              {
-                "name": "membre_id",
-                "type": "uuid",
-                "required": true
-              },
               {
                 "name": "cercle_id",
                 "type": "uuid",
                 "required": true
               },
               {
-                "name": "montant",
-                "type": "decimal",
+                "name": "membre_id",
+                "type": "uuid",
                 "required": true
-              },
-              {
-                "name": "reference",
-                "type": "string",
-                "required": true,
-                "unique": true
-              },
-              {
-                "name": "recu_le",
-                "type": "datetime"
               }
             ]
           },
@@ -174,17 +171,62 @@
                 "required": true
               },
               {
+                "name": "numero",
+                "type": "integer",
+                "required": true
+              },
+              {
                 "name": "beneficiaire_id",
                 "type": "uuid",
                 "required": true
               },
               {
-                "name": "montant",
-                "type": "decimal",
+                "name": "echeance",
+                "type": "date",
                 "required": true
               },
               {
+                "name": "montant",
+                "type": "long",
+                "required": true
+              },
+              {
+                "name": "reference_versement",
+                "type": "string",
+                "unique": true
+              },
+              {
                 "name": "verse_le",
+                "type": "datetime"
+              }
+            ]
+          },
+          {
+            "name": "cotisation",
+            "fields": [
+              {
+                "name": "tour_id",
+                "type": "uuid",
+                "required": true
+              },
+              {
+                "name": "membre_id",
+                "type": "uuid",
+                "required": true
+              },
+              {
+                "name": "montant",
+                "type": "long",
+                "required": true
+              },
+              {
+                "name": "reference",
+                "type": "string",
+                "required": true,
+                "unique": true
+              },
+              {
+                "name": "recu_le",
                 "type": "datetime"
               }
             ]
@@ -246,15 +288,38 @@
       "data": {
         "name": "rappels_membres",
         "label": "Rappels membres",
-        "channel": "ussd",
+        "channel": "sms",
         "templates": [
           {
-            "name": "cotisation_due",
-            "text": "Votre cotisation est due. Tapez 1 pour payer."
+            "name": "rappel_cotisation",
+            "text": "Rappel : votre cotisation de tontine arrive à échéance. Payez depuis l'application ou par le menu USSD."
           },
           {
             "name": "tour_verse",
             "text": "Le tour de ce mois a été versé au bénéficiaire."
+          }
+        ]
+      }
+    },
+    {
+      "id": "n9",
+      "type": "messaging",
+      "position": {
+        "x": 540,
+        "y": 120
+      },
+      "data": {
+        "name": "menu_ussd",
+        "label": "Menu USSD",
+        "channel": "ussd",
+        "templates": [
+          {
+            "name": "menu_principal",
+            "text": "Tontine : 1 Payer ma cotisation, 2 Mon prochain tour, 0 Quitter"
+          },
+          {
+            "name": "confirmation_paiement",
+            "text": "Confirmer le paiement de la cotisation ? 1 Oui, 2 Non"
           }
         ]
       }
@@ -299,7 +364,7 @@
       "source": "n7",
       "target": "n6",
       "kind": "event",
-      "label": "déclenche le versement"
+      "label": "verse quand toutes les cotisations sont reçues"
     },
     {
       "id": "e7",
@@ -307,6 +372,13 @@
       "target": "n8",
       "kind": "event",
       "label": "prévient les membres"
+    },
+    {
+      "id": "e8",
+      "source": "n9",
+      "target": "n3",
+      "kind": "http",
+      "label": "consulte et paie par USSD"
     }
   ]
 }

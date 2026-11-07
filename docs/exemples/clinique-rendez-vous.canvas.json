@@ -62,6 +62,11 @@
             "summary": "Lister les médecins"
           },
           {
+            "method": "POST",
+            "path": "/medecins",
+            "summary": "Ajouter un médecin"
+          },
+          {
             "method": "GET",
             "path": "/rendez-vous",
             "summary": "Lister les rendez-vous"
@@ -72,9 +77,24 @@
             "summary": "Prendre un rendez-vous"
           },
           {
+            "method": "GET",
+            "path": "/consultations",
+            "summary": "Lister les consultations"
+          },
+          {
             "method": "POST",
             "path": "/consultations",
             "summary": "Enregistrer une consultation"
+          },
+          {
+            "method": "GET",
+            "path": "/factures",
+            "summary": "Lister les factures"
+          },
+          {
+            "method": "POST",
+            "path": "/factures",
+            "summary": "Établir la facture d'une consultation"
           }
         ]
       }
@@ -95,6 +115,12 @@
             "name": "patient",
             "fields": [
               {
+                "name": "numero_dossier",
+                "type": "string",
+                "required": true,
+                "unique": true
+              },
+              {
                 "name": "nom",
                 "type": "string",
                 "required": true
@@ -102,8 +128,7 @@
               {
                 "name": "telephone",
                 "type": "string",
-                "required": true,
-                "unique": true
+                "required": true
               },
               {
                 "name": "naissance",
@@ -144,7 +169,12 @@
                 "required": true
               },
               {
-                "name": "date_rdv",
+                "name": "debut",
+                "type": "datetime",
+                "required": true
+              },
+              {
+                "name": "fin",
                 "type": "datetime",
                 "required": true
               },
@@ -170,15 +200,30 @@
               {
                 "name": "compte_rendu",
                 "type": "text"
-              },
+              }
+            ]
+          },
+          {
+            "name": "facture",
+            "fields": [
               {
-                "name": "tarif",
-                "type": "decimal",
+                "name": "consultation_id",
+                "type": "uuid",
                 "required": true
               },
               {
-                "name": "paye",
-                "type": "boolean"
+                "name": "montant",
+                "type": "long",
+                "required": true
+              },
+              {
+                "name": "reference_paiement",
+                "type": "string",
+                "unique": true
+              },
+              {
+                "name": "paye_le",
+                "type": "datetime"
               }
             ]
           }

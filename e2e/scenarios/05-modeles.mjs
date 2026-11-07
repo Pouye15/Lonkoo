@@ -76,5 +76,5 @@ export async function run(h) {
   }
   h.check("la génération se termine (DONE)", generation?.status === "DONE", `état ${generation?.status}`);
   const files = JSON.stringify(generation?.files ?? []).toLowerCase();
-  h.check("le projet généré contient les entités de la tontine", ["cotisation", "membre", "cercle", "tour"].every((name) => files.includes(name)));
+  h.check("le projet généré contient les entités de la tontine", ["cotisation", "membre", "cercle", "participation", "tour"].every((name) => files.includes(name)));
 }

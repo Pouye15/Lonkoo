@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "meta": {
     "name": "Livraison de colis : suivi et notifications",
-    "description": "Exemple de démonstration : enregistrement des colis, tournées des livreurs, suivi en temps réel, notifications SMS et paiement à la livraison."
+    "description": "Exemple de démonstration : enregistrement des colis, tournées des livreurs, historique de suivi de chaque colis, notifications SMS et paiement à la livraison."
   },
   "nodes": [
     {
@@ -73,8 +73,28 @@
           },
           {
             "method": "POST",
+            "path": "/tournees",
+            "summary": "Planifier une tournée"
+          },
+          {
+            "method": "GET",
+            "path": "/livraisons",
+            "summary": "Lister les livraisons"
+          },
+          {
+            "method": "POST",
             "path": "/livraisons",
             "summary": "Enregistrer une livraison"
+          },
+          {
+            "method": "GET",
+            "path": "/evenements",
+            "summary": "Lire l'historique de suivi d'un colis"
+          },
+          {
+            "method": "POST",
+            "path": "/evenements",
+            "summary": "Ajouter un événement de suivi"
           }
         ]
       }
@@ -106,6 +126,11 @@
                 "required": true
               },
               {
+                "name": "telephone_destinataire",
+                "type": "string",
+                "required": true
+              },
+              {
                 "name": "adresse",
                 "type": "text",
                 "required": true
@@ -113,6 +138,10 @@
               {
                 "name": "poids",
                 "type": "decimal"
+              },
+              {
+                "name": "montant_a_encaisser",
+                "type": "long"
               },
               {
                 "name": "statut",
@@ -178,8 +207,41 @@
                 "type": "datetime"
               },
               {
-                "name": "signature",
+                "name": "preuve",
                 "type": "text"
+              },
+              {
+                "name": "reference_paiement",
+                "type": "string",
+                "unique": true
+              }
+            ]
+          },
+          {
+            "name": "evenement",
+            "fields": [
+              {
+                "name": "colis_id",
+                "type": "uuid",
+                "required": true
+              },
+              {
+                "name": "statut",
+                "type": "string",
+                "required": true
+              },
+              {
+                "name": "motif",
+                "type": "string"
+              },
+              {
+                "name": "lieu",
+                "type": "string"
+              },
+              {
+                "name": "survenu_le",
+                "type": "datetime",
+                "required": true
               }
             ]
           }

@@ -48,6 +48,16 @@
         "endpoints": [
           {
             "method": "GET",
+            "path": "/tuteurs",
+            "summary": "Lister les tuteurs"
+          },
+          {
+            "method": "POST",
+            "path": "/tuteurs",
+            "summary": "Enregistrer un tuteur"
+          },
+          {
+            "method": "GET",
             "path": "/eleves",
             "summary": "Lister les élèves"
           },
@@ -63,6 +73,16 @@
           },
           {
             "method": "POST",
+            "path": "/classes",
+            "summary": "Créer une classe"
+          },
+          {
+            "method": "GET",
+            "path": "/inscriptions",
+            "summary": "Lister les inscriptions"
+          },
+          {
+            "method": "POST",
             "path": "/inscriptions",
             "summary": "Inscrire un élève dans une classe"
           },
@@ -75,6 +95,11 @@
             "method": "POST",
             "path": "/notes",
             "summary": "Saisir une note"
+          },
+          {
+            "method": "GET",
+            "path": "/frais",
+            "summary": "Lister les frais"
           },
           {
             "method": "POST",
@@ -97,8 +122,33 @@
         "engine": "postgresql",
         "entities": [
           {
+            "name": "tuteur",
+            "fields": [
+              {
+                "name": "nom",
+                "type": "string",
+                "required": true
+              },
+              {
+                "name": "telephone",
+                "type": "string",
+                "required": true
+              },
+              {
+                "name": "lien",
+                "type": "string"
+              }
+            ]
+          },
+          {
             "name": "eleve",
             "fields": [
+              {
+                "name": "matricule",
+                "type": "string",
+                "required": true,
+                "unique": true
+              },
               {
                 "name": "nom",
                 "type": "string",
@@ -114,8 +164,9 @@
                 "type": "date"
               },
               {
-                "name": "contact_parent",
-                "type": "string"
+                "name": "tuteur_id",
+                "type": "uuid",
+                "required": true
               }
             ]
           },
@@ -125,8 +176,7 @@
               {
                 "name": "libelle",
                 "type": "string",
-                "required": true,
-                "unique": true
+                "required": true
               },
               {
                 "name": "niveau",
@@ -179,7 +229,8 @@
               },
               {
                 "name": "periode",
-                "type": "string"
+                "type": "string",
+                "required": true
               }
             ]
           },
@@ -193,7 +244,7 @@
               },
               {
                 "name": "montant",
-                "type": "decimal",
+                "type": "long",
                 "required": true
               },
               {
