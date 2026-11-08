@@ -1,15 +1,11 @@
 "use client";
 
 import { CheckCircle } from "@phosphor-icons/react";
+import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
-import { PENALTY, RULE_COUNT, SEVERITIES, type Audit, type Finding, type Severity } from "@/lib/audit";
+import { PENALTY, RULE_COUNT, SEVERITIES, type Audit, type Finding } from "@/lib/audit";
 import type { ArchitectureNode } from "@/lib/lonkoo-data";
-
-const SEVERITY_TEXT: Record<Severity, string> = {
-  critique: "text-danger",
-  important: "text-warn",
-  mineur: "text-ink-3",
-};
+import { SEVERITY_TEXT } from "./audit-styles";
 
 interface AuditPanelProps {
   audit: Audit;
@@ -50,7 +46,7 @@ export function AuditPanel({ audit, nodes, edgeCount, canFix, onShow, onFix }: A
             {SEVERITIES.map((severity) => (
               <div key={severity}>
                 <dt className="text-[11px] text-ink-3">{severity}</dt>
-                <dd className={cn("text-sm font-bold font-mono", audit.counts[severity] > 0 ? SEVERITY_TEXT[severity] : "text-ink-4")}>
+                <dd className={cn("text-sm font-bold font-mono", audit.counts[severity] > 0 ? SEVERITY_TEXT[severity] : "text-ink-3")}>
                   {audit.counts[severity]}
                 </dd>
               </div>
@@ -77,7 +73,7 @@ export function AuditPanel({ audit, nodes, edgeCount, canFix, onShow, onFix }: A
               <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                 <div className="space-y-2 max-w-3xl">
                   <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <span className={cn("font-mono uppercase text-[11px] px-2 py-0.5 rounded bg-subtle font-semibold", SEVERITY_TEXT[finding.severity])}>
+                    <span className={cn("font-mono uppercase text-[11px] px-2 py-0.5 rounded border border-edge font-semibold", SEVERITY_TEXT[finding.severity])}>
                       {finding.severity}
                     </span>
                     <span className="font-mono text-ink-3">−{PENALTY[finding.severity]}</span>
@@ -107,13 +103,9 @@ export function AuditPanel({ audit, nodes, edgeCount, canFix, onShow, onFix }: A
 
                 {finding.autofix && canFix ? (
                   <div className="flex-shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => onFix(finding)}
-                      className="px-4 py-2 rounded-lg bg-brand hover:bg-brand-hover text-inverse-ink text-xs font-medium transition-colors cursor-pointer"
-                    >
+                    <Button size="sm" onClick={() => onFix(finding)}>
                       Passer à {finding.autofix.replicas} répliques
-                    </button>
+                    </Button>
                   </div>
                 ) : null}
               </div>

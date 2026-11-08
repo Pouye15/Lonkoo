@@ -335,7 +335,7 @@ Critères posés dans `docs/architecture.md` (« Décisions ouvertes ») : **sor
 
 ### 4.6 Brancher l'interface (`IA-7`, avec Fall)
 
-L'onglet, devenu « Audit » le 08/11, a deux parties dans `frontend/src/app/(app)/studio/page.tsx`. **En haut, l'audit par règles est réel** (`frontend/src/lib/audit.ts`, composant `components/studio/AuditPanel.tsx`) : le score et les constats viennent du schéma dessiné, l'ancien **score inventé** (`86 + 5 × correctifs appliqués`) n'existe plus. **En dessous, une liste figée** (`AI_SUGGESTIONS` dans `frontend/src/lib/lonkoo-data.ts`, réduite aux blocs qui existent dans le projet) reste de la démonstration : elle n'appelle pas l'API et ne change pas le score. C'est elle que `IA-7` remplace. Le front interdit les données inventées présentées comme réelles (`frontend/CLAUDE.md` § 5, règle 4).
+L'onglet, devenu « Audit » le 08/11, a deux parties dans `frontend/src/app/(app)/studio/page.tsx`. **En haut, l'audit par règles est réel** (`frontend/src/lib/audit.ts`, composant `components/studio/AuditPanel.tsx`) : le score et les constats viennent du schéma dessiné, l'ancien **score inventé** (`86 + 5 × correctifs appliqués`) n'existe plus. **En dessous, une liste figée** (`AI_SUGGESTIONS` dans `frontend/src/lib/lonkoo-data.ts`, réduite aux blocs qui existent dans le projet) reste de la démonstration : elle n'appelle pas l'API et ne compte pas dans le score (il ne suit que le schéma ; le « +14 pts Score IA » de ces cartes n'est plus affiché). C'est elle que `IA-7` remplace. Le front interdit les données inventées présentées comme réelles (`frontend/CLAUDE.md` § 5, règle 4).
 
 Proposition (à valider avec Fall, propriétaire de l'interface) :
 

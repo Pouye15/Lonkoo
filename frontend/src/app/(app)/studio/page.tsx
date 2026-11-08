@@ -502,7 +502,7 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
               <div className="px-1 pt-2">
                 <h2 className="text-sm font-bold text-ink">Suggestions de l&apos;IA</h2>
                 <p className="text-xs text-ink-3 mt-0.5">
-                  Exemples de démonstration : l&apos;IA n&apos;est pas encore branchée. Elles ne changent pas le score.
+                  Exemples de démonstration : l&apos;IA n&apos;est pas encore branchée. Le score ne les compte pas : il ne suit que le schéma.
                 </p>
               </div>
             )}
@@ -522,10 +522,6 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
                             {sug.severity}
                           </span>
                           <span className="text-ink-3">{sug.category}</span>
-                          <span className="text-ink-4">·</span>
-                          <span className="font-mono text-accent font-medium">
-                            {sug.impactScore}
-                          </span>
                         </div>
 
                         <h3 className="text-sm font-bold text-ink">{sug.title}</h3>

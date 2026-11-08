@@ -4,6 +4,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import type { ArchitectureEdge, ArchitectureNode } from "./lonkoo-data";
 import { edgeFromEntry, nodeFromEntry, type JsonObject } from "./canvas-model.ts";
+import { AI_SUGGESTIONS, CORE_STUDIO_NODES, STUDIO_EDGES } from "./lonkoo-data.ts";
 import { PENALTY, RULES, RULE_COUNT, auditArchitecture, entityForPath, outsideSms, type Audit, type RuleId } from "./audit.ts";
 
 /** Un bloc construit comme le Studio le lit dans le document : type et données du contrat. */
@@ -57,6 +58,27 @@ test("un bloc d'authentification relié à rien ne protège rien", () => {
   assert.ok(!rules(audit).includes("auth-absente"), "il y a bien un bloc d'authentification");
   // Relié dans l'autre sens, il protège.
   assert.ok(!rules(run([web, service(), auth], [link("web", "api"), link("auth", "web")])).includes("auth-non-reliee"));
+});
+
+test("un bloc d'authentification relié à la passerelle protège : la passerelle est un endroit courant pour le faire", () => {
+  const gateway = nodeFromEntry("gw", { type: "generic", position: { x: 0, y: 0 }, data: { name: "gw", label: "gw" }, ui: { shape: "gateway" } });
+  assert.equal(gateway.shape, "gateway");
+  const auth = block("auth", "auth", { method: "password" });
+  assert.ok(!rules(run([gateway, auth, service()], [link("gw", "auth"), link("gw", "api")])).includes("auth-non-reliee"));
+  // Un bloc libre quelconque, lui, ne protège rien.
+  const free = block("libre", "generic");
+  assert.ok(rules(run([free, auth, service()], [link("libre", "auth"), link("libre", "api")])).includes("auth-non-reliee"));
+});
+
+test("le graphe du mode démonstration est audité sans erreur, et ses suggestions de l'IA restent visibles", () => {
+  const audit = auditArchitecture(CORE_STUDIO_NODES, STUDIO_EDGES);
+  assert.ok(typeof audit.score === "number" && audit.score >= 0 && audit.score <= 100);
+  assert.equal(audit.counts.critique, 0);
+  assert.ok(!rules(audit).includes("auth-non-reliee"), "l'authentification du graphe de démonstration protège la passerelle");
+  // Chaque suggestion de démonstration vise un bloc de ce graphe : l'onglet les affiche toutes en mode démonstration.
+  for (const suggestion of AI_SUGGESTIONS) {
+    assert.ok(CORE_STUDIO_NODES.some((node) => node.id === suggestion.targetNodeId), suggestion.targetNodeId);
+  }
 });
 
 test("une base partagée par deux services est signalée, avec la base en premier", () => {

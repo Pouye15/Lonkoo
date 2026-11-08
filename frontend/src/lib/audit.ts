@@ -154,16 +154,19 @@ const authAbsente: Rule = (blocks) => {
   ];
 };
 
-/** Un bloc d'authentification qui ne protège ni interface ni API. */
+/** Ce qu'un bloc d'authentification peut protéger : une interface, une API, ou la passerelle placée devant elles. */
+const isProtectable = (block: Block): boolean => block.type === "webapp" || block.type === "service" || block.node.shape === "gateway";
+
+/** Un bloc d'authentification qui ne protège ni interface, ni API, ni passerelle. */
 const authNonReliee: Rule = (blocks) =>
   ofType(blocks, "auth")
-    .filter((block) => !touches(block, "webapp", "service"))
+    .filter((block) => !block.neighbors.some(isProtectable))
     .map((block) => ({
       rule: "auth-non-reliee" as const,
       severity: "important" as const,
       title: `« ${name(block)} » ne protège rien`,
-      detail: "Ce bloc d'authentification n'est relié à aucune interface ni à aucune API.",
-      fix: "Reliez-le à l'interface et à l'API qu'il protège.",
+      detail: "Ce bloc d'authentification n'est relié à aucune interface, à aucune API ni à aucune passerelle.",
+      fix: "Reliez-le à l'interface, à l'API ou à la passerelle qu'il protège.",
       nodeIds: [block.node.id],
     }));
 
