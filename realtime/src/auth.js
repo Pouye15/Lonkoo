@@ -39,7 +39,9 @@ export function createTicketVerifier(secret) {
     if (!token) {
       throw new Error('ticket manquant');
     }
+    // L'algorithme est imposé : celui que signe le backend (RealtimeTicketService), aucun autre.
     const { payload } = await jwtVerify(token, key, {
+      algorithms: ['HS256'],
       audience: 'lonkoo-realtime',
       issuer: 'lonkoo-backend',
     });
