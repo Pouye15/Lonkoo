@@ -39,6 +39,7 @@ Contre un serveur en ligne : `E2E_BASE_URL=https://lonkoo.example.com npm run e2
 | `03-projets-publics.mjs` | Un projet public se lit en lecture seule ; le privé d'une autre personne est introuvable ; repasser en privé sort le visiteur et laisse le propriétaire connecté. La galerie n'est vérifiée que si un projet public de compte GitHub est indiqué (ci-dessous) | ~1 min |
 | `04-discussion.mjs` | Trois personnes d'un même projet (propriétaire, écriture, lecture seule du canvas) discutent dans la page Revues : les messages arrivent chez les autres sans recharger, la lecture seule du canvas n'empêche pas d'écrire, un texte avec des balises HTML s'affiche tel quel (aucun script ne s'exécute), l'historique revient au rechargement, la pastille de « Revues » compte les vrais messages non lus, et sur un téléphone (écran tactile de 390 px) la discussion est en haut de page, Entrée va à la ligne et le bouton envoie | ~2 min |
 | `05-modeles.mjs` | Le dialogue « Nouveau projet » offre « Projet vide » (choisi par défaut) et les cinq modèles de départ avec leur taille ; un projet créé depuis la tontine s'ouvre dans le Studio avec tous ses blocs ; sans modèle le canvas reste vide ; le projet du modèle se génère jusqu'à `DONE` avec ses entités | ~1 min |
+| `06-audit.mjs` | L'onglet « Audit » donne un score calculé sur le schéma (plus le score constant d'avant) ; « Passer à 2 répliques » fait disparaître le constat et monter le score de 10 points, et le résultat reste après rechargement ; le contraste de chaque texte de l'audit atteint AA en thème clair puis sombre (mesuré sur les couleurs affichées) ; à trois personnes, celle qui peut modifier voit le bouton de correction, celle en lecture seule ne l'a pas, et la correction de l'une arrive chez l'autre sans recharger ; un nom de bloc ouvre le tableau blanc ; un canvas vide n'a pas de score ; à 390 px la page ne déborde pas | ~1 min |
 
 ## Mesure de charge de la discussion
 
@@ -78,6 +79,19 @@ Sur un dépôt neuf, **le workflow échoue** à l'étape « Vérifier les secret
 résultat attendu, il prouve la chaîne. À faire une fois sur l'adresse de production (application OAuth de production), puis
 **supprimer le dépôt de test** (Settings, Delete this repository). Essai à blanc sans fenêtre : `E2E_HEADED=0
 E2E_LOGIN_TIMEOUT_SECONDS=8` (il s'arrête à l'écran de connexion).
+
+## Le mode démonstration (sans API)
+
+`manuel/mode-demonstration.mjs` vérifie l'onglet Audit du Studio quand l'interface tourne **sans API** (le repli de la démo si le
+backend ne démarre pas). Ce mode est fixé à la construction de l'interface : `npm run e2e` ne peut pas le couvrir. Il faut donc
+arrêter l'interface en mode API, la lancer avec `NEXT_PUBLIC_API_MODE=demo npm run dev` dans `frontend/`, puis :
+
+```bash
+cd e2e
+E2E_BASE_URL=http://localhost:3000 npm run demo-mode      # code de sortie 2 si l'interface n'est pas en mode démonstration
+```
+
+Il ne crée qu'une session simulée dans le navigateur (aucun serveur, aucun compte). Capture : `e2e/captures/mode-demonstration.png`.
 
 ## La vidéo de démonstration
 

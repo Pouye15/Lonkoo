@@ -9,6 +9,7 @@
     "list": "node run.mjs --list",
     "github-reel": "node manuel/github-reel.mjs",
     "demo-video": "node manuel/demo-video.mjs",
+    "demo-mode": "node manuel/mode-demonstration.mjs",
     "install-browser": "playwright-core install chromium",
     "charge": "node charge/discussion.mjs"
   },
