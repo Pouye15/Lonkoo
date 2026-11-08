@@ -189,6 +189,14 @@ final class DocsWriter {
         StringBuilder md = new StringBuilder();
         md.append("# ").append(Texts.markdown(model.displayName, 80)).append("\n\n");
         md.append("> Projet généré par LONKOO à partir d'un canvas d'architecture. Le code est un point de départ : ce qui reste à écrire est indiqué plus bas.\n\n");
+        md.append("## Sécurité : à lire avant de déployer\n\n");
+        md.append("**L'API générée n'a pas d'authentification** : toute personne qui connaît son adresse peut lire, créer, modifier ")
+                .append("et supprimer les données.");
+        if (!model.ofType("auth").isEmpty()) {
+            md.append(" Le bloc d'authentification du canvas est décrit dans la documentation, mais il n'est pas codé.");
+        }
+        md.append(" Avant de la mettre sur une adresse publique avec de vraies données, ajoutez l'authentification et changez les ")
+                .append("mots de passe (voir `.env.example`).\n\n");
         md.append("## Architecture\n\n```mermaid\n").append(flowchart()).append("```\n\n");
         md.append("Détail dans [docs/architecture](docs/architecture/architecture.md).\n\n");
 

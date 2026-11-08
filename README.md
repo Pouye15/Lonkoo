@@ -155,6 +155,7 @@ cd e2e && npm ci && npm run install-browser && npm run e2e   # parcours dans un 
 - Composants tiers et licences : [docs/LICENCES-TIERCES.md](docs/LICENCES-TIERCES.md)
 - Inventaire des composants livrés (SBOM CycloneDX) : [docs/sbom/](docs/sbom/README.md)
 - Usage de l'intelligence artificielle : [docs/IA.md](docs/IA.md)
+- Audit de sécurité avant le jury (vérifications, corrections, risques acceptés) : [docs/AUDIT-SECURITE.md](docs/AUDIT-SECURITE.md)
 - Modèles de départ (références consultées, choix, ce qui n'est pas vérifié) : [docs/MODELES-DE-DEPART.md](docs/MODELES-DE-DEPART.md)
 - Déclarations de soumission : [docs/DECLARATIONS-SOUMISSION.md](docs/DECLARATIONS-SOUMISSION.md)
 

@@ -710,6 +710,11 @@ class ProjectGeneratorTest {
         assertThat(project.warnings()).as("avertissements du générateur pour " + id).isEmpty();
         assertThat(project.files()).containsKeys("README.md", "docker-compose.yml", "openapi.yaml", "backend/pom.xml",
                 "docs/architecture/architecture.md", "docs/architecture/data-model.md", "docs/architecture/canvas.json");
+        // L'API générée est ouverte à tous : le README le dit avant toute chose, et dit que le bloc d'authentification n'est pas codé.
+        String readme = project.files().get("README.md");
+        assertThat(readme.indexOf("n'a pas d'authentification")).as("avertissement de sécurité de " + id).isPositive()
+                .isLessThan(readme.indexOf("## Démarrer"));
+        assertThat(readme).as("bloc d'authentification de " + id).contains("n'est pas codé");
 
         for (JsonNode node : snapshot.path("nodes")) {
             if (node.path("type").asText().equals("database")) {
