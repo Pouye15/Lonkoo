@@ -46,6 +46,36 @@ test('un ticket falsifié est refusé', async () => {
   const forged = `${header}.${Buffer.from('{"cid":"canvas-A"}').toString('base64url')}.${payload}`;
   await assert.rejects(() => verify(forged, 'canvas-A'));
 });
+test('un ticket signé avec le bon secret mais un autre algorithme est refusé', async () => {
+  const token = await new SignJWT({ sub: 'user-1', cid: 'canvas-A', role: 'WRITE' })
+    .setProtectedHeader({ alg: 'HS512' })
+    .setIssuer('lonkoo-backend')
+    .setAudience('lonkoo-realtime')
+    .setIssuedAt()
+    .setExpirationTime('5m')
+    .sign(key);
+  await assert.rejects(() => createTicketVerifier(secret)(token, 'canvas-A'));
+});
+
+test('un ticket expiré est refusé', async () => {
+  const past = Math.floor(Date.now() / 1000) - 600;
+  const token = await new SignJWT({ sub: 'user-1', cid: 'canvas-A', role: 'WRITE' })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuer('lonkoo-backend')
+    .setAudience('lonkoo-realtime')
+    .setIssuedAt(past)
+    .setExpirationTime(past + 300)
+    .sign(key);
+  await assert.rejects(() => createTicketVerifier(secret)(token, 'canvas-A'), /exp/);
+});
+
+test('un ticket sans signature (alg none) est refusé', async () => {
+  const encode = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
+  const now = Math.floor(Date.now() / 1000);
+  const unsigned = `${encode({ alg: 'none', typ: 'JWT' })}.${encode({ sub: 'user-1', cid: 'canvas-A', role: 'OWNER', iss: 'lonkoo-backend', aud: 'lonkoo-realtime', iat: now, exp: now + 300 })}.`;
+  await assert.rejects(() => createTicketVerifier(secret)(unsigned, 'canvas-A'));
+});
+
 test('le jeton de service est reconnu, tout le reste est refusé', () => {
   const hasServiceToken = createServiceTokenVerifier('un-jeton-de-service');
   assert.equal(hasServiceToken('Bearer un-jeton-de-service'), true);
