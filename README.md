@@ -25,6 +25,7 @@ Lonkoo est un studio collaboratif où une équipe de développeurs conçoit l'ar
 |---|---|
 | Studio collaboratif en temps réel (curseurs, présence, lecture seule), versions nommées, comparaison, restauration, exports Mermaid, JSON, SVG, PNG | Fait, testé |
 | Comptes (invité éphémère, GitHub), projets, équipe et rôles, liens de partage révocables, projets publics en lecture seule et galerie | Fait, testé |
+| Modèles de départ à la création d'un projet (marketplace, clinique, école, tontine, livraison de colis), chacun construit et démarré par la CI | Fait, testé |
 | Génération du projet, envoi sur GitHub, déploiement | Fait et testé contre un **faux GitHub**, puis essayé une fois contre le **vrai GitHub** le 25/10 (connexion, dépôt privé, envoi, lancement et suivi du workflow) ; **pas encore sur un serveur** : le workflow a échoué comme prévu, faute de serveur et de secrets |
 | Copilote IA (esquisse, complétion, audit) | Point de raccordement prêt (`AiClient`, trois routes validées) ; **l'agent reste à brancher**. `AI_PROVIDER=fake` renvoie des réponses figées étiquetées `demo`. L'onglet « Analyse IA » affiche des données de démonstration |
 | Discussion d'équipe : un fil par projet, lu et écrit par tous les membres (page Revues), qui se met à jour tout seul | Fait, testé |
@@ -153,6 +154,7 @@ cd e2e && npm ci && npm run install-browser && npm run e2e   # parcours dans un 
 - Composants tiers et licences : [docs/LICENCES-TIERCES.md](docs/LICENCES-TIERCES.md)
 - Inventaire des composants livrés (SBOM CycloneDX) : [docs/sbom/](docs/sbom/README.md)
 - Usage de l'intelligence artificielle : [docs/IA.md](docs/IA.md)
+- Modèles de départ (références consultées, choix, ce qui n'est pas vérifié) : [docs/MODELES-DE-DEPART.md](docs/MODELES-DE-DEPART.md)
 - Déclarations de soumission : [docs/DECLARATIONS-SOUMISSION.md](docs/DECLARATIONS-SOUMISSION.md)
 
 ## Licence

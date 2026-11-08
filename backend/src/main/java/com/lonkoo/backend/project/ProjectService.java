@@ -22,6 +22,7 @@ import com.lonkoo.backend.support.AuditService;
 import com.lonkoo.backend.support.UsageLimits;
 import com.lonkoo.backend.web.BadRequestException;
 import com.lonkoo.backend.web.CanvasResponse;
+import com.lonkoo.backend.canvas.TemplateCatalog;
 import com.lonkoo.backend.web.CreateProjectRequest;
 import com.lonkoo.backend.web.ForbiddenException;
 import com.lonkoo.backend.web.NotFoundException;
@@ -60,15 +61,18 @@ public class ProjectService {
     private final RealtimeSnapshotClient realtimeSnapshotClient;
     private final TransactionTemplate transactions;
     private final UsageLimits usageLimits;
+    private final TemplateCatalog templates;
 
     public ProjectService(JdbcClient jdbcClient, CanvasAccessService canvasAccessService, AuditService auditService,
-            RealtimeSnapshotClient realtimeSnapshotClient, TransactionTemplate transactions, UsageLimits usageLimits) {
+            RealtimeSnapshotClient realtimeSnapshotClient, TransactionTemplate transactions, UsageLimits usageLimits,
+            TemplateCatalog templates) {
         this.jdbcClient = jdbcClient;
         this.canvasAccessService = canvasAccessService;
         this.auditService = auditService;
         this.realtimeSnapshotClient = realtimeSnapshotClient;
         this.transactions = transactions;
         this.usageLimits = usageLimits;
+        this.templates = templates;
     }
 
     public List<ProjectResponse> listProjects(CurrentUser user) {
@@ -112,8 +116,18 @@ public class ProjectService {
                 .list();
     }
 
+    /**
+     * Crée le projet et son premier canvas. Sans {@code template}, le canvas est vide ; avec l'identifiant d'un modèle de
+     * départ (voir {@link TemplateCatalog}), il reçoit ce modèle, que le serveur temps réel charge à la première ouverture.
+     * Un modèle inconnu est refusé avant d'écrire quoi que ce soit.
+     */
     @Transactional
     public ProjectResponse createProject(CurrentUser user, CreateProjectRequest request) {
+        TemplateCatalog.Template template = null;
+        if (request.template() != null) {
+            template = templates.find(request.template())
+                    .orElseThrow(() -> new BadRequestException("Modèle inconnu : " + request.template()));
+        }
         usageLimits.requireRoomForProject(user);
         UUID projectId = UUID.randomUUID();
         UUID canvasId = UUID.randomUUID();
@@ -139,14 +153,17 @@ public class ProjectService {
                 .update();
 
         jdbcClient.sql("""
-                insert into canvases (id, project_id, name)
-                values (?, ?, 'Architecture')
+                insert into canvases (id, project_id, name, seed_snapshot)
+                values (?, ?, 'Architecture', ?::jsonb)
                 """)
                 .param(canvasId)
                 .param(projectId)
+                .param(template == null ? null : template.json())
                 .update();
 
-        auditService.record(user.id(), "project.created", "project:" + projectId, null);
+        // L'identifiant du modèle est vérifié par motif et existe dans le catalogue : il peut entrer dans le JSON tel quel.
+        auditService.record(user.id(), "project.created", "project:" + projectId,
+                template == null ? null : "{\"template\":\"" + template.id() + "\"}");
 
         return toResponse(requireProject(projectId));
     }

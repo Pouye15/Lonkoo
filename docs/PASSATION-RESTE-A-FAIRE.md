@@ -559,6 +559,7 @@ Les non-décisions encore ouvertes : fournisseur d'IA (`IA-1`) ; réponses de l'
 - **Dependabot ne lit son fichier que sur la branche par défaut** (`main`) : tant que la pull request n° 2 n'est pas fusionnée, il ne propose rien.
 - **Les migrations déjà appliquées ne changent jamais** : en ajouter une.
 - **Mots réservés** : la liste du backend (`ReservedWords.java`) et sa copie surveillée côté interface (`frontend/src/lib/reserved-words.ts`) doivent rester identiques (un test les compare).
+- **Disque plein dans un Codespace (32 Go)** : construire à la suite plusieurs projets générés (Maven et Node sous Docker) laisse environ 3 Go de cache et peut amener le disque à 0 octet libre (constaté le 07/11). Le PostgreSQL du projet généré reste alors « unhealthy » (`dependency failed to start`), sans autre message : ce n'est pas le projet. `df -h /` le montre ; `docker builder prune -a -f` puis la suppression des images `*-backend` et `*-frontend` du projet généré libèrent la place. Pour lancer un projet généré à côté de la pile de dev (qui occupe déjà 8080 et 3000) : `BACKEND_PORT=18080 FRONTEND_PORT=13000 docker compose up -d --build`, puis `python3 scripts/check_projet_genere.py --canvas docs/architecture/canvas.json --api http://localhost:18080 --front http://localhost:13000`.
 
 **Poste Windows (Git Bash)**
 - Les commandes du README valent pour Git Bash ; PowerShell a ses variantes. Il n'y a pas de `python3` sous Windows : `python`.

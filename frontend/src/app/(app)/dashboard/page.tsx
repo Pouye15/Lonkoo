@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -21,6 +21,8 @@ import { IS_LIVE_API, messageOf } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { initialsOf, useSession } from "@/lib/session";
 import { canChangeVisibility, visibilityHint } from "@/lib/public-projects";
+import { templateSize, templateToSend, type StarterTemplate } from "@/lib/templates";
+import { listTemplates } from "@/lib/templates-api";
 import { slugify, useWorkspace } from "@/lib/workspace";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
@@ -48,6 +50,24 @@ function NewProjectModal({ open, onClose }: { open: boolean; onClose: () => void
   const [visibility, setVisibility] = useState<"public" | "private">("private");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Mode API : les modèles de départ, chargés à l'ouverture du dialogue. `null` = projet vide.
+  const [templates, setTemplates] = useState<StarterTemplate[]>([]);
+  const [templatesError, setTemplatesError] = useState(false);
+  const [template, setTemplate] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open || !IS_LIVE_API || templates.length > 0) return;
+    const controller = new AbortController();
+    listTemplates(controller.signal)
+      .then((list) => {
+        setTemplates(list);
+        setTemplatesError(false);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setTemplatesError(true);
+      });
+    return () => controller.abort();
+  }, [open, templates.length]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -61,10 +81,12 @@ function NewProjectModal({ open, onClose }: { open: boolean; onClose: () => void
         visibility,
         stack: [],
         owner: { login: user.login, initials: initialsOf(user.displayName), name: user.displayName },
+        template: templateToSend(template, templates),
       });
       setName("");
       setDescription("");
       setVisibility("private");
+      setTemplate(null);
       onClose();
       router.push(`/studio?project=${created.slug}`);
     } catch (failure) {
@@ -137,6 +159,41 @@ function NewProjectModal({ open, onClose }: { open: boolean; onClose: () => void
             })}
           </div>
         </fieldset>
+
+        {IS_LIVE_API && (
+          <fieldset>
+            <legend className="mb-1.5 text-sm font-medium text-ink">Point de départ</legend>
+            <div role="radiogroup" aria-label="Point de départ" className="grid max-h-64 grid-cols-1 gap-2 overflow-y-auto pr-1">
+              {[{ id: null, name: "Projet vide", description: "Un tableau blanc : vous dessinez tout.", size: null }, ...templates.map((item) => ({ id: item.id as string | null, name: item.name, description: item.description, size: templateSize(item) }))].map((choice) => {
+                const selected = template === choice.id;
+                return (
+                  <button
+                    key={choice.id ?? "vide"}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => setTemplate(choice.id)}
+                    className={cn(
+                      "rounded-lg border p-3 text-left transition-colors",
+                      selected ? "border-accent bg-sunken ring-1 ring-accent" : "border-edge bg-surface hover:border-edge-strong",
+                    )}
+                  >
+                    <span className="flex items-center justify-between gap-3 text-sm font-semibold text-ink">
+                      <span>{choice.name}</span>
+                      {choice.size && <span className="shrink-0 font-mono text-[11px] font-medium text-ink-3">{choice.size}</span>}
+                    </span>
+                    <span className="mt-0.5 line-clamp-2 block text-xs text-ink-3">{choice.description}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {templatesError && (
+              <p role="status" className="mt-2 text-xs text-ink-3">
+                Les modèles n&apos;ont pas pu être chargés : le projet démarrera vide.
+              </p>
+            )}
+          </fieldset>
+        )}
 
         {error && (
           <p role="alert" className="rounded-lg border border-edge-strong bg-sunken px-3 py-2 text-sm text-ink">
