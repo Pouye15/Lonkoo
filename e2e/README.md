@@ -38,6 +38,7 @@ Contre un serveur en ligne : `E2E_BASE_URL=https://lonkoo.example.com npm run e2
 | `02-equipe-et-liens.mjs` | Liste de l'équipe, retrait d'un membre (sa connexion temps réel est coupée, son ancien ticket refusé), retour par un lien encore actif, révocation, départ volontaire | ~2 min |
 | `03-projets-publics.mjs` | Un projet public se lit en lecture seule ; le privé d'une autre personne est introuvable ; repasser en privé sort le visiteur et laisse le propriétaire connecté. La galerie n'est vérifiée que si un projet public de compte GitHub est indiqué (ci-dessous) | ~1 min |
 | `04-discussion.mjs` | Trois personnes d'un même projet (propriétaire, écriture, lecture seule du canvas) discutent dans la page Revues : les messages arrivent chez les autres sans recharger, la lecture seule du canvas n'empêche pas d'écrire, un texte avec des balises HTML s'affiche tel quel (aucun script ne s'exécute), l'historique revient au rechargement, la pastille de « Revues » compte les vrais messages non lus, et sur un téléphone (écran tactile de 390 px) la discussion est en haut de page, Entrée va à la ligne et le bouton envoie | ~2 min |
+| `05-modeles.mjs` | Le dialogue « Nouveau projet » offre « Projet vide » (choisi par défaut) et les cinq modèles de départ avec leur taille ; un projet créé depuis la tontine s'ouvre dans le Studio avec tous ses blocs ; sans modèle le canvas reste vide ; le projet du modèle se génère jusqu'à `DONE` avec ses entités | ~1 min |
 
 ## Mesure de charge de la discussion
 

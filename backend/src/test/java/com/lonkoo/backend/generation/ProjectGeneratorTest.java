@@ -31,6 +31,8 @@ import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.core.io.ClassPathResource;
 import org.w3c.dom.Document;
 import org.xml.sax.InputSource;
@@ -693,11 +695,58 @@ class ProjectGeneratorTest {
         assertThat(analyzeJava(project.files()).errors()).isEmpty();
     }
 
+    /**
+     * Chaque modèle de départ donne un projet complet, sans avertissement du générateur (un endpoint ignoré, par exemple) :
+     * une entité par table, la liste des tables dans la documentation, chaque endpoint dans le contrat OpenAPI, chaque
+     * page de l'interface, et aucun mot réservé dans le code.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"marketplace-mobile", "clinique-rendez-vous", "ecole-inscriptions", "tontine-numerique", "livraison-colis"})
+    void everyStartingTemplateGeneratesACompleteProject(String id) throws IOException {
+        JsonNode snapshot = json.readTree(new ClassPathResource("seed/" + id + ".canvas.json").getInputStream());
+
+        GeneratedProject project = generator.generate(snapshot, snapshot.path("meta").path("name").asText());
+
+        assertThat(project.warnings()).as("avertissements du générateur pour " + id).isEmpty();
+        assertThat(project.files()).containsKeys("README.md", "docker-compose.yml", "openapi.yaml", "backend/pom.xml",
+                "docs/architecture/architecture.md", "docs/architecture/data-model.md", "docs/architecture/canvas.json");
+
+        for (JsonNode node : snapshot.path("nodes")) {
+            if (node.path("type").asText().equals("database")) {
+                for (JsonNode entity : node.path("data").path("entities")) {
+                    String name = entity.path("name").asText();
+                    String className = java.util.Arrays.stream(name.split("_"))
+                            .map(part -> Character.toUpperCase(part.charAt(0)) + part.substring(1)).collect(java.util.stream.Collectors.joining());
+                    assertThat(project.files().keySet()).as("entité " + name + " de " + id)
+                            .anyMatch(path -> path.endsWith("/domain/" + className + ".java"));
+                    assertThat(project.files().get("backend/src/main/resources/db/migration/V1__schema_initial.sql"))
+                            .as("table " + name + " de " + id).contains("create table " + name);
+                }
+            }
+            if (node.path("type").asText().equals("service")) {
+                for (JsonNode endpoint : node.path("data").path("endpoints")) {
+                    String path = endpoint.path("path").asText();
+                    assertThat(project.files().get("openapi.yaml")).as("endpoint " + path + " de " + id)
+                            .containsAnyOf("  " + path + ":", "  \"" + path + "\":");
+                }
+            }
+            if (node.path("type").asText().equals("webapp")) {
+                for (JsonNode page : node.path("data").path("pages")) {
+                    assertThat(project.files().keySet()).as("page " + page.asText() + " de " + id)
+                            .anyMatch(path -> path.contains("/" + page.asText() + "/page."));
+                }
+            }
+        }
+    }
+
     @Test
     void dumpForInspection() throws IOException {
         String target = System.getProperty("lonkoo.generator.dump");
         assumeTrue(target != null, "propriété lonkoo.generator.dump absente");
-        GeneratedProject project = generator.generate(example(), "Marketplace mobile");
+        // Par défaut le modèle d'exemple ; la CI en construit un autre avec -Dlonkoo.generator.template=<identifiant>.
+        String template = System.getProperty("lonkoo.generator.template", "marketplace-mobile");
+        JsonNode snapshot = json.readTree(new ClassPathResource("seed/" + template + ".canvas.json").getInputStream());
+        GeneratedProject project = generator.generate(snapshot, snapshot.path("meta").path("name").asText("Projet"));
         for (Map.Entry<String, String> file : project.files().entrySet()) {
             Path path = Path.of(target).resolve(file.getKey());
             Files.createDirectories(path.getParent());

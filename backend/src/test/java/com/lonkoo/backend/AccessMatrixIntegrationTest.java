@@ -119,7 +119,7 @@ class AccessMatrixIntegrationTest extends AbstractPostgresIntegrationTest {
                 failures.add(route.name() + " : " + response.getStatus());
             }
         }
-        for (String path : List.of("/api/me", "/api/projects")) {
+        for (String path : List.of("/api/me", "/api/projects", "/api/templates")) {
             int status = mockMvc.perform(get(path)).andReturn().getResponse().getStatus();
             if (status != 401) {
                 failures.add(path + " : " + status);
