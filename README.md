@@ -26,8 +26,9 @@ Lonkoo est un studio collaboratif où une équipe de développeurs conçoit l'ar
 | Studio collaboratif en temps réel (curseurs, présence, lecture seule), versions nommées, comparaison, restauration, exports Mermaid, JSON, SVG, PNG | Fait, testé |
 | Comptes (invité éphémère, GitHub), projets, équipe et rôles, liens de partage révocables, projets publics en lecture seule et galerie | Fait, testé |
 | Modèles de départ à la création d'un projet (marketplace, clinique, école, tontine, livraison de colis), chacun construit et démarré par la CI | Fait, testé |
+| Audit d'architecture par règles (onglet « Audit » du Studio : 10 règles, trois gravités, score calculé sur le schéma, une correction applicable en un clic) | Fait, testé |
 | Génération du projet, envoi sur GitHub, déploiement | Fait et testé contre un **faux GitHub**, puis essayé une fois contre le **vrai GitHub** le 25/10 (connexion, dépôt privé, envoi, lancement et suivi du workflow) ; **pas encore sur un serveur** : le workflow a échoué comme prévu, faute de serveur et de secrets |
-| Copilote IA (esquisse, complétion, audit) | Point de raccordement prêt (`AiClient`, trois routes validées) ; **l'agent reste à brancher**. `AI_PROVIDER=fake` renvoie des réponses figées étiquetées `demo`. L'onglet « Analyse IA » affiche des données de démonstration |
+| Copilote IA (esquisse, complétion, audit) | Point de raccordement prêt (`AiClient`, trois routes validées) ; **l'agent reste à brancher**. `AI_PROVIDER=fake` renvoie des réponses figées étiquetées `demo`. Les suggestions de l'IA, sous l'onglet « Audit », sont des données de démonstration |
 | Discussion d'équipe : un fil par projet, lu et écrit par tous les membres (page Revues), qui se met à jour tout seul | Fait, testé |
 | Communauté : profils, revues, commentaires, Fork | Maquette (seule la galerie publique est réelle) |
 | Mise en ligne (compose de production, Caddy, pipeline, sauvegarde) | Écrite et répétée hors serveur (dossier `infra/`, `docs/DEPLOIEMENT.md`) ; **le serveur reste à acheter et à régler** |

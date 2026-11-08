@@ -8,8 +8,10 @@ import { cn } from "@/lib/cn";
 import { useWorkspace } from "@/lib/workspace";
 import { useProjectGraph } from "@/lib/project-graph";
 import { IS_LIVE_API, type ApiRole } from "@/lib/api";
+import { auditArchitecture, type Finding } from "@/lib/audit";
 import { ArchitectureWhiteboard } from "@/components/studio/ArchitectureWhiteboard";
 import { ExportDialog } from "@/components/studio/ExportDialog";
+import { AuditPanel } from "@/components/studio/AuditPanel";
 import { CanvasGate } from "@/components/studio/live/CanvasGate";
 import { LiveTeamPanel } from "@/components/studio/live/LiveTeamPanel";
 import { ShareDialog } from "@/components/studio/live/ShareDialog";
@@ -178,7 +180,16 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
   const [requireTwoApprovals, setRequireTwoApprovals] = useState<boolean>(true);
   const [requireAiCheck, setRequireAiCheck] = useState<boolean>(true);
 
-  const aiHealthScore = Math.min(100, 86 + appliedSuggestionIds.length * 5);
+  // Audit par règles : le score et les constats viennent du schéma dessiné (lib/audit.ts), jamais du nombre de clics.
+  const report = auditArchitecture(nodes, edges);
+  // Les suggestions de démonstration de l'IA ne valent que pour un bloc qui existe dans ce projet.
+  const demoSuggestions = AI_SUGGESTIONS.filter((sug) => nodes.some((node) => node.id === sug.targetNodeId));
+
+  const applyAuditFix = (finding: Finding) => {
+    const fix = finding.autofix;
+    if (!fix) return;
+    setNodes((prev) => prev.map((node) => (node.id === fix.nodeId ? { ...node, replicas: fix.replicas } : node)));
+  };
 
   const applySuggestion = (sugId: string) => {
     const sug = AI_SUGGESTIONS.find((s) => s.id === sugId);
@@ -220,7 +231,7 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
             : `Synthèse de la topologie : Le graphe contient ${nodes.length} briques actives (${stackSummary}).`,
           highlights: [
             `${nodes.length} composants présents dans le graphe`,
-            `Score de cohérence évalué à ${aiHealthScore}%`,
+            `Audit par règles : ${report.score === null ? "rien à auditer" : `${report.score}/100`}`,
             `Synchronisé avec le dépôt ${currentProject.githubRepo}`,
           ],
         },
@@ -393,7 +404,7 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
               { id: "canvas", label: "Architecture", icon: SlidersHorizontal },
               {
                 id: "scanner",
-                label: `Analyse IA (${AI_SUGGESTIONS.length - appliedSuggestionIds.length})`,
+                label: `Audit (${report.findings.length})`,
                 icon: Cpu,
               },
               { id: "simulator", label: "Simulateur", icon: ChartLineUp },
@@ -472,38 +483,32 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
           </div>
         )}
 
-        {/* ONGLET 2 : ANALYSE IA */}
+        {/* ONGLET 2 : AUDIT PAR RÈGLES, puis suggestions de démonstration de l'IA */}
         {activeTab === "scanner" && (
           <div className="space-y-4">
-            <div className="bg-surface rounded-xl p-5 border border-edge flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-base font-bold text-ink">
-                  Diagnostic de topologie et recommandations
-                </h2>
+            <AuditPanel
+              audit={report}
+              nodes={nodes}
+              edgeCount={edges.length}
+              canFix={!live?.readOnly}
+              onShow={(nodeId) => {
+                setSelectedNodeId(nodeId);
+                setActiveTab("canvas");
+              }}
+              onFix={applyAuditFix}
+            />
+
+            {demoSuggestions.length > 0 && (
+              <div className="px-1 pt-2">
+                <h2 className="text-sm font-bold text-ink">Suggestions de l&apos;IA</h2>
                 <p className="text-xs text-ink-3 mt-0.5">
-                  Analyse des {nodes.length} blocs du projet {currentProject.name}.
+                  Exemples de démonstration : l&apos;IA n&apos;est pas encore branchée. Elles ne changent pas le score.
                 </p>
               </div>
+            )}
 
-              <div className="flex items-center gap-4 bg-sunken px-4 py-2.5 rounded-lg border border-edge">
-                <div>
-                  <div className="text-[11px] text-ink-3">Score de cohérence</div>
-                  <div className="text-xl font-bold font-mono text-ink">
-                    {aiHealthScore}%
-                  </div>
-                </div>
-                <div className="h-7 w-px bg-strong" />
-                <div>
-                  <div className="text-[11px] text-ink-3">Correctifs</div>
-                  <div className="text-sm font-bold font-mono text-accent">
-                    {appliedSuggestionIds.length} / {AI_SUGGESTIONS.length}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3">
-              {AI_SUGGESTIONS.map((sug) => {
+            <div className="grid grid-cols-1 gap-3 empty:hidden">
+              {demoSuggestions.map((sug) => {
                 const isApplied = appliedSuggestionIds.includes(sug.id);
                 return (
                   <div

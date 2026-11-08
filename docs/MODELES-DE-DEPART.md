@@ -11,6 +11,8 @@ domaine ni un avis juridique** (voir « Ce qui n'a pas été fait »).
 
 ## Choix communs aux quatre modèles
 
+L'onglet « Audit » du Studio applique aussi trois de ces règles à n'importe quel canvas (paiement sans référence unique, entité qu'aucune route ne crée, SMS hors limite) : `frontend/src/lib/audit.ts`.
+
 | Sujet | Choix | Pourquoi |
 |---|---|---|
 | Montants en francs CFA | Type `long`, en francs | Dans la liste ISO 4217, le franc CFA (XOF, comme le XAF) a 0 décimale : un montant à virgule n'a pas de sens et aucun opérateur ne le traitera. Le modèle marketplace garde `decimal` pour `prix` et `total` (c'est l'exemple du contrat, non modifié). |
