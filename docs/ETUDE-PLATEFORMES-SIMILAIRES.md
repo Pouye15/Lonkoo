@@ -45,10 +45,10 @@
 | Constat | Détail vérifié | Conséquence |
 |---|---|---|
 | Le **score de l'« Analyse IA » n'est pas calculé** | `aiHealthScore = min(100, 86 + 5 × suggestions appliquées)` dans `studio/page.tsx` ; les suggestions viennent d'une liste fixe | Un score de 86 est affiché pour n'importe quel schéma. Contraire à la règle « aucune donnée inventée présentée comme réelle » du front. **Corrigé le 8 novembre 2026 (A1).** |
-| Le **simulateur** ne suit pas le graphe | Chaque bloc reçoit le même débit global (`simulatedRps / maxRpsCapacity`) ; les liens ne servent pas | Un goulot en aval n'est jamais vu comme la conséquence d'un amont |
+| Le **simulateur** ne suit pas le graphe | Chaque bloc reçoit le même débit global (`simulatedRps / maxRpsCapacity`) ; les liens ne servent pas | Un goulot en aval n'est jamais vu comme la conséquence d'un amont. **L'onglet dit désormais que le modèle est simplifié (13 novembre 2026) ; le rendre réel (A2) reste à faire.** |
 | L'**envoi sur GitHub est unique** | `PublicationService` répond « Ce projet est déjà envoyé sur GitHub » | Après un changement du schéma, impossible de mettre à jour le dépôt : il faut tout refaire |
 | Le **projet généré n'a aucun test** | Aucun `src/test` ni dépendance de test dans les écrivains du générateur | Le jury qui ouvre le dépôt généré ne voit pas de test |
-| L'onglet **Documentation** de l'interface est une maquette | Il affiche des sections fixes (`AI_DOC_SECTIONS`) ; « Actualiser » fabrique un texte local après une attente simulée (`setTimeout`). La vraie documentation n'existe que dans le dépôt généré | L'interface montre autre chose que ce que le dépôt contiendra |
+| L'onglet **Documentation** de l'interface est une maquette | Il affiche des sections fixes (`AI_DOC_SECTIONS`) ; « Actualiser » fabrique un texte local après une attente simulée (`setTimeout`). La vraie documentation n'existe que dans le dépôt généré | L'interface montre autre chose que ce que le dépôt contiendra. **Corrigé le 13 novembre 2026 : l'onglet affiche un aperçu calculé à partir du schéma (`lib/doc-preview.ts`) ; la documentation complète reste celle du dépôt généré (A3, en partie).** |
 | Pas de **commentaires ancrés**, de **copie** d'un canvas, de **modèles** | Déjà dans « à couper » du backlog | Fonctions présentes chez tous les concurrents de la famille collaborative |
 
 ## 4. Fonctions candidates, avec les preuves du marché

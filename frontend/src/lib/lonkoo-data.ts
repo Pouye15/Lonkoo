@@ -162,15 +162,6 @@ export interface AISuggestion {
   };
 }
 
-export interface AIDocSection {
-  id: string;
-  title: string;
-  badge: string;
-  lastGenerated: string;
-  content: string;
-  highlights: string[];
-}
-
 export interface ForkableModule {
   id: string;
   name: string;
@@ -580,48 +571,6 @@ export const ARCHITECTURE_VERSIONS: ArchitectureVersion[] = [
       "Création de la topologie de base : Passerelle, Auth, Service Métier et PostgreSQL",
     ],
     stackDelta: "Initial Release",
-  },
-];
-
-export const AI_DOC_SECTIONS: AIDocSection[] = [
-  {
-    id: "doc-overview",
-    title: "1. Vue d'ensemble & Topologie du Système",
-    badge: "Synchronisé v2.4.0",
-    lastGenerated: "Mis à jour automatiquement il y a 4 min",
-    content:
-      "L'architecture repose sur une topologie orientée événements (Event-Driven Microservices) conçue pour absorber des pics transactionnels élevés tout en maintenant une latence p95 inférieure à 10 ms. Le trafic entrant traverse la passerelle Kong v3.7 qui délègue la validation d'identité à Keycloak v25 avant d'acheminer les appels gRPC et HTTP/3 vers le Moteur Métier écrit en Go.",
-    highlights: [
-      "Isolation stricte entre le plan de contrôle d'identité (OIDC) et le plan transactionnel",
-      "Communication synchrone en gRPC sur le chemin critique et asynchrone via Redpanda",
-      "État de session externalisé dans Valkey v7.2 pour garantir l'élasticité horizontale",
-    ],
-  },
-  {
-    id: "doc-adr",
-    title: "2. Architecture Decision Records (ADR-004)",
-    badge: "Généré par IA",
-    lastGenerated: "Validé lors de la PR #42",
-    content:
-      "Contexte : Les pics d'écriture directe dans PostgreSQL lors des traitements par lots provoquaient une contention des verrous. Décision : Introduire un bus Redpanda (compatible Kafka sans JVM) en amont des traitements secondaires et activer PgBouncer en mode transaction. Conséquence : Capacité d'ingestion multipliée par 2,8 sans perte de cohérence éventuelle.",
-    highlights: [
-      "Statut ADR-004 : Accepté et lié au tag Git v2.4.0",
-      "Alternative écartée : RabbitMQ (latence plus élevée sur la relecture d'historique)",
-      "Plan de rollback : Bascule par feature-flag sur écriture directe synchrone",
-    ],
-  },
-  {
-    id: "doc-contracts",
-    title: "3. Matrice de Stack & Contrats d'Interface",
-    badge: "OpenAPI 3.1 & Proto",
-    lastGenerated: "Prêt pour MCP & Orion",
-    content:
-      "Chaque nœud du graphe expose un contrat formel versionné avec l'architecture. Les agents IA connectés via le serveur MCP LONKOO ou le constructeur Orion utilisent directement ces spécifications pour générer les routes, les schémas de migration SQL et les clients typés.",
-    highlights: [
-      "Passerelle Edge : OpenAPI 3.1.0 (/v2/transactions, /v2/webhooks)",
-      "Moteur Métier : Protobuf v3 (service OrchestratorService)",
-      "Persistance : Schéma SQL déclaratif + migrations Prisma / SQLx générées",
-    ],
   },
 ];
 

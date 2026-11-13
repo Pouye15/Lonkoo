@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
@@ -9,6 +9,8 @@ import { useWorkspace } from "@/lib/workspace";
 import { useProjectGraph } from "@/lib/project-graph";
 import { IS_LIVE_API, type ApiRole } from "@/lib/api";
 import { auditArchitecture, type Finding } from "@/lib/audit";
+import { toMermaid } from "@/lib/canvas-export";
+import { GENERATED_DOC_FILES, buildDocSections } from "@/lib/doc-preview";
 import { ArchitectureWhiteboard } from "@/components/studio/ArchitectureWhiteboard";
 import { ExportDialog } from "@/components/studio/ExportDialog";
 import { AuditPanel } from "@/components/studio/AuditPanel";
@@ -19,11 +21,9 @@ import { VersionsPanel } from "@/components/studio/live/VersionsPanel";
 import {
   AI_SUGGESTIONS,
   ARCHITECTURE_VERSIONS,
-  AI_DOC_SECTIONS,
   COMMUNITY_ARCHITECTS,
   DEFAULT_PROJECT_TEAMS,
   type ArchitectureVersion,
-  type AIDocSection,
   type GitHubRole,
   type ProjectCollaborator,
   type ProjectTeamGroup,
@@ -39,7 +39,6 @@ import {
   Sparkle,
   PlugsConnected,
   Users,
-  ArrowsClockwise,
   GitPullRequest,
   GithubLogo,
   FloppyDisk,
@@ -131,9 +130,9 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
 
   const [simulatedRps, setSimulatedRps] = useState<number>(8500);
 
-  const [docSections, setDocSections] = useState<AIDocSection[]>(AI_DOC_SECTIONS);
-  const [isGeneratingDoc, setIsGeneratingDoc] = useState<boolean>(false);
-  const [customDocPrompt, setCustomDocPrompt] = useState<string>("");
+  // Aperçu de la documentation : calculé à partir du schéma, sans texte fixe (voir lib/doc-preview.ts).
+  const docSections = useMemo(() => buildDocSections(nodes, edges), [nodes, edges]);
+  const mermaidCode = useMemo(() => toMermaid(nodes, edges), [nodes, edges]);
 
   const [versions, setVersions] = useState<ArchitectureVersion[]>(ARCHITECTURE_VERSIONS);
   const [newTagInput, setNewTagInput] = useState<string>("");
@@ -212,34 +211,6 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
     );
     setAppliedSuggestionIds((prev) => [...prev, sugId]);
     setSelectedNodeId(sug.targetNodeId);
-  };
-
-  const handleRegenerateDocs = () => {
-    setIsGeneratingDoc(true);
-    setTimeout(() => {
-      const stackSummary = nodes
-        .map((n) => (n.tech ? `${n.title} (${n.tech} ${n.version})` : n.title))
-        .join(", ");
-      setDocSections((prev) => [
-        {
-          id: `doc-auto-${Date.now()}`,
-          title: `Mise à jour de la topologie${versions[0] ? ` (${versions[0].versionTag})` : ""}`,
-          badge: "À jour",
-          lastGenerated: "À l'instant",
-          content: customDocPrompt.trim()
-            ? `Note d'architecture (${customDocPrompt}) : L'architecture comporte ${nodes.length} composants (${stackSummary}).`
-            : `Synthèse de la topologie : Le graphe contient ${nodes.length} briques actives (${stackSummary}).`,
-          highlights: [
-            `${nodes.length} composants présents dans le graphe`,
-            `Audit par règles : ${report.score === null ? "rien à auditer" : `${report.score}/100`}`,
-            `Synchronisé avec le dépôt ${currentProject.githubRepo}`,
-          ],
-        },
-        ...prev,
-      ]);
-      setCustomDocPrompt("");
-      setIsGeneratingDoc(false);
-    }, 350);
   };
 
   const handleCreateVersion = (e: React.FormEvent) => {
@@ -580,6 +551,9 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
                   <p className="text-xs text-ink-3 mt-0.5">
                     Ajustez le trafic entrant pour tester les limites de chaque composant.
                   </p>
+                  <p className="text-xs text-ink-3 mt-1">
+                    Modèle simplifié : chaque bloc reçoit tout le trafic, sans suivre les liens, et sa capacité et sa latence sont des valeurs de départ propres à son type, pas des mesures.
+                  </p>
                 </div>
 
                 <div className="bg-sunken border border-edge rounded-lg px-4 py-2 text-right">
@@ -696,69 +670,49 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
           </div>
         )}
 
-        {/* ONGLET 4 : DOCUMENTATION */}
+        {/* ONGLET 4 : DOCUMENTATION (aperçu calculé à partir du schéma, rien d'inventé) */}
         {activeTab === "docs" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
             <div className="lg:col-span-8 space-y-4">
               {docSections.map((sec) => (
-                <div
-                  key={sec.id}
-                  className="bg-surface rounded-xl p-5 border border-edge"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-edge-soft mb-3">
-                    <h3 className="text-sm font-bold text-ink">{sec.title}</h3>
-                    <span className="text-[11px] text-ink-4 font-mono">
-                      {sec.lastGenerated}
-                    </span>
-                  </div>
-                  <p className="text-xs sm:text-sm text-ink-2 leading-relaxed mb-4">
-                    {sec.content}
-                  </p>
-                  <ul className="space-y-1.5 bg-sunken p-3.5 rounded-lg border border-edge text-xs text-ink-2">
-                    {sec.highlights.map((h) => (
-                      <li key={h} className="flex items-start gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-brand mt-1.5 flex-shrink-0" />
-                        <span>{h}</span>
-                      </li>
-                    ))}
-                  </ul>
+                <div key={sec.id} className="bg-surface rounded-xl p-5 border border-edge">
+                  <h3 className="text-sm font-bold text-ink pb-3 border-b border-edge-soft mb-3">{sec.title}</h3>
+                  <p className="text-xs sm:text-sm text-ink-2 leading-relaxed">{sec.summary}</p>
+                  {sec.items.length > 0 && (
+                    <ul className="mt-4 space-y-1.5 bg-sunken p-3.5 rounded-lg border border-edge text-xs text-ink-2">
+                      {sec.items.map((item, index) => (
+                        <li key={`${sec.id}-${index}`} className="flex items-start gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-brand mt-1.5 flex-shrink-0" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               ))}
+
+              <div className="bg-surface rounded-xl p-5 border border-edge">
+                <h3 className="text-sm font-bold text-ink pb-3 border-b border-edge-soft mb-3">Schéma Mermaid</h3>
+                <pre className="bg-sunken p-3.5 rounded-lg border border-edge text-xs font-mono text-ink-2 overflow-x-auto">
+                  {mermaidCode}
+                </pre>
+              </div>
             </div>
 
             <div className="lg:col-span-4">
               <div className="bg-surface rounded-xl p-5 border border-edge">
-                <h3 className="text-sm font-bold text-ink mb-1">
-                  Génération documentaire
-                </h3>
-                <p className="text-xs text-ink-3 leading-relaxed mb-4">
-                  Mettez à jour la documentation technique et les décisions d&apos;architecture (ADR) selon l&apos;état actuel du graphe.
+                <h3 className="text-sm font-bold text-ink mb-1">Dans le dépôt généré</h3>
+                <p className="text-xs text-ink-3 leading-relaxed mb-3">
+                  Cet aperçu est calculé à partir du schéma. La génération du projet écrit ces fichiers :
                 </p>
-
-                <label className="block text-xs font-medium text-ink-2 mb-1.5">
-                  Instruction spécifique
-                </label>
-                <textarea
-                  rows={3}
-                  value={customDocPrompt}
-                  onChange={(e) => setCustomDocPrompt(e.target.value)}
-                  placeholder="Préciser un point d'architecture à documenter..."
-                  className="w-full px-3 py-2 rounded-lg bg-sunken border border-edge text-xs text-ink mb-3 focus:outline-none focus:border-accent focus:bg-surface"
-                />
-
-                <button
-                  type="button"
-                  disabled={isGeneratingDoc}
-                  onClick={handleRegenerateDocs}
-                  className="w-full py-2 rounded-lg bg-brand hover:bg-brand-hover text-white text-xs font-medium flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-60"
-                >
-                  <ArrowsClockwise
-                    size={14}
-                    weight="bold"
-                    className={isGeneratingDoc ? "animate-spin" : ""}
-                  />
-                  <span>{isGeneratingDoc ? "Génération..." : "Actualiser la documentation"}</span>
-                </button>
+                <ul className="space-y-2">
+                  {GENERATED_DOC_FILES.map((file) => (
+                    <li key={file.path}>
+                      <span className="block text-xs font-mono text-ink break-all">{file.path}</span>
+                      <span className="block text-[11px] text-ink-3">{file.detail}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           </div>
