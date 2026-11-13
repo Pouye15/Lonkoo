@@ -15,7 +15,7 @@
   "dependencies": {
     "@hocuspocus/server": "4.8.0",
     "jose": "6.2.15",
-    "ws": "8.22.1",
+    "ws": "8.22.2",
     "yjs": "13.6.33"
   },
   "devDependencies": {
