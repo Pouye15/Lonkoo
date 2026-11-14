@@ -6,7 +6,7 @@ Mise à jour obligatoire à chaque nouvelle dépendance, dans la même pull requ
 
 ## 1. Composants utilisés
 
-La colonne « Vérifié » se coche seulement après avoir lu la licence dans le dépôt ou le paquet du composant, et pas seulement ce tableau. Les licences indiquées sont à confirmer à la source avant de cocher « Vérifié ».
+La colonne « Vérifié » se coche seulement après avoir lu la licence dans le dépôt ou le paquet du composant, et pas seulement ce tableau. Pour les composants Python, elle a été relevée le 14/11/2026 dans le paquet installé de la version exacte épinglée (expression SPDX `License-Expression`, classifieur `License ::` ou champ `License` des métadonnées), et inscrite en fin de ligne dans `agent_ia/requirements.lock` ; `jsonschema`, `jsonschema-specifications` et `referencing` ne livrent pas de fichier de licence dans leur distribution : leur licence vient de l'expression SPDX de leurs métadonnées. Les licences indiquées sont à confirmer à la source avant de cocher « Vérifié ».
 
 | Composant | Version | Licence | Permissive ? | Usage | Source | Vérifié |
 |---|---|---|---|---|---|---|
@@ -37,6 +37,25 @@ La colonne « Vérifié » se coche seulement après avoir lu la licence dans le
 | Nimbus JOSE + JWT | 10.9.1 | Apache 2.0 | Oui | Signature des tickets temps réel | Maven | [x] |
 | zonky embedded-postgres (et binaires PostgreSQL 14) | 2.2.2 | Apache 2.0 (binaires : licence PostgreSQL) | Oui | Tests du backend uniquement, jamais livré | Maven | [x] |
 | PostgreSQL | 16 | Licence PostgreSQL | Oui | Base de données | Docker | [ ] |
+| **Microservice `agent_ia` (Python)** — les lignes suivantes sont la fermeture complète de `agent_ia/requirements.lock`, c'est-à-dire exactement ce qu'installe l'image (`pip install --no-deps`) | | | | | | |
+| FastAPI | 0.115.8 | MIT | Oui | Microservice IA (routes) | PyPI | [x] |
+| Starlette (dépendance de FastAPI) | 0.45.3 | BSD-3-Clause | Oui | Microservice IA | PyPI | [x] |
+| Uvicorn (sans l'extra `standard`, voir section 2) | 0.34.0 | BSD-3-Clause | Oui | Serveur ASGI du microservice IA | PyPI | [x] |
+| httpx | 0.28.1 | BSD-3-Clause | Oui | Appels au fournisseur d'IA | PyPI | [x] |
+| httpcore (dépendance de httpx) | 1.0.9 | BSD-3-Clause | Oui | Microservice IA | PyPI | [x] |
+| h11 (dépendance de httpcore et d'uvicorn) | 0.16.0 | MIT | Oui | Microservice IA | PyPI | [x] |
+| certifi (dépendance de httpx) | 2026.10.23 | **MPL-2.0** | À part : copyleft par fichier, voir section 2 | Magasin de certificats TLS | PyPI | [x] |
+| idna (dépendance de httpx et d'anyio) | 3.20 | BSD-3-Clause | Oui | Microservice IA | PyPI | [x] |
+| anyio (dépendance de Starlette et httpx) | 4.15.1 | MIT | Oui | Microservice IA | PyPI | [x] |
+| click (dépendance d'uvicorn) | 8.5.0 | BSD-3-Clause | Oui | Microservice IA | PyPI | [x] |
+| Pydantic | 2.13.4 | MIT | Oui | Formes d'entrée et de sortie du microservice IA | PyPI | [x] |
+| pydantic-core | 2.46.4 | MIT | Oui | Microservice IA | PyPI | [x] |
+| annotated-types, typing-inspection (dépendances de Pydantic) | 0.7.0, 0.4.2 | MIT | Oui | Microservice IA | PyPI | [x] |
+| typing-extensions | 4.16.0 | PSF-2.0 (licence de la Python Software Foundation, permissive, sans réciprocité) | Oui | Microservice IA | PyPI | [x] |
+| jsonschema | 4.26.0 | MIT | Oui | Validation du contrat du canvas dans le microservice IA | PyPI | [x] |
+| jsonschema-specifications, referencing (dépendances de jsonschema) | 2025.9.1, 0.37.0 | MIT | Oui | Microservice IA | PyPI | [x] |
+| attrs, rpds-py (dépendances de jsonschema) | 25.1.0, 0.30.0 | MIT | Oui | Microservice IA | PyPI | [x] |
+| pytest (`agent_ia/requirements-dev.txt`) | 8.3.x | MIT | Oui | Tests du microservice IA uniquement, jamais livré (absent de l'image et du SBOM) | PyPI | [x] |
 | [Bibliothèque d'icônes] | [x] | [à vérifier] | [ ] | Icônes | [ ] | [ ] |
 | | | | | | | |
 
@@ -52,6 +71,8 @@ La colonne « Vérifié » se coche seulement après avoir lu la licence dans le
 | spring-session-core, spring-session-jdbc 4.1.1 | Le POM déclare « Broadcom Foundation License », un nom que le contrôle ne reconnaît pas et qui ne renvoie à aucun texte | Vérifié le 2026-10-25 : `META-INF/LICENSE.txt` de chaque jar est le texte intégral de la licence Apache 2.0 ; le même éditeur déclare Apache 2.0 pour les autres bibliothèques Spring. Consigné comme exception dans `scripts/check_licenses_maven.py`. À confirmer avec l'organisateur si le doute persiste (il suffirait alors de retirer `spring-boot-starter-session-jdbc` : sessions en mémoire, à nouveau) |
 | tldraw | Licence propre, clé exigée en production | Ne pas utiliser |
 | PlantUML | Plusieurs licences au choix, la version GPL est la plus complète | Si utilisé, télécharger la version MIT ou Apache |
+| certifi (dépendance de httpx, microservice `agent_ia`) | MPL-2.0 : copyleft **par fichier**, absent de la liste permissive de l'article 6 (MIT, Apache 2.0, BSD) mais absent aussi de la liste rédhibitoire (GPL, AGPL, LGPL) | Déclaré et toléré par exception : le paquet n'est qu'un magasin de certificats TLS, livré tel quel et jamais modifié, donc la réciprocité par fichier ne touche aucun fichier du projet. Exception inscrite dans `scripts/check_licenses_python.py` (`EXCEPTIONS`), qui échoue si une autre dépendance arrive en MPL. À confirmer avec l'organisateur (voir QUESTIONS-ORGANISATEUR.md). Remplaçable en dernier recours par le magasin de certificats du système (`httpx` accepte un contexte SSL fourni) |
+| uvicorn, extra `[standard]` | L'extra tirait six dépendances inutiles au service (websockets, python-dotenv, PyYAML, httptools, watchfiles) et `uvloop`, qui n'existe pas sous Windows mais entre dans l'image Linux : la fermeture des dépendances dépendait donc de la plateforme, et le SBOM n'était pas reproductible | Fait le 14/11/2026 : `uvicorn` sans extra dans `agent_ia/requirements.txt`, fermeture figée dans `agent_ia/requirements.lock` (20 composants, identique sur toute plateforme), installée par l'image avec `--no-deps`. Vérifié : installation du verrou seul dans un environnement vide, 65 tests du service au vert |
 | Jakarta EE (certaines API) | Double licence EPL 2.0 ou GPL 2 avec exception Classpath | Vérifier dans le rapport de licences |
 
 ## 3. Assets (icônes, polices, images)
@@ -72,7 +93,7 @@ Le règlement permet d'intégrer du code appartenant à un membre de l'équipe e
 
 ## 5. Vérification automatique
 
-La CI (`.github/workflows/ci.yml`) contrôle de façon bloquante les licences npm et celles des dépendances d'exécution Maven (`scripts/check_licenses_maven.py` : refus d'une licence GPL, AGPL ou LGPL sans alternative permissive, exceptions documentées dans le script) ; le rapport complet du plugin Maven reste informatif. Lancer aussi à la main avant la soumission :
+La CI (`.github/workflows/ci.yml`) contrôle de façon bloquante les licences npm, celles des dépendances d'exécution Maven et celles des dépendances livrées par le microservice IA (`scripts/check_licenses_python.py`, qui lit `agent_ia/requirements.lock` : il refuse une licence hors de la liste permissive, une ligne sans licence ou une version non épinglée, et nomme comme rédhibitoire toute licence GPL, AGPL ou LGPL) (`scripts/check_licenses_maven.py` : refus d'une licence GPL, AGPL ou LGPL sans alternative permissive, exceptions documentées dans le script) ; le rapport complet du plugin Maven reste informatif. Lancer aussi à la main avant la soumission :
 
 Les inventaires des composants livrés (SBOM CycloneDX, un par morceau) sont dans [sbom/](sbom/README.md) : `python3 scripts/make_sbom.py` les régénère, la CI vérifie qu'ils sont à jour et complets. Les deux outils qui les produisent, `cyclonedx-maven-plugin` 2.9.3 et `@cyclonedx/cyclonedx-npm` 6.0.1, sont sous licence Apache 2.0 ; ils ne sont pas des dépendances du projet (lancés à la demande, jamais livrés).
 
@@ -83,4 +104,7 @@ cd backend && mvn org.codehaus.mojo:license-maven-plugin:2.4.0:add-third-party
 
 # Node
 cd frontend && npx license-checker-rseidelsohn --production --summary
+
+# Python (microservice agent_ia)
+python3 scripts/check_licenses_python.py
 ```

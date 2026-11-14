@@ -6,7 +6,9 @@ indépendante :
 
 - Maven : la liste des dépendances d'exécution de `mvn dependency:list -DincludeScope=runtime` (la même que lit
   `scripts/check_licenses_maven.py`) ;
-- npm : le `package-lock.json`, sans les paquets réservés au développement (`dev: true`).
+- npm : le `package-lock.json`, sans les paquets réservés au développement (`dev: true`) ;
+- pypi : le verrou du service Python (`agent_ia/requirements.lock`), c'est-à-dire exactement ce que l'image
+  installe (`pip install --no-deps`). Chaque ligne doit aussi porter sa licence, sinon la source est refusée.
 
 Chaque composant de la source doit figurer dans le SBOM (même groupe, même nom, même version). Un composant en plus
 dans le SBOM est signalé sans faire échouer (portée « provided », paquets optionnels d'une autre plateforme).
@@ -14,6 +16,7 @@ dans le SBOM est signalé sans faire échouer (portée « provided », paquets o
 Usage :
     python3 scripts/check_sbom.py maven maven-deps.txt docs/sbom/backend.cdx.json
     python3 scripts/check_sbom.py npm frontend/package-lock.json docs/sbom/frontend.cdx.json
+    python3 scripts/check_sbom.py pypi agent_ia/requirements.lock docs/sbom/agent_ia.cdx.json
 
 Code de sortie : 0 si le SBOM est bien formé et complet, 1 sinon. Bibliothèque standard seulement.
 """
@@ -47,6 +50,25 @@ def npm_expected(path):
         if entry.get("dev") or "version" not in entry:
             continue
         expected.add(f"{name}:{entry['version']}")
+    return expected
+
+
+def pypi_expected(path):
+    """Les composants épinglés dans le verrou : `nom==version  # LICENCE`, un par ligne."""
+    expected = set()
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        bare = line.strip()
+        if not bare or bare.startswith("#"):
+            continue
+        pinned, _, licence = bare.partition("#")
+        name, sep, version = pinned.strip().partition("==")
+        if not sep:
+            print(f"  SOURCE     ligne non épinglée dans {path} : {line}")
+            continue
+        if not licence.strip():
+            print(f"  SOURCE     licence absente pour {name.strip()} dans {path}")
+            continue
+        expected.add(f"{name.strip().lower().replace('_', '-')}:{version.strip()}")
     return expected
 
 
@@ -92,12 +114,13 @@ def shape_problems(sbom):
 def main(argv):
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
-    if len(argv) != 4 or argv[1] not in ("maven", "npm"):
+    if len(argv) != 4 or argv[1] not in ("maven", "npm", "pypi"):
         print(__doc__)
         return 2
     kind, source, sbom_path = argv[1], argv[2], argv[3]
     sbom = json.loads(Path(sbom_path).read_text(encoding="utf-8"))
-    expected = maven_expected(source) if kind == "maven" else npm_expected(source)
+    readers = {"maven": maven_expected, "npm": npm_expected, "pypi": pypi_expected}
+    expected = readers[kind](source)
     found = {component_key(kind, c) for c in all_components(sbom) if c.get("name") and c.get("version")}
 
     problems = shape_problems(sbom)
