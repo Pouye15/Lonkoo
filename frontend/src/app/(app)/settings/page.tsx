@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { DemoNotice } from "@/components/ui/DemoNotice";
 import { ThemeSegmented } from "@/components/theme/ThemeToggle";
 import { type GitHubRole } from "@/lib/lonkoo-data";
 import {
@@ -95,6 +96,7 @@ export default function SettingsPage() {
     <>
       <PageHeader title="Paramètres" />
       <div className="max-w-5xl mx-auto space-y-5">
+        <DemoNotice>les membres, les permissions et les intégrations de cette page sont des exemples fictifs ; seul le choix du thème s&apos;applique.</DemoNotice>
         {/* Gestion de l'équipe de l'organisation */}
         <div className="bg-surface rounded-xl p-5 border border-edge space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-edge-soft">

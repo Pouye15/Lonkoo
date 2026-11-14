@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { DemoNotice } from "@/components/ui/DemoNotice";
 import { PublicGallery } from "@/components/community/PublicGallery";
 import { IS_LIVE_API } from "@/lib/api";
 import { Modal } from "@/components/ui/Modal";
@@ -177,6 +178,11 @@ export default function CommunityTemplatesPage() {
       />
       <div className="max-w-6xl mx-auto space-y-6">
         {IS_LIVE_API && <PublicGallery />}
+        <DemoNotice>
+          {IS_LIVE_API
+            ? "les architectures, profils, notes et commentaires ci-dessous sont des exemples fictifs. Seule la galerie publique, au-dessus, montre de vrais projets."
+            : "les architectures, profils, notes et commentaires de cette page sont des exemples fictifs."}
+        </DemoNotice>
         {/* Barre de Navigation Communautaire & Recherche */}
         <div className="bg-surface rounded-xl p-3.5 border border-edge flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
           {/* Sélecteur de vue : Architectures / Profils / Abonnements */}

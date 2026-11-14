@@ -19,7 +19,7 @@ Lonkoo est un studio collaboratif où une équipe de développeurs conçoit l'ar
 
 ## État d'avancement (5 novembre 2026)
 
-Échéance de soumission : **20 novembre 2026** (heure à confirmer). Détail, constats et reste à faire : [docs/AUDIT-ET-ROADMAP-BACKEND.md](docs/AUDIT-ET-ROADMAP-BACKEND.md).
+Échéance de soumission : **dimanche 15 novembre 2026, 17 h GMT** (tableau de bord Datacloud et règlement). Détail, constats et reste à faire : [docs/AUDIT-ET-ROADMAP-BACKEND.md](docs/AUDIT-ET-ROADMAP-BACKEND.md).
 
 | Fonction | État |
 |---|---|
@@ -43,7 +43,7 @@ Voir [docs/architecture.md](docs/architecture.md). Format du canvas : [docs/sche
 
 | Dossier | Contenu |
 |---|---|
-| `frontend/` | Interface web (Next.js, React Flow) |
+| `frontend/` | Interface web (Next.js ; le canvas est écrit dans le projet, sans bibliothèque de graphe) |
 | `backend/` | API et logique métier (Spring Boot) |
 | `realtime/` | Serveur de collaboration en temps réel (Hocuspocus, Yjs) |
 | `infra/` | Docker Compose, scripts de déploiement |

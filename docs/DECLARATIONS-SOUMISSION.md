@@ -1,6 +1,6 @@
 # Liste de contrôle de la soumission CADev 2026
 
-**Date limite : 20 novembre 2026** (échéance déplacée). **L'heure exacte est à confirmer** auprès de l'organisateur : l'ancienne échéance était le dimanche 25 octobre, 17 h 00, heure de Dakar (GMT). Aucune soumission après l'heure limite.
+**Date limite : dimanche 15 novembre 2026, 17 h GMT** (tableau de bord Datacloud : « 29 sept. au 15 nov. 2026 » ; règlement). L'ancienne échéance était le dimanche 25 octobre, 17 h 00, heure de Dakar (GMT). Aucune soumission après l'heure limite.
 Visez la veille pour garder une marge.
 
 ## Recevabilité (sans ces points, le projet n'est pas noté)
@@ -33,7 +33,7 @@ Visez la veille pour garder une marge.
 
 ## Vote des pairs (obligatoire pour chaque membre)
 
-**Dates à confirmer** (avant le report de l'échéance au 20 novembre, le vote était fixé du dimanche 25 octobre 18 h 00 au lundi 26 octobre 23 h 59).
+**Dates à confirmer** (avant le report de l'échéance, le vote était fixé du dimanche 25 octobre 18 h 00 au lundi 26 octobre 23 h 59).
 Si un seul membre ne vote pas, **toute l'équipe est exclue**.
 
 - [ ] Membre 1 a voté
@@ -44,7 +44,7 @@ Si un seul membre ne vote pas, **toute l'équipe est exclue**.
 
 ## Suite du calendrier
 
-Les dates ci-dessous sont celles d'**avant** le report de l'échéance au 20 novembre : **à confirmer**.
+Les dates ci-dessous sont celles d'**avant** le report de l'échéance : **à confirmer**.
 
 | Ancienne date (à confirmer) | Étape |
 |---|---|
