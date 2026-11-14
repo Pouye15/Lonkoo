@@ -9,7 +9,6 @@ import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +26,12 @@ import tools.jackson.databind.node.ObjectNode;
 /**
  * Client HTTP pour le microservice Python {@code agent_ia}.
  * Activé lorsque {@code lonkoo.ai.provider=agent_ia}.
+ *
+ * <p><strong>Délais</strong> : {@code AI_TIMEOUT_SECONDS} (30 s par défaut) borne <em>un</em> appel au modèle et vaut
+ * pour le microservice ; le backend, lui, attend le microservice pendant
+ * {@code AI_AGENT_TIMEOUT_SECONDS} ({@code lonkoo.ai.agent-timeout-seconds}, 70 s par défaut), de quoi couvrir deux
+ * appels au modèle (la reprise d'une sortie invalide) plus une marge. Sans cela le backend couperait toujours avant la
+ * fin et l'appel au modèle serait payé puis jeté.</p>
  */
 @Component
 @ConditionalOnProperty(prefix = "lonkoo.ai", name = "provider", havingValue = "agent_ia")
@@ -44,7 +49,7 @@ public class AgentIaClient implements AiClient {
     public AgentIaClient(
             @Value("${lonkoo.ai.agent-url:http://agent_ia:8000}") String baseUrl,
             @Value("${lonkoo.ai.service-token:${realtime.service-token:}}") String serviceToken,
-            @Value("${lonkoo.ai.timeout-seconds:30}") int timeoutSeconds) {
+            @Value("${lonkoo.ai.agent-timeout-seconds:70}") int timeoutSeconds) {
         this(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build(),
                 baseUrl, serviceToken, Duration.ofSeconds(timeoutSeconds));
     }
@@ -68,7 +73,7 @@ public class AgentIaClient implements AiClient {
         req.put("brief", brief);
 
         JsonNode res = post("/sketch", req);
-        return new AiProposal(res.path("canvas"), res.path("summary").asText("Esquisse générée"));
+        return new AiProposal(AiResponses.unwrapCanvas(res), AiResponses.unwrapSummary(res, "Esquisse générée"));
     }
 
     @Override
@@ -82,7 +87,7 @@ public class AgentIaClient implements AiClient {
         req.put("instruction", instruction != null ? instruction : "");
 
         JsonNode res = post("/complete", req);
-        return new AiProposal(res.path("canvas"), res.path("summary").asText("Complétion générée"));
+        return new AiProposal(AiResponses.unwrapCanvas(res), AiResponses.unwrapSummary(res, "Complétion générée"));
     }
 
     @Override
@@ -91,23 +96,11 @@ public class AgentIaClient implements AiClient {
         req.set("snapshot", snapshot != null ? snapshot : json.createObjectNode());
 
         JsonNode res = post("/audit", req);
-        List<AiFinding> findings = new ArrayList<>();
-        JsonNode array = res.path("findings");
-        if (array.isArray()) {
-            for (JsonNode item : array) {
-                String id = item.path("id").asText();
-                AiFinding.Severity severity = parseSeverity(item.path("severity").asText("RECOMMENDED"));
-                AiFinding.Category category = parseCategory(item.path("category").asText("STACK"));
-                String title = item.path("title").asText("");
-                String targetNodeId = item.path("targetNodeId").asText("");
-                String rationale = item.path("rationale").asText("");
-                String currentConfig = item.path("currentConfig").asText("");
-                String proposedConfig = item.path("proposedConfig").asText("");
-
-                if (!targetNodeId.isBlank()) {
-                    findings.add(new AiFinding(id, severity, category, title, targetNodeId, rationale, currentConfig, proposedConfig));
-                }
-            }
+        List<AiFinding> findings = AiResponses.findings(res);
+        if (findings == null) {
+            // Aucune liste de remarques exploitable : c'est une panne du service, pas un audit sans remarque.
+            log.warn("Service agent_ia : réponse d'audit sans liste de remarques exploitable");
+            throw new AiUnavailableException("Le service IA n'a pas rendu d'audit exploitable.");
         }
         return findings;
     }
@@ -220,14 +213,20 @@ public class AgentIaClient implements AiClient {
                 throw new AiUnavailableException(HttpStatus.SERVICE_UNAVAILABLE, "Service IA temporairement surchargé.");
             }
             if (code == 403 || code == 401) {
+                // Le jeton de service est mal réglé : rien de tout cela ne se dit à l'appelant.
                 log.error("Service agent_ia : authentification refusée ({})", code);
-                throw new AiUnavailableException(HttpStatus.INTERNAL_SERVER_ERROR, "Erreur de configuration interne du service IA.");
+                throw new AiUnavailableException("Le service IA n'a pas accepté l'appel interne.");
             }
             if (code >= 400) {
                 log.warn("Service agent_ia : code d'erreur HTTP {}", code);
                 throw new AiUnavailableException("Le service IA a rejeté la requête.");
             }
-            return json.readTree(response.body());
+            try {
+                return json.readTree(response.body());
+            } catch (RuntimeException e) {
+                log.warn("Service agent_ia : réponse inutilisable (JSON non analysable)");
+                throw new AiUnavailableException("Le service IA a renvoyé une réponse inutilisable.");
+            }
         } catch (HttpTimeoutException e) {
             throw new AiUnavailableException(HttpStatus.GATEWAY_TIMEOUT, "Le service IA n'a pas répondu à temps.");
         } catch (IOException e) {
@@ -236,22 +235,6 @@ public class AgentIaClient implements AiClient {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new AiUnavailableException("L'appel IA a été interrompu.");
-        }
-    }
-
-    private static AiFinding.Severity parseSeverity(String value) {
-        try {
-            return AiFinding.Severity.valueOf(value.toUpperCase(Locale.ROOT));
-        } catch (Exception e) {
-            return AiFinding.Severity.RECOMMENDED;
-        }
-    }
-
-    private static AiFinding.Category parseCategory(String value) {
-        try {
-            return AiFinding.Category.valueOf(value.toUpperCase(Locale.ROOT));
-        } catch (Exception e) {
-            return AiFinding.Category.STACK;
         }
     }
 }

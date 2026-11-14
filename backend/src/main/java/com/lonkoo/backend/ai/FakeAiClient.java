@@ -60,6 +60,10 @@ public class FakeAiClient implements AiClient {
         ArrayNode nodes = canvas.has("nodes") && canvas.get("nodes").isArray() ? (ArrayNode) canvas.get("nodes") : canvas.putArray("nodes");
         ArrayNode edges = canvas.has("edges") && canvas.get("edges").isArray() ? (ArrayNode) canvas.get("edges") : canvas.putArray("edges");
 
+        // L'instantané reçu est réduit avant l'appel ({@link AiSnapshots}) : il n'a plus de positions, que le contrat
+        // exige. Un vrai fournisseur les redonne lui-même ; l'agent de démonstration les replace sur une grille.
+        placeMissingPositions(nodes);
+
         String firstId = nodes.isEmpty() ? null : nodes.get(0).path("id").asText();
         Set<String> ids = new HashSet<>();
         Set<String> names = new HashSet<>();
@@ -120,6 +124,17 @@ public class FakeAiClient implements AiClient {
                 "Les lectures répétées gagnent à ne pas passer par la base." + NOTICE,
                 "Chaque lecture interroge la base", "Un cache de lecture à durée courte"));
         return findings;
+    }
+
+    /** Une grille lisible pour les blocs sans position (l'instantané envoyé au fournisseur n'en a plus). */
+    private static void placeMissingPositions(ArrayNode nodes) {
+        int index = 0;
+        for (JsonNode node : nodes) {
+            if (node.isObject() && !node.has("position")) {
+                ((ObjectNode) node).putObject("position").put("x", (index % 4) * 260).put("y", (index / 4) * 160);
+            }
+            index++;
+        }
     }
 
     private static String firstOfType(JsonNode nodes, String type) {
