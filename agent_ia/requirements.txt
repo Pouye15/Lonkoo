@@ -1,0 +1,14 @@
+# Dépendances d'exécution du microservice, intention déclarée (plages de versions).
+# Les versions réellement installées sont figées dans `requirements.lock`, qui seul sert à
+# construire l'image (voir Dockerfile) et à produire le SBOM. Pour relever une version :
+# modifier la plage ici, puis régénérer le verrou (procédure dans le README).
+#
+# `uvicorn` est volontairement sans l'extra `[standard]` : il tirait six dépendances dont le
+# service ne se sert pas (websockets, python-dotenv, PyYAML, httptools, watchfiles) plus uvloop,
+# absent sous Windows mais présent dans l'image Linux — la fermeture dépendait donc de la
+# plateforme, ce qui rendait le SBOM non reproductible.
+fastapi>=0.115.0,<1.0.0
+uvicorn>=0.34.0,<1.0.0
+httpx>=0.28.0,<1.0.0
+pydantic>=2.10.0,<3.0.0
+jsonschema>=4.23.0,<5.0.0

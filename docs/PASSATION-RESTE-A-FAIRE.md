@@ -641,8 +641,11 @@ Valeurs d'exemple et commentaires : `.env.example`. En production : `infra/produ
 | `REALTIME_MAX_STORED_STATE_BYTES` | backend | état d'un canvas refusé en 413 au-delà (16 Mio) ; le garder au-dessus du double de `REALTIME_MAX_STATE_BYTES` |
 | `EXTRA_ALLOWED_ORIGINS` | backend | **développement dans un Codespace seulement** (`https://localhost:3000,http://localhost:3000`) ; le backend refuse de démarrer avec en profil `prod` |
 | **`AI_PROVIDER`** | backend | `off` (501), `fake` (réponses figées `demo`) ou le nom de votre fournisseur |
-| **`AI_API_KEY`**, **`AI_MODEL`**, **`AI_TIMEOUT_SECONDS`** | **personne aujourd'hui** | à lire par votre client (`IA-2`) |
+| `AI_API_KEY`, `AI_MODEL`, `AI_BASE_URL` | microservice `agent_ia` (et backend si `AI_PROVIDER=gemini`) | clé, modèle et adresse du fournisseur. Avec `AI_PROVIDER=agent_ia`, la clé vit **dans le microservice** : le backend n'en a pas besoin |
+| `AI_AGENT_URL`, **`AI_SERVICE_TOKEN`** | backend et microservice | adresse interne du microservice et jeton partagé (en-tête `X-Service-Token`). Le microservice **refuse de démarrer** sans jeton (échappatoire de développement : `AI_ALLOW_INSECURE=true`) ; en production, un jeton manquant ou trop court empêche le démarrage du backend |
+| `AI_TIMEOUT_SECONDS` (30), `AI_AGENT_TIMEOUT_SECONDS` (70) | le premier : microservice et backend ; le second : backend | délai d'**un** appel au modèle, et temps d'attente du backend sur le microservice. Celui-ci doit couvrir deux appels (la reprise unique) plus une marge : invariant `AI_AGENT_TIMEOUT_SECONDS ≥ 2 × AI_TIMEOUT_SECONDS + 5`, vérifié au démarrage |
 | `AI_DAILY_QUOTA` (30), `AI_GUEST_DAILY_QUOTA` (5), `AI_GLOBAL_DAILY_CAP` (500), `AI_MAX_INPUT_CHARS` (8000) | backend | quota par jour (UTC) et taille du texte |
+| `AI_CHAT_DAILY_QUOTA` (60), `AI_CHAT_GUEST_DAILY_QUOTA` (10) | backend | quota propre au conseiller conversationnel, compté à part (colonne `chat_calls` de `ai_usage`, migration `V21`) : un échange de dix messages n'épuise plus le quota d'esquisses |
 | `NEXT_PUBLIC_API_MODE`, `NEXT_PUBLIC_REALTIME_URL`, `NEXT_PUBLIC_API_URL` | interface (`frontend/.env.local`, lues à la construction) | mode `live`, adresse du temps réel |
 | `DOMAIN` | compose de production | adresse servie par Caddy |
 | `SPRING_PROFILES_ACTIVE` | backend | `dev` en local, `prod` sur le serveur |

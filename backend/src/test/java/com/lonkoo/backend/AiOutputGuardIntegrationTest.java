@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -19,6 +20,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
@@ -34,9 +36,12 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import com.lonkoo.backend.ai.AiClient;
 import com.lonkoo.backend.ai.AiFinding;
 import com.lonkoo.backend.ai.AiProposal;
+import com.lonkoo.backend.ai.AiSnapshots;
 import com.lonkoo.backend.ai.AiUnavailableException;
 
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * Ce que le serveur garantit, quel que soit le fournisseur : un agent simulé renvoie n'importe quoi, et rien de faux ne
@@ -145,14 +150,52 @@ class AiOutputGuardIntegrationTest extends AbstractPostgresIntegrationTest {
     // ------------------------------------------------------------------ Ce que l'agent reçoit
 
     @Test
-    void theAgentReceivesTheLiveCanvasTheSelectionAndTheTrimmedText() throws Exception {
+    void theAgentReceivesTheLiveCanvasReducedTheSelectionAndTheTrimmedText() throws Exception {
         when(agent.complete(any(), anyList(), anyString())).thenReturn(new AiProposal(JSON.readTree(seed), "ok"));
         Team team = newTeam();
 
-        assertThat(ai(team.owner(), team.canvas(), "complete", "{\"nodeIds\":[\"n1\",\"n4\"],\"instruction\":\"  ajoute un cache  \"}").getStatus())
-                .isEqualTo(200);
+        MockHttpServletResponse response = ai(team.owner(), team.canvas(),
+                "complete", "{\"nodeIds\":[\"n1\",\"n4\"],\"instruction\":\"  ajoute un cache  \"}");
+        assertThat(response.getStatus()).isEqualTo(200);
+        assertThat(JSON.readTree(response.getContentAsString()).get("warnings"))
+                .as("la liste est toujours présente, vide quand rien n'a disparu").isEmpty();
 
-        verify(agent).complete(JSON.readTree(seed), List.of("n1", "n4"), "ajoute un cache");
+        ArgumentCaptor<JsonNode> sent = ArgumentCaptor.forClass(JsonNode.class);
+        verify(agent).complete(sent.capture(), eq(List.of("n1", "n4")), eq("ajoute un cache"));
+        assertThat(sent.getValue()).as("l'instantané est réduit avant de partir").isEqualTo(AiSnapshots.prune(JSON.readTree(seed)));
+        assertThat(sent.getValue().toString()).as("ni position, ni champ hors contrat").doesNotContain("position");
+        assertThat(sent.getValue().toString()).as("ce qui sert au raisonnement reste").contains("api_marketplace").contains("entities");
+    }
+
+    // ------------------------------------------------------------------ Une complétion qui perd un bloc est signalée
+
+    @Test
+    void aCompletionThatDropsABlockIsSignalledAndNotRefused() throws Exception {
+        ObjectNode shrunk = (ObjectNode) JSON.readTree(seed);
+        // Le dernier bloc (facturation) et le lien qui le vise partent : le canvas reste valide, mais un bloc manque.
+        ((ArrayNode) shrunk.get("nodes")).remove(6);
+        ((ArrayNode) shrunk.get("edges")).remove(5);
+        when(agent.complete(any(), anyList(), anyString())).thenReturn(new AiProposal(shrunk, "J'ai retiré la facturation"));
+        Team team = newTeam();
+
+        MockHttpServletResponse response = ai(team.owner(), team.canvas(), "complete", "{\"instruction\":\"retire la facturation\"}");
+
+        assertThat(response.getStatus()).as("une suppression peut être voulue : on signale, on ne refuse pas").isEqualTo(200);
+        JsonNode body = JSON.readTree(response.getContentAsString());
+        assertThat(body.get("canvas").get("nodes").size()).isEqualTo(6);
+        assertThat(body.get("warnings").size()).isEqualTo(1);
+        assertThat(body.get("warnings").get(0).asText()).contains("facturation").contains("vérifiez");
+    }
+
+    @Test
+    void aSketchAlwaysCarriesAnEmptyListOfWarnings() throws Exception {
+        when(agent.sketch(anyString())).thenReturn(new AiProposal(JSON.readTree(seed), "Une idée"));
+        Team team = newTeam();
+
+        JsonNode body = JSON.readTree(ai(team.owner(), team.canvas(), "sketch", "{\"brief\":\"x\"}").getContentAsString());
+
+        assertThat(body.has("warnings")).isTrue();
+        assertThat(body.get("warnings")).isEmpty();
     }
 
     // ------------------------------------------------------------------ La panne du fournisseur

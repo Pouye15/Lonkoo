@@ -18,8 +18,9 @@ import { CanvasGate } from "@/components/studio/live/CanvasGate";
 import { LiveTeamPanel } from "@/components/studio/live/LiveTeamPanel";
 import { ShareDialog } from "@/components/studio/live/ShareDialog";
 import { VersionsPanel } from "@/components/studio/live/VersionsPanel";
+import { ChatbotPanel } from "@/components/studio/ChatbotPanel";
+import { AiPanel } from "@/components/studio/live/AiPanel";
 import {
-  AI_SUGGESTIONS,
   ARCHITECTURE_VERSIONS,
   COMMUNITY_ARCHITECTS,
   DEFAULT_PROJECT_TEAMS,
@@ -35,8 +36,6 @@ import {
   ChartLineUp,
   FileText,
   GitCommit,
-  CheckCircle,
-  Sparkle,
   PlugsConnected,
   Users,
   GitPullRequest,
@@ -49,11 +48,12 @@ import {
   LinkSimple,
   DownloadSimple,
   Globe,
+  ChatCircleDots,
 } from "@phosphor-icons/react";
 
-type StudioTab = "canvas" | "scanner" | "simulator" | "docs" | "versions" | "team";
+type StudioTab = "canvas" | "scanner" | "chat" | "simulator" | "docs" | "versions" | "team";
 
-const STUDIO_TABS: ReadonlyArray<StudioTab> = ["canvas", "scanner", "simulator", "docs", "versions", "team"];
+const STUDIO_TABS: ReadonlyArray<StudioTab> = ["canvas", "scanner", "chat", "simulator", "docs", "versions", "team"];
 
 function parseTab(value: string | null): StudioTab {
   return STUDIO_TABS.find((tab) => tab === value) ?? "canvas";
@@ -126,8 +126,6 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
   const [selectedNodeId, setSelectedNodeId] = useState<string>(
     () => nodes.find((node) => node.id === "pg-primary")?.id ?? nodes[0]?.id ?? "",
   );
-  const [appliedSuggestionIds, setAppliedSuggestionIds] = useState<string[]>([]);
-
   const [simulatedRps, setSimulatedRps] = useState<number>(8500);
 
   // Aperçu de la documentation : calculé à partir du schéma, sans texte fixe (voir lib/doc-preview.ts).
@@ -181,36 +179,11 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
 
   // Audit par règles : le score et les constats viennent du schéma dessiné (lib/audit.ts), jamais du nombre de clics.
   const report = auditArchitecture(nodes, edges);
-  // Les suggestions de démonstration de l'IA ne valent que pour un bloc qui existe dans ce projet.
-  const demoSuggestions = AI_SUGGESTIONS.filter((sug) => nodes.some((node) => node.id === sug.targetNodeId));
 
   const applyAuditFix = (finding: Finding) => {
     const fix = finding.autofix;
     if (!fix) return;
     setNodes((prev) => prev.map((node) => (node.id === fix.nodeId ? { ...node, replicas: fix.replicas } : node)));
-  };
-
-  const applySuggestion = (sugId: string) => {
-    const sug = AI_SUGGESTIONS.find((s) => s.id === sugId);
-    if (!sug || appliedSuggestionIds.includes(sugId)) return;
-
-    setNodes((prev) =>
-      prev.map((node) =>
-        node.id === sug.targetNodeId
-          ? {
-              ...node,
-              tech: sug.patch.tech ?? node.tech,
-              version: sug.patch.version ?? node.version,
-              replicas: sug.patch.replicas ?? node.replicas,
-              status: sug.patch.status ?? node.status,
-              metricValue: sug.patch.metricValue ?? node.metricValue,
-              maxRpsCapacity: Math.round(node.maxRpsCapacity * 1.45),
-            }
-          : node
-      )
-    );
-    setAppliedSuggestionIds((prev) => [...prev, sugId]);
-    setSelectedNodeId(sug.targetNodeId);
   };
 
   const handleCreateVersion = (e: React.FormEvent) => {
@@ -378,6 +351,7 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
                 label: `Audit (${report.findings.length})`,
                 icon: Cpu,
               },
+              { id: "chat", label: "Conseiller Systalink", icon: ChatCircleDots },
               { id: "simulator", label: "Simulateur", icon: ChartLineUp },
               { id: "docs", label: "Documentation", icon: FileText },
               { id: "versions", label: "Versions", icon: GitCommit },
@@ -454,7 +428,7 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
           </div>
         )}
 
-        {/* ONGLET 2 : AUDIT PAR RÈGLES, puis suggestions de démonstration de l'IA */}
+        {/* ONGLET 2 : AUDIT PAR RÈGLES (local et immédiat), puis ANALYSE PAR L'AGENT (appel au fournisseur) */}
         {activeTab === "scanner" && (
           <div className="space-y-4">
             <AuditPanel
@@ -469,74 +443,27 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
               onFix={applyAuditFix}
             />
 
-            {demoSuggestions.length > 0 && (
-              <div className="px-1 pt-2">
-                <h2 className="text-sm font-bold text-ink">Suggestions de l&apos;IA</h2>
-                <p className="text-xs text-ink-3 mt-0.5">
-                  Exemples de démonstration : l&apos;IA n&apos;est pas encore branchée. Le score ne les compte pas : il ne suit que le schéma.
-                </p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 gap-3 empty:hidden">
-              {demoSuggestions.map((sug) => {
-                const isApplied = appliedSuggestionIds.includes(sug.id);
-                return (
-                  <div
-                    key={sug.id}
-                    className="bg-surface rounded-xl p-5 border border-edge"
-                  >
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div className="space-y-2 max-w-3xl">
-                        <div className="flex flex-wrap items-center gap-2 text-xs">
-                          <span className="font-mono uppercase text-[11px] px-2 py-0.5 rounded bg-subtle text-ink-2 font-semibold">
-                            {sug.severity}
-                          </span>
-                          <span className="text-ink-3">{sug.category}</span>
-                        </div>
-
-                        <h3 className="text-sm font-bold text-ink">{sug.title}</h3>
-                        <p className="text-xs text-ink-2 leading-relaxed">{sug.rationale}</p>
-
-                        <div className="pt-1 grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs font-mono">
-                          <div className="p-2.5 rounded-lg bg-sunken border border-edge text-ink-2">
-                            <span className="block text-[11px] text-ink-4 mb-0.5">
-                              Actuel
-                            </span>
-                            {sug.currentConfig}
-                          </div>
-                          <div className="p-2.5 rounded-lg bg-sunken border border-edge text-ink font-semibold">
-                            <span className="block text-[11px] text-accent mb-0.5">
-                              Proposition
-                            </span>
-                            {sug.proposedConfig}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex-shrink-0">
-                        {isApplied ? (
-                          <div className="px-3.5 py-2 rounded-lg bg-subtle text-ink-2 text-xs font-medium flex items-center gap-1.5">
-                            <CheckCircle size={15} weight="fill" className="text-ok" />
-                            <span>Appliqué</span>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => applySuggestion(sug.id)}
-                            className="px-4 py-2 rounded-lg bg-brand hover:bg-brand-hover text-inverse-ink text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <Sparkle size={14} weight="fill" />
-                            <span>Appliquer</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <AiPanel
+              canvasId={live?.canvasId ?? null}
+              live={Boolean(live)}
+              canWrite={canWrite && !live?.readOnly}
+              projectName={currentProject.name}
+              nodes={nodes}
+              edges={edges}
+              setNodes={setNodes}
+              setEdges={setEdges}
+            />
           </div>
+        )}
+
+        {/* ONGLET CONSEILLER IA & SYSTALINK */}
+        {activeTab === "chat" && (
+          <ChatbotPanel
+            canvasId={live?.canvasId}
+            live={Boolean(live)}
+            projectName={currentProject.name}
+            nodesCount={nodes.length}
+          />
         )}
 
         {/* ONGLET 3 : SIMULATEUR DE CHARGE */}

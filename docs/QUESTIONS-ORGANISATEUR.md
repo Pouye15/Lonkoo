@@ -8,6 +8,7 @@ Journal des questions posées au comité CADev. Une ligne par question : date d'
 | Les licences à double option (EPL 2.0 ou GPL 2 avec exception Classpath, ex. `jakarta.annotation-api` présent dans toute application Spring Boot) sont-elles admises ? | | | |
 | Logback (EPL 2.0 ou LGPL 2.1) est-il admis, ou faut-il Log4j2 ? | | | |
 | Les dépendances de développement et de build (MPL-2.0 : lightningcss, axe-core) entrent-elles dans le périmètre ? | | | |
+| Une dépendance **livrée** sous MPL-2.0 est-elle admise ? Cas concret : `certifi` (magasin de certificats TLS, tiré par `httpx` dans le microservice IA), livré tel quel et jamais modifié — le copyleft de MPL-2.0 s'applique par fichier, et MPL n'est ni dans la liste permissive de l'article 6 ni dans la liste rédhibitoire (GPL, AGPL, LGPL). | | | |
 | Quels droits le lauréat cède-t-il (choix de la licence finale du dépôt) ? | | | |
 | Le dépôt est privé : comment donner accès au jury (invitation de comptes précis, ou passage en public à la soumission) ? | | | |
 

@@ -15,8 +15,8 @@ import com.lonkoo.backend.web.ForbiddenException;
 import jakarta.validation.Valid;
 
 /**
- * Routes de l'agent IA (WP13) : esquisse, complétion, audit. Chacune renvoie une proposition ou des remarques, jamais une
- * écriture. Sans fournisseur branché, 501 {@code AI_NOT_IMPLEMENTED} (voir {@link AiService}).
+ * Routes de l'agent IA (WP13) : esquisse, complétion, audit et conseiller conversationnel.
+ * Chacune renvoie une proposition, des remarques ou des conseils, jamais une écriture.
  */
 @RestController
 @RequestMapping("/api/canvases/{canvasId}/ai")
@@ -44,6 +44,21 @@ public class AiController {
     @PostMapping("/audit")
     AiAuditResponse audit(Authentication authentication, @PathVariable UUID canvasId) {
         return aiService.audit(currentUser(authentication), canvasId);
+    }
+
+    @PostMapping("/chat")
+    AiChatResponse chat(Authentication authentication, @PathVariable UUID canvasId,
+            @Valid @RequestBody AiChatRequest request) {
+        return aiService.chat(currentUser(authentication), canvasId, request.messages());
+    }
+
+    @PostMapping(value = "/chat/stream", produces = org.springframework.http.MediaType.TEXT_EVENT_STREAM_VALUE)
+    org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody chatStream(
+            Authentication authentication,
+            @PathVariable UUID canvasId,
+            @Valid @RequestBody AiChatRequest request) {
+        CurrentUser user = currentUser(authentication);
+        return out -> aiService.chatStream(user, canvasId, request.messages(), out);
     }
 
     private CurrentUser currentUser(Authentication authentication) {
