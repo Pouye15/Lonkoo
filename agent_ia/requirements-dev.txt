@@ -1,0 +1,4 @@
+# Dépendances de test uniquement (jamais installées dans l'image Docker).
+# À déclarer dans docs/LICENCES-TIERCES.md et dans le SBOM.
+-r requirements.txt
+pytest>=8.3.0,<9.0.0
