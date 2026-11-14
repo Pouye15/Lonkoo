@@ -63,5 +63,12 @@ Thumbs.db
 tmp/
 *.tmp
 
+# ===== Python (microservice agent_ia) =====
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+.venv-lock/
+
 # ===== Parcours de bout en bout (captures d'écran) =====
 e2e/captures/

@@ -843,8 +843,10 @@ paths:
         `ai.sketch` dans le journal d'audit, sans le texte saisi.
 
         **Quota** : chaque appel qui part vers le fournisseur compte pour la personne, par jour UTC (`AI_DAILY_QUOTA`, 30 par
-        défaut ; `AI_GUEST_DAILY_QUOTA`, 5 pour un invité), et pour tout le service (`AI_GLOBAL_DAILY_CAP`, 500) ; au-delà, **429**
+        défaut ; `AI_GUEST_DAILY_QUOTA`, 5 pour un invité), et pour tout le service (`AI_GLOBAL_DAILY_CAP`, 500, qui compte la
+        somme des propositions et des messages de dialogue) ; au-delà, **429**
         avec `Retry-After` (secondes jusqu'à minuit UTC). Un appel refusé avant (droits, texte trop long, bloc inconnu) ne compte pas.
+        Le dialogue (`/ai/chat`) a son propre compteur : une conversation n'entame pas le quota des propositions.
 
         Sans fournisseur branché (`AI_PROVIDER` absent, `off` ou inconnu), la réponse est **501** `AI_NOT_IMPLEMENTED`
         pour toute personne qui y a droit : le contrôle d'accès passe avant. Avec `AI_PROVIDER=fake`, la réponse est figée
@@ -867,6 +869,8 @@ paths:
           $ref: "#/components/responses/AiProposal"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
         "404":
@@ -890,6 +894,13 @@ paths:
         Lit l'état courant du canvas auprès du serveur temps réel, le soumet à l'agent et renvoie le canvas **complété**
         comme proposition (même garanties que `/ai/sketch` : validée, jamais écrite, `ai.complete` au journal). Le corps
         est facultatif.
+
+        L'instantané est **réduit** avant de partir au fournisseur : il ne garde que ce qui sert au raisonnement
+        (identifiants, types, champs métier du contrat), sans les positions ni les champs de présentation. La
+        proposition, elle, est un canvas complet et valide.
+
+        Un bloc du canvas qui ne se retrouve pas dans la proposition est **signalé** dans `warnings`, jamais refusé :
+        une suppression peut être celle qui a été demandée. À afficher avant acceptation.
       parameters:
         - $ref: "#/components/parameters/CanvasId"
       requestBody:
@@ -913,6 +924,8 @@ paths:
           $ref: "#/components/responses/AiProposal"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
         "404":
@@ -936,6 +949,10 @@ paths:
         Des remarques sur l'état courant du canvas ; l'audit ne modifie rien. Réservé aux **membres** (tous rôles) : un
         visiteur d'un projet public reçoit 404, pour qu'il ne déclenche pas d'appel payant. Les remarques qui visent un bloc
         absent du canvas sont écartées et comptées dans `discarded`. Pas de corps. `ai.audit` au journal.
+
+        L'instantané est réduit avant de partir au fournisseur, comme pour `/ai/complete`. Une liste `findings` vide est
+        une réponse **légitime** (rien à signaler) ; une sortie que le fournisseur ne rend pas exploitable donne **502**
+        et jamais un audit vide, qui se lirait comme « architecture saine ».
       parameters:
         - $ref: "#/components/parameters/CanvasId"
       responses:
@@ -945,6 +962,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AiAudit"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
         "429":
@@ -953,6 +972,151 @@ paths:
           $ref: "#/components/responses/AiNotImplemented"
         "502":
           $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
+
+  /canvases/{canvasId}/ai/chat:
+    post:
+      tags: [IA]
+      summary: Dialogue avec l'assistant conversationnel (Chatbot) d'architecture
+      description: |
+        Assistant interactif d'architecture logicielle qui tient compte de l'état courant du canvas (réduit avant
+        l'appel, comme pour `/ai/complete`) et de l'historique de conversation envoyé par le client. Réservé aux
+        **membres** du projet. Laisse une ligne `ai.chat` dans le journal d'audit, sans les messages.
+
+        **Consultatif** : rien n'est écrit dans le canvas.
+
+        **Quota** : compteur du dialogue, séparé de celui des propositions (`AI_CHAT_DAILY_QUOTA`, 60 par jour UTC ;
+        `AI_CHAT_GUEST_DAILY_QUOTA`, 10 pour un invité). Le plafond du service (`AI_GLOBAL_DAILY_CAP`) compte la somme
+        des deux. Au-delà, **429** avec `Retry-After`.
+      parameters:
+        - $ref: "#/components/parameters/CanvasId"
+      requestBody:
+        $ref: "#/components/requestBodies/AiChat"
+      responses:
+        "200":
+          description: Réponse du conseiller d'architecture
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiChat"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "501":
+          $ref: "#/components/responses/AiNotImplemented"
+        "502":
+          $ref: "#/components/responses/AiBadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
+
+  /canvases/{canvasId}/ai/chat/stream:
+    post:
+      tags: [IA]
+      summary: Le même dialogue, en flux continu (SSE)
+      description: |
+        Mêmes droits, mêmes quotas et même journal (`ai.chat.stream`) que `/ai/chat`, mais la réponse arrive au fil de
+        l'eau en `text/event-stream` : des événements `data: {"content": "…"}` puis `data: [DONE]`. Une panne survenue
+        après le début du flux se dit dans le flux (`data: {"error": "…"}`), le code HTTP étant déjà envoyé.
+      parameters:
+        - $ref: "#/components/parameters/CanvasId"
+      requestBody:
+        $ref: "#/components/requestBodies/AiChat"
+      responses:
+        "200":
+          description: Flux d'événements de la réponse
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "501":
+          $ref: "#/components/responses/AiNotImplemented"
+        "502":
+          $ref: "#/components/responses/AiBadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
+
+  /ai/chat:
+    post:
+      tags: [IA]
+      summary: Dialogue avec le conseiller, sans canvas (widget flottant)
+      description: |
+        Le même conseiller, mais hors d'un canvas : aucun instantané n'est envoyé au fournisseur, et aucun droit sur un
+        projet n'est demandé — il suffit d'être authentifié (invité compris). Ligne `ai.chat.global` au journal, sans
+        les messages. Mêmes quotas de dialogue que `/canvases/{canvasId}/ai/chat`.
+      requestBody:
+        $ref: "#/components/requestBodies/AiChat"
+      responses:
+        "200":
+          description: Réponse du conseiller d'architecture
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiChat"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "501":
+          $ref: "#/components/responses/AiNotImplemented"
+        "502":
+          $ref: "#/components/responses/AiBadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
+
+  /ai/chat/stream:
+    post:
+      tags: [IA]
+      summary: Le conseiller sans canvas, en flux continu (SSE)
+      description: |
+        Comme `/ai/chat`, en `text/event-stream` : `data: {"content": "…"}` puis `data: [DONE]`. Ligne
+        `ai.chat.stream` au journal.
+      requestBody:
+        $ref: "#/components/requestBodies/AiChat"
+      responses:
+        "200":
+          description: Flux d'événements de la réponse
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "501":
+          $ref: "#/components/responses/AiNotImplemented"
+        "502":
+          $ref: "#/components/responses/AiBadGateway"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
         "504":
@@ -1543,6 +1707,33 @@ components:
         type: string
         format: uuid
 
+  requestBodies:
+    AiChat:
+      description: |
+        L'historique de la conversation, le dernier message étant celui auquel répondre. Le texte saisi est une
+        **donnée non fiable** : il est transmis au modèle entouré de délimiteurs explicites, jamais comme une consigne.
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [messages]
+            properties:
+              messages:
+                type: array
+                minItems: 1
+                maxItems: 20
+                items:
+                  type: object
+                  required: [role, content]
+                  properties:
+                    role:
+                      type: string
+                      enum: [user, assistant]
+                    content:
+                      type: string
+                      maxLength: 8000
+
   schemas:
     Role:
       type: string
@@ -1566,7 +1757,7 @@ components:
 
     AiProposal:
       type: object
-      required: [canvas, summary, demo]
+      required: [canvas, summary, warnings, demo]
       properties:
         canvas:
           type: object
@@ -1574,6 +1765,32 @@ components:
         summary:
           type: string
           description: Ce que la proposition apporte, en une ou deux phrases.
+        warnings:
+          type: array
+          description: |
+            Ce qu'il faut regarder avant d'accepter, en français. **Toujours présente**, vide quand il n'y a rien à
+            signaler. Aujourd'hui : un bloc du canvas (son identifiant technique `data.name`) qui a disparu de la
+            proposition. Une suppression peut être demandée (« retire le cache ») : le serveur la signale, il ne la
+            refuse pas. À afficher avant acceptation quand la liste n'est pas vide. Toujours vide pour `/ai/sketch`,
+            qui ne part d'aucun canvas.
+          items:
+            type: string
+        demo:
+          type: boolean
+          description: Vrai si la réponse est figée (agent de démonstration) et non celle d'un agent.
+
+    AiChat:
+      type: object
+      required: [reply, suggestedActions, demo]
+      properties:
+        reply:
+          type: string
+          description: "La réponse du conseiller, en français (Markdown possible). Consultative : rien n'est écrit dans le canvas."
+        suggestedActions:
+          type: array
+          description: Des suites possibles, proposées à la personne. Peut être vide.
+          items:
+            type: string
         demo:
           type: boolean
           description: Vrai si la réponse est figée (agent de démonstration) et non celle d'un agent.

@@ -143,6 +143,11 @@ export interface WorkspaceProject {
   visitor?: boolean;
 }
 
+/**
+ * Remarque d'exemple du mode démonstration du front. Elle a la forme d'une remarque d'audit du contrat
+ * (`AiFinding`, docs/openapi.yaml) : l'API ne renvoie ni gain chiffré ni correctif applicable, et l'interface
+ * n'en invente pas. Voir `lib/ai.ts` (`demoAuditResult`).
+ */
 export interface AISuggestion {
   id: string;
   severity: "critique" | "recommandé" | "optimisation";
@@ -152,14 +157,6 @@ export interface AISuggestion {
   currentConfig: string;
   proposedConfig: string;
   rationale: string;
-  impactScore: string;
-  patch: {
-    tech?: string;
-    version?: string;
-    replicas?: number;
-    status?: "Actif" | "Synchro" | "Optimisé";
-    metricValue?: string;
-  };
 }
 
 export interface AIDocSection {
@@ -470,14 +467,6 @@ export const AI_SUGGESTIONS: AISuggestion[] = [
     proposedConfig: "PostgreSQL v16.4 HA + Patroni (3 nœuds · Pool transaction)",
     rationale:
       "Sous une charge supérieure à 6 500 req/s, le pool de connexions actuel sature. Une troisième réplique en lecture avec Patroni élimine le point de contention.",
-    impactScore: "+14 pts Score IA",
-    patch: {
-      tech: "PostgreSQL HA + Patroni",
-      version: "v16.4-ha",
-      replicas: 3,
-      status: "Optimisé",
-      metricValue: "22.8k",
-    },
   },
   {
     id: "sug-gateway-cache",
@@ -489,14 +478,6 @@ export const AI_SUGGESTIONS: AISuggestion[] = [
     proposedConfig: "Kong Gateway v3.8 + Cache JWKS local (4 répliques)",
     rationale:
       "Réduit de 68% les appels synchrones entre l'API Gateway et le service Keycloak lors des pics d'authentification.",
-    impactScore: "-1.4 ms latence p95",
-    patch: {
-      tech: "Kong Gateway + JWKS Cache",
-      version: "v3.8",
-      replicas: 4,
-      status: "Optimisé",
-      metricValue: "2.0 ms",
-    },
   },
   {
     id: "sug-event-dlq",
@@ -508,14 +489,6 @@ export const AI_SUGGESTIONS: AISuggestion[] = [
     proposedConfig: "Redpanda v24.2 + Protobuf Registry & DLQ",
     rationale:
       "Garantit la compatibilité ascendante des contrats d'événements entre versions d'architecture et isole les messages en échec.",
-    impactScore: "100% typage strict",
-    patch: {
-      tech: "Redpanda + Schema Registry",
-      version: "v24.2",
-      replicas: 3,
-      status: "Optimisé",
-      metricValue: "0.4 ms",
-    },
   },
 ];
 

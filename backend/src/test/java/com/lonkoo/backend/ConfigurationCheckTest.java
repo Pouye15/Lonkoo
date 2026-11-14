@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
 
 import com.lonkoo.backend.support.ConfigurationCheck;
+import com.lonkoo.backend.support.ConfigurationCheck.AiSettings;
 
 /**
  * Contrôle de la configuration au démarrage : refus en production, simple signalement ailleurs.
@@ -107,6 +108,76 @@ class ConfigurationCheckTest {
     void githubExampleValuesAreToleratedOutsideProduction() {
         var check = new ConfigurationCheck(false, "", SECRET, TOKEN, "http://localhost:3000",
                 "change-me", "change-me", "http://localhost:3000/api/auth/github/callback");
+
+        assertThat(check.problems()).isEmpty();
+    }
+
+    /** Un contrôle en production, avec des réglages d'IA donnés et tout le reste correct. */
+    private static ConfigurationCheck productionWithAi(AiSettings ai) {
+        return new ConfigurationCheck(true, "un-mot-de-passe-solide", SECRET, TOKEN, "https://lonkoo.example.org",
+                "Iv1.id", "secret", "https://lonkoo.example.org/api/auth/github/callback", ai);
+    }
+
+    @Test
+    void geminiNeedsItsKeyAndItsModelInProduction() {
+        assertThat(productionWithAi(AiSettings.gemini("AIzaSySolide", "gemini-1.5-flash")).problems()).isEmpty();
+
+        assertThat(productionWithAi(AiSettings.gemini("change-me", "change-me")).problems()).containsExactlyInAnyOrder(
+                "AI_API_KEY porte une valeur d'exemple",
+                "AI_MODEL porte une valeur d'exemple");
+
+        assertThat(productionWithAi(AiSettings.gemini("", "")).problems()).containsExactlyInAnyOrder(
+                "AI_API_KEY est vide alors que AI_PROVIDER vaut gemini",
+                "AI_MODEL est vide alors que AI_PROVIDER vaut gemini");
+    }
+
+    @Test
+    void theMicroserviceNeedsItsAddressAndItsTokenButNoKeyOfItsOwn() {
+        // La clé du modèle vit dans le microservice : le backend n'en a pas besoin, et ne doit pas l'exiger.
+        assertThat(productionWithAi(AiSettings.agent("http://agent_ia:8000", TOKEN)).problems()).isEmpty();
+
+        assertThat(productionWithAi(AiSettings.agent("", "")).problems()).containsExactlyInAnyOrder(
+                "AI_SERVICE_TOKEN est vide alors que AI_PROVIDER vaut agent_ia",
+                "AI_AGENT_URL est vide alors que AI_PROVIDER vaut agent_ia");
+
+        assertThat(productionWithAi(AiSettings.agent("change-me", "change-me")).problems()).containsExactlyInAnyOrder(
+                "AI_SERVICE_TOKEN porte une valeur d'exemple",
+                "AI_SERVICE_TOKEN doit faire au moins 16 caractères",
+                "AI_AGENT_URL porte une valeur d'exemple");
+    }
+
+    @Test
+    void theBackendWaitsLongEnoughForTheMicroserviceToRetryOnce() {
+        // 30 s par appel au modèle, deux appels possibles : 30 s d'attente couperaient toujours avant la fin.
+        assertThat(productionWithAi(AiSettings.agent("http://agent_ia:8000", TOKEN).withTimeouts(30, 30)).problems())
+                .containsExactly("AI_AGENT_TIMEOUT_SECONDS doit valoir au moins 2 × AI_TIMEOUT_SECONDS + 5 secondes");
+        assertThat(productionWithAi(AiSettings.agent("http://agent_ia:8000", TOKEN).withTimeouts(30, 65)).problems()).isEmpty();
+        assertThat(productionWithAi(AiSettings.agent("http://agent_ia:8000", TOKEN).withTimeouts(30, 70)).problems()).isEmpty();
+
+        // Hors production, le délai mal dimensionné est signalé sans empêcher le démarrage.
+        var outside = new ConfigurationCheck(false, "un-mot-de-passe-solide", SECRET, TOKEN, "http://localhost:3000",
+                "Iv1.id", "secret", "https://lonkoo.example.org/api/auth/github/callback",
+                AiSettings.agent("http://agent_ia:8000", TOKEN).withTimeouts(45, 30));
+        assertThat(outside.problems()).containsExactly("AI_AGENT_TIMEOUT_SECONDS doit valoir au moins 2 × AI_TIMEOUT_SECONDS + 5 secondes");
+        assertThatCode(outside::check).doesNotThrowAnyException();
+    }
+
+    @Test
+    void withoutAProviderNothingAboutTheAiIsRequired() {
+        // fake et off : ni clé, ni jeton, ni adresse. Les valeurs d'exemple qui traînent ne gênent personne.
+        assertThat(productionWithAi(new AiSettings("fake", "change-me", "change-me", "change-me", "change-me", 30, 30)).problems())
+                .isEmpty();
+        assertThat(productionWithAi(AiSettings.off()).problems()).isEmpty();
+
+        assertThat(productionWithAi(new AiSettings("change-me", "", "", "", "", 30, 70)).problems())
+                .containsExactly("AI_PROVIDER ne désigne aucun fournisseur connu (off, fake, gemini, agent_ia)");
+    }
+
+    @Test
+    void outsideProductionTheKeysOfTheAiAreOnlyTheirOwnBusiness() {
+        var check = new ConfigurationCheck(false, "", SECRET, TOKEN, "http://localhost:3000",
+                "change-me", "change-me", "http://localhost:3000/api/auth/github/callback",
+                AiSettings.gemini("", ""));
 
         assertThat(check.problems()).isEmpty();
     }

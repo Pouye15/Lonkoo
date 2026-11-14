@@ -34,6 +34,8 @@ import com.lonkoo.backend.security.SessionSecurityContextRepository;
         "lonkoo.ai.provider=fake",
         "lonkoo.ai.daily-quota=3",
         "lonkoo.ai.guest-daily-quota=2",
+        "lonkoo.ai.chat-daily-quota=4",
+        "lonkoo.ai.chat-guest-daily-quota=2",
         "lonkoo.ai.global-daily-cap=1000"})
 class AiQuotaIntegrationTest extends AbstractPostgresIntegrationTest {
 
@@ -112,7 +114,7 @@ class AiQuotaIntegrationTest extends AbstractPostgresIntegrationTest {
         ai(guest, "sketch", "{\"brief\":\"texte-secret\"}");
 
         assertThat(jdbc.sql("select count(*) from information_schema.columns where table_name = 'ai_usage'")
-                .query(Integer.class).single()).as("user_id, day, calls : rien d'autre").isEqualTo(3);
+                .query(Integer.class).single()).as("user_id, day, calls, chat_calls : rien d'autre").isEqualTo(4);
 
         jdbc.sql("insert into ai_usage (user_id, day, calls) values (?, (now() at time zone 'utc')::date - 40, 7)")
                 .param(guest.id()).update();
@@ -140,6 +142,60 @@ class AiQuotaIntegrationTest extends AbstractPostgresIntegrationTest {
 
         jdbc.sql("delete from ai_usage where user_id = ?").param(filler).update();
         assertThat(ai(fresh, "sketch", "{\"brief\":\"a\"}").getStatus()).isEqualTo(200);
+    }
+
+    // ------------------------------------------------------------------ Le dialogue a son propre compteur
+
+    @Test
+    void theChatHasItsOwnQuotaAndNeitherSideEatsTheOther() throws Exception {
+        Person guest = newGuest();
+
+        assertThat(chat(guest).getStatus()).isEqualTo(200);
+        assertThat(chat(guest).getStatus()).isEqualTo(200);
+
+        MockHttpServletResponse refused = chat(guest);
+        assertThat(refused.getStatus()).isEqualTo(429);
+        assertThat(Long.parseLong(refused.getHeader("Retry-After"))).as("secondes jusqu'à minuit UTC").isBetween(1L, 86_400L);
+        assertThat(refused.getContentAsString()).contains("messages").contains("GitHub");
+        assertThat(usedChat(guest)).isEqualTo(2);
+        assertThat(used(guest)).as("le dialogue n'a pas entamé le quota des propositions").isZero();
+
+        assertThat(ai(guest, "sketch", "{\"brief\":\"a\"}").getStatus()).as("les propositions restent possibles").isEqualTo(200);
+        assertThat(ai(guest, "audit", null).getStatus()).isEqualTo(200);
+        assertThat(ai(guest, "sketch", "{\"brief\":\"a\"}").getStatus()).as("puis leur propre plafond s'applique").isEqualTo(429);
+        assertThat(usedChat(guest)).as("et les propositions n'ont pas entamé le quota du dialogue").isEqualTo(2);
+    }
+
+    @Test
+    void aGithubAccountChatsMoreThanAGuest() throws Exception {
+        Person user = newGithubAccount();
+
+        for (int i = 0; i < 4; i++) {
+            assertThat(chat(user).getStatus()).isEqualTo(200);
+        }
+        MockHttpServletResponse refused = chat(user);
+        assertThat(refused.getStatus()).isEqualTo(429);
+        assertThat(refused.getContentAsString()).contains("4 messages").doesNotContain("GitHub pour");
+    }
+
+    @Test
+    void theServiceWideCapCountsTheProposalsAndTheChatTogether() throws Exception {
+        // Le plafond du service est atteint par le seul compteur de dialogue : plus rien ne part, dialogue compris.
+        UUID filler = UUID.randomUUID();
+        jdbc.sql("insert into users (id, github_id, login, display_name, is_guest) values (?, ?, 'remplisseur-chat', 'R', false)")
+                .param(filler).param(Math.abs(filler.getMostSignificantBits() % 1_000_000_000L) + 7_000_000L).update();
+        jdbc.sql("insert into ai_usage (user_id, day, calls, chat_calls) values (?, (now() at time zone 'utc')::date, 400, 600)")
+                .param(filler).update();
+
+        Person fresh = newGuest();
+        assertThat(ai(fresh, "sketch", "{\"brief\":\"a\"}").getStatus()).isEqualTo(429);
+        MockHttpServletResponse refusedChat = chat(fresh);
+        assertThat(refusedChat.getStatus()).isEqualTo(429);
+        assertThat(refusedChat.getContentAsString()).contains("limite pour aujourd'hui");
+        assertThat(usedChat(fresh)).isZero();
+
+        jdbc.sql("delete from ai_usage where user_id = ?").param(filler).update();
+        assertThat(chat(fresh).getStatus()).isEqualTo(200);
     }
 
     @Test
@@ -180,6 +236,15 @@ class AiQuotaIntegrationTest extends AbstractPostgresIntegrationTest {
     private int used(Person person) {
         return jdbc.sql("select coalesce(sum(calls), 0) from ai_usage where user_id = ? and day = (now() at time zone 'utc')::date")
                 .param(person.id()).query(Integer.class).single();
+    }
+
+    private int usedChat(Person person) {
+        return jdbc.sql("select coalesce(sum(chat_calls), 0) from ai_usage where user_id = ? and day = (now() at time zone 'utc')::date")
+                .param(person.id()).query(Integer.class).single();
+    }
+
+    private MockHttpServletResponse chat(Person person) throws Exception {
+        return ai(person, "chat", "{\"messages\":[{\"role\":\"user\",\"content\":\"bonjour\"}]}");
     }
 
     private MockHttpServletResponse ai(Person person, String route, String body) throws Exception {

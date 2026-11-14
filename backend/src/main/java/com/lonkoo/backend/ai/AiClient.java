@@ -36,6 +36,28 @@ public interface AiClient {
     List<AiFinding> audit(JsonNode snapshot);
 
     /**
+     * Dialogue interactif (Chatbot) avec l'agent au sujet de l'architecture du canvas.
+     */
+    default AiChatResponse chat(JsonNode snapshot, List<AiChatRequest.Message> messages) {
+        return new AiChatResponse(
+                "Je suis le conseiller d'architecture LONKOO. Comment puis-je vous aider ?",
+                List.of("Auditer l'architecture", "Ajouter une base de données"),
+                demo());
+    }
+
+    /**
+     * Dialogue interactif en flux continu (streaming SSE) avec l'agent.
+     */
+    default void chatStream(JsonNode snapshot, List<AiChatRequest.Message> messages, java.io.OutputStream out) throws java.io.IOException {
+        AiChatResponse response = chat(snapshot, messages);
+        String jsonPayload = tools.jackson.databind.json.JsonMapper.shared().writeValueAsString(
+                java.util.Map.of("content", response.reply()));
+        out.write(("data: " + jsonPayload + "\n\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        out.write("data: [DONE]\n\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        out.flush();
+    }
+
+    /**
      * Vrai pour une implémentation de démonstration (réponses figées) : les réponses de l'API le disent
      * ({@code demo: true}), pour que l'interface ne présente jamais une réponse figée comme celle d'un agent.
      */

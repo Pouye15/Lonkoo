@@ -29,6 +29,7 @@ import { usePersistentFlag } from "@/components/ui/use-persistent-flag";
 import { ThemeSegmented } from "@/components/theme/ThemeToggle";
 import { ProjectSwitcher } from "./ProjectSwitcher";
 import { UserMenu } from "./UserMenu";
+import { FloatingChatWidget } from "@/components/studio/FloatingChatWidget";
 import { ShellContext, type ShellContextValue } from "./shell-context";
 
 interface NavItem {
@@ -336,6 +337,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </main>
         </div>
       </div>
+        <FloatingChatWidget />
     </ShellContext.Provider>
   );
 }
