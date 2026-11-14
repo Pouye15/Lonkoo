@@ -83,9 +83,12 @@ services:
       AI_API_KEY:
       AI_MODEL:
       AI_TIMEOUT_SECONDS:
+      AI_AGENT_TIMEOUT_SECONDS:
       AI_DAILY_QUOTA:
       AI_GUEST_DAILY_QUOTA:
       AI_GLOBAL_DAILY_CAP:
+      AI_CHAT_DAILY_QUOTA:
+      AI_CHAT_GUEST_DAILY_QUOTA:
       AI_MAX_INPUT_CHARS:
     healthcheck:
       # L'image n'a ni curl ni wget : la santé se lit avec bash (/dev/tcp), présent dans l'image Ubuntu.
@@ -113,6 +116,7 @@ services:
       AI_BASE_URL:
       AI_MODEL:
       AI_SERVICE_TOKEN:
+      AI_TIMEOUT_SECONDS:
       REALTIME_SERVICE_TOKEN:
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')\""]
