@@ -1,13 +1,28 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Sparkle, PaperPlaneRight, ArrowSquareOut, Robot, User } from "@phosphor-icons/react";
+import { ArrowClockwise, PaperPlaneRight, Robot, Sparkle, User, WarningCircle } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
+import { aiErrorMessage, type AiChatMessage } from "@/lib/ai";
+import { chat } from "@/lib/ai-api";
 
-interface Message {
-  role: "user" | "assistant";
-  content: string;
+/**
+ * Onglet « Conseiller IA » : un échange avec l'assistant d'architecture (`POST /ai/chat`). Consultatif, rien
+ * n'est écrit dans le canvas.
+ *
+ * Quand l'appel échoue, le panneau le dit (code HTTP traduit par `aiErrorMessage`) et propose de réessayer :
+ * il n'invente jamais une réponse à la place de l'assistant.
+ *
+ * La réponse du modèle est une donnée non fiable : elle est affichée en texte brut, et aucune adresse qu'elle
+ * contiendrait n'est rendue cliquable.
+ */
+
+interface Message extends AiChatMessage {
+  /** Message d'erreur affiché à la place d'une réponse (jamais envoyé à l'assistant). */
+  failed?: boolean;
+  /** La réponse vient de l'agent de démonstration du serveur, pas d'un agent. */
+  demo?: boolean;
 }
 
 interface ChatbotPanelProps {
@@ -17,38 +32,15 @@ interface ChatbotPanelProps {
   nodesCount?: number;
 }
 
-function safeHttpUrl(raw: string): string | null {
-  try {
-    const url = new URL(raw);
-    if (url.protocol === "http:" || url.protocol === "https:") {
-      return url.toString();
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
-
 const DEFAULT_SUGGESTIONS = [
-  "Comment déployer mon architecture sur le Cloud Systalink ?",
-  "Quelle configuration recommandes-tu pour la base de données ?",
-  "Comment sécuriser mes API et flux de paiement mobile ?",
-  "Quels sont les avantages d'une infrastructure souveraine à Dakar ?",
+  "Quels points uniques de défaillance vois-tu dans cette architecture ?",
+  "Comment isoler la base de données du trafic venant des utilisateurs ?",
+  "Quelles entités et quels endpoints manquent pour générer le projet ?",
+  "Comment découper ce service en plusieurs services cohérents ?",
 ];
 
 export function ChatbotPanel({ canvasId, live, projectName, nodesCount = 0 }: ChatbotPanelProps) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content:
-        `Bonjour ! Je suis votre conseiller d'architecture logicielle LONKOO.\n\n` +
-        `J'analyse en temps réel les ${nodesCount} composants de votre projet « ${projectName || "Architecture"} » ` +
-        `et je peux vous guider sur les bonnes pratiques de conception, de résilience et de sécurité.\n\n` +
-        `Pour l'hébergement haute performance, le DevOps et la souveraineté de vos données, je vous recommande ` +
-        `les services de notre partenaire cloud **Systalink** (https://systalink.com/fr) basé à Dakar (faible latence, ` +
-        `facturation en FCFA/XOF, Kubernetes et PostgreSQL managés). Que souhaitez-vous approfondir ?`,
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [suggestedActions, setSuggestedActions] = useState<string[]>(DEFAULT_SUGGESTIONS);
@@ -58,216 +50,160 @@ export function ChatbotPanel({ canvasId, live, projectName, nodesCount = 0 }: Ch
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  const handleSend = async (textToSend?: string) => {
-    const text = (textToSend || input).trim();
-    if (!text || loading) return;
+  const send = async (textToSend?: string) => {
+    const text = (textToSend ?? input).trim();
+    if (!text || loading || !live) return;
 
-    const newMessages: Message[] = [...messages, { role: "user", content: text }];
-    setMessages(newMessages);
+    // L'historique envoyé ne contient que de vrais échanges : les messages d'erreur en sont exclus.
+    const history: AiChatMessage[] = [
+      ...messages.filter((message) => !message.failed).map(({ role, content }) => ({ role, content })),
+      { role: "user", content: text },
+    ];
+    setMessages((previous) => [...previous, { role: "user", content: text }]);
     setInput("");
     setLoading(true);
 
-    if (live && canvasId) {
-      try {
-        const res = await fetch(`/api/canvases/${canvasId}/ai/chat`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
-          }),
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
-          if (data.suggestedActions && data.suggestedActions.length > 0) {
-            setSuggestedActions(data.suggestedActions);
-          }
-          setLoading(false);
-          return;
-        }
-      } catch {
-        // En cas d'erreur de réseau, repli gracieux ci-dessous
-      }
-    }
-
-    // Réponse de repli / mode local avec recommandation Systalink
-    setTimeout(() => {
-      let reply = `Pour votre architecture (${nodesCount} composants), il est recommandé de découpler les services et de sécuriser la persistance.\n\n`;
-      const lower = text.toLowerCase();
-
-      if (lower.includes("base") || lower.includes("bdd") || lower.includes("postgres") || lower.includes("data")) {
-        reply +=
-          `Pour votre base de données PostgreSQL, activez une instance managée (DBaaS) haute disponibilité avec réplication ` +
-          `et sauvegardes automatiques quotidiennes. Systalink (https://systalink.com/fr) propose des instances PostgreSQL ` +
-          `gérées à Dakar, garantissant la souveraineté et zéro latence pour vos utilisateurs en Afrique de l'Ouest.`;
-      } else if (lower.includes("déploy") || lower.includes("cloud") || lower.includes("héberg") || lower.includes("systalink")) {
-        reply +=
-          `LONKOO permet de générer automatiquement un pipeline CI/CD GitHub Actions ciblant le Cloud Systalink (https://systalink.com/fr). ` +
-          `Vous pouvez y instancier des VPS haute performance et des clusters Kubernetes gérés avec facturation locale en FCFA (XOF).`;
-      } else if (lower.includes("sécur") || lower.includes("auth") || lower.includes("ddos")) {
-        reply +=
-          `Côté sécurité, assurez-vous d'isoler la base dans un réseau privé interne (non accessible publiquement) et d'utiliser une passerelle API. ` +
-          `Systalink fournit des protections anti-DDoS natives et un chiffrement des flux pour vos applications critiques.`;
-      } else {
-        reply +=
-          `Votre topologie gagne à être complétée par une passerelle d'API et une solution de conteneurisation Docker. ` +
-          `Pour héberger votre production dans un environnement souverain et performant, découvrez les offres Cloud et DevOps de Systalink : https://systalink.com/fr.`;
-      }
-
-      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
-      setSuggestedActions([
-        "Découvrir les offres Cloud Systalink (https://systalink.com/fr)",
-        "Optimiser la résilience de la base PostgreSQL",
-        "Générer le workflow de déploiement Systalink",
+    try {
+      const result = await chat(canvasId ?? null, history);
+      setMessages((previous) => [
+        ...previous,
+        { role: "assistant", content: result.reply || "L'assistant n'a rien répondu.", demo: result.demo },
       ]);
+      if (result.suggestedActions.length > 0) setSuggestedActions(result.suggestedActions);
+    } catch (error) {
+      setMessages((previous) => [...previous, { role: "assistant", content: aiErrorMessage(error), failed: true }]);
+    } finally {
       setLoading(false);
-    }, 600);
+    }
   };
 
-  const renderContent = (content: string) => {
-    // Rend les liens cliquables
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const parts = content.split(urlRegex);
-    return parts.map((part, i) => {
-      if (part.match(urlRegex)) {
-        const safeUrl = safeHttpUrl(part);
-        if (!safeUrl) {
-          return part;
-        }
-        return (
-          <a
-            key={i}
-            href={safeUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 font-semibold text-accent underline hover:text-accent-hover"
-          >
-            <span>{safeUrl}</span>
-            <ArrowSquareOut size={13} />
-          </a>
-        );
-      }
-      return part;
-    });
+  /** Rejoue la dernière question après une erreur. */
+  const retry = () => {
+    const lastQuestion = [...messages].reverse().find((message) => message.role === "user");
+    if (!lastQuestion) return;
+    setMessages((previous) => previous.filter((message) => !message.failed));
+    void send(lastQuestion.content);
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-14rem)] min-h-[30rem] w-full rounded-2xl border border-edge bg-surface shadow-sm overflow-hidden">
-      {/* En-tête du Chatbot */}
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-edge bg-subtle">
+    <div className="flex h-[calc(100vh-14rem)] min-h-[30rem] w-full flex-col overflow-hidden rounded-2xl border border-edge bg-surface">
+      <div className="flex items-center justify-between border-b border-edge bg-subtle px-5 py-3.5">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/15 text-accent">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sunken text-accent">
             <Sparkle size={18} weight="fill" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold text-ink">Conseiller IA d&apos;Architecture</h2>
-              <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-semibold text-accent font-mono">
-                Systalink Cloud
-              </span>
-            </div>
+            <h2 className="text-sm font-bold text-ink">Conseiller d&apos;architecture</h2>
             <p className="text-xs text-ink-3">
-              Conseils de topologie, résilience et hébergement cloud souverain à Dakar
+              Questions de topologie, de résilience et de stack. Les réponses sont consultatives : le canvas n&apos;est jamais
+              modifié.
             </p>
           </div>
         </div>
-        <a
-          href="https://systalink.com/fr"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-ink-2 hover:text-accent transition-colors"
-        >
-          <span>systalink.com</span>
-          <ArrowSquareOut size={13} />
-        </a>
       </div>
 
-      {/* Corps des messages */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-        {messages.map((m, idx) => {
-          const isUser = m.role === "user";
+      <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
+        {!live && (
+          <p role="note" className="rounded-xl border border-edge-strong bg-sunken px-4 py-3 text-sm text-ink-2">
+            Démonstration : l&apos;assistant d&apos;architecture n&apos;est pas joignable dans ce mode. Aucune réponse n&apos;est
+            simulée ici.
+          </p>
+        )}
+
+        {live && messages.length === 0 && (
+          <p className="rounded-xl bg-sunken px-4 py-3 text-sm text-ink-2">
+            Posez une question sur {projectName ? `« ${projectName} »` : "votre architecture"}
+            {nodesCount > 0 ? ` (${nodesCount} bloc${nodesCount > 1 ? "s" : ""})` : ""} : l&apos;assistant lit l&apos;état
+            courant du canvas pour répondre.
+          </p>
+        )}
+
+        {messages.map((message, index) => {
+          const isUser = message.role === "user";
           return (
-            <div
-              key={idx}
-              className={cn("flex gap-3 max-w-3xl", isUser ? "ml-auto flex-row-reverse" : "mr-auto")}
-            >
+            <div key={index} className={cn("flex max-w-3xl gap-3", isUser ? "ml-auto flex-row-reverse" : "mr-auto")}>
               <div
                 className={cn(
                   "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-xs font-bold",
-                  isUser ? "bg-accent text-white" : "bg-sunken text-ink-2 border border-edge"
+                  isUser ? "bg-brand text-white" : "border border-edge bg-sunken text-ink-2",
                 )}
               >
-                {isUser ? <User size={16} /> : <Robot size={16} weight="fill" />}
+                {isUser ? <User size={16} /> : message.failed ? <WarningCircle size={16} weight="fill" /> : <Robot size={16} weight="fill" />}
               </div>
               <div
                 className={cn(
-                  "rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap break-words",
+                  "rounded-2xl px-4 py-3 text-sm leading-relaxed break-words whitespace-pre-wrap",
                   isUser
-                    ? "bg-accent text-white rounded-tr-none shadow-sm"
-                    : "bg-sunken text-ink border border-edge rounded-tl-none"
+                    ? "rounded-tr-none bg-brand text-white"
+                    : message.failed
+                      ? "rounded-tl-none border border-danger bg-surface text-ink"
+                      : "rounded-tl-none border border-edge bg-sunken text-ink",
                 )}
               >
-                {renderContent(m.content)}
+                {message.demo && (
+                  <span className="mb-1 block text-[11px] font-semibold text-ink-3">Réponse de démonstration</span>
+                )}
+                {message.content}
+                {message.failed && (
+                  <div className="mt-2 border-t border-edge-soft pt-2">
+                    <Button variant="secondary" size="sm" onClick={retry} disabled={loading}>
+                      <ArrowClockwise size={14} />
+                      Réessayer
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           );
         })}
 
         {loading && (
-          <div className="flex gap-3 max-w-3xl mr-auto items-center">
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-sunken text-ink-2 border border-edge">
+          <div className="mr-auto flex max-w-3xl items-center gap-3">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-edge bg-sunken text-ink-2">
               <Robot size={16} weight="fill" />
             </div>
-            <div className="rounded-2xl rounded-tl-none bg-sunken px-4 py-3 text-sm text-ink-3 border border-edge flex items-center gap-2">
-              <span className="inline-block h-2 w-2 rounded-full bg-accent animate-ping" />
-              <span>Le conseiller IA réfléchit...</span>
+            <div className="rounded-2xl rounded-tl-none border border-edge bg-sunken px-4 py-3 text-sm text-ink-3">
+              L&apos;assistant rédige sa réponse…
             </div>
           </div>
         )}
         <div ref={chatEndRef} />
       </div>
 
-      {/* Suggestions rapides */}
-      {suggestedActions.length > 0 && (
-        <div className="px-4 py-2 border-t border-edge/60 bg-surface flex flex-wrap gap-1.5 items-center">
-          <span className="text-[11px] text-ink-3 font-medium mr-1">Suggestions :</span>
-          {suggestedActions.map((sug, i) => (
+      {live && suggestedActions.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 border-t border-edge bg-surface px-4 py-2">
+          <span className="mr-1 text-[11px] font-medium text-ink-3">Suggestions :</span>
+          {suggestedActions.map((suggestion, i) => (
             <button
               key={i}
               type="button"
-              onClick={() => handleSend(sug)}
+              onClick={() => void send(suggestion)}
               disabled={loading}
-              className="text-xs px-2.5 py-1 rounded-full bg-subtle hover:bg-sunken border border-edge text-ink-2 hover:text-ink transition-colors text-left"
+              className="rounded-full border border-edge bg-subtle px-2.5 py-1 text-left text-xs text-ink-2 transition-colors hover:bg-sunken hover:text-ink"
             >
-              {sug}
+              {suggestion}
             </button>
           ))}
         </div>
       )}
 
-      {/* Saisie utilisateur */}
       <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleSend();
+        onSubmit={(event) => {
+          event.preventDefault();
+          void send();
         }}
-        className="p-3 sm:p-4 border-t border-edge bg-surface flex items-center gap-2"
+        className="flex items-center gap-2 border-t border-edge bg-surface p-3 sm:p-4"
       >
         <input
           type="text"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Posez une question sur votre architecture, sa résilience ou son hébergement Systalink..."
-          disabled={loading}
-          className="flex-1 rounded-xl border border-edge bg-sunken px-4 py-2.5 text-sm text-ink placeholder:text-ink-4 focus:border-accent focus:outline-none transition-colors"
+          onChange={(event) => setInput(event.target.value)}
+          placeholder={live ? "Posez une question sur votre architecture…" : "Indisponible en mode démonstration"}
+          disabled={loading || !live}
+          maxLength={8000}
+          className="flex-1 rounded-xl border border-edge bg-sunken px-4 py-2.5 text-sm text-ink transition-colors placeholder:text-ink-4 focus:border-accent focus:outline-none disabled:opacity-60"
         />
-        <Button
-          type="submit"
-          variant="primary"
-          disabled={!input.trim() || loading}
-          className="flex-shrink-0 rounded-xl px-4 py-2.5"
-        >
+        <Button type="submit" disabled={!input.trim() || loading || !live} className="flex-shrink-0 rounded-xl px-4 py-2.5">
           <PaperPlaneRight size={16} weight="fill" />
           <span className="hidden sm:inline">Envoyer</span>
         </Button>

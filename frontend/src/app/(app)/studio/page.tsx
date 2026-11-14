@@ -15,15 +15,14 @@ import { LiveTeamPanel } from "@/components/studio/live/LiveTeamPanel";
 import { ShareDialog } from "@/components/studio/live/ShareDialog";
 import { VersionsPanel } from "@/components/studio/live/VersionsPanel";
 import { ChatbotPanel } from "@/components/studio/ChatbotPanel";
+import { AiPanel } from "@/components/studio/live/AiPanel";
 import {
-  AI_SUGGESTIONS,
   ARCHITECTURE_VERSIONS,
   AI_DOC_SECTIONS,
   COMMUNITY_ARCHITECTS,
   DEFAULT_PROJECT_TEAMS,
   type ArchitectureVersion,
   type AIDocSection,
-  type AISuggestion,
   type GitHubRole,
   type ProjectCollaborator,
   type ProjectTeamGroup,
@@ -35,8 +34,6 @@ import {
   ChartLineUp,
   FileText,
   GitCommit,
-  CheckCircle,
-  Sparkle,
   PlugsConnected,
   Users,
   ArrowsClockwise,
@@ -67,23 +64,6 @@ const API_ROLE_BY_LABEL: Record<GitHubRole, ApiRole> = {
   Write: "WRITE",
   Triage: "TRIAGE",
   Read: "READ",
-};
-
-type LiveAuditFinding = {
-  id?: string;
-  severity?: string;
-  category?: string;
-  title?: string;
-  targetNodeId?: string;
-  currentConfig?: string;
-  proposedConfig?: string;
-  rationale?: string;
-  impactScore?: string;
-  patch?: AISuggestion["patch"];
-};
-
-type LiveAuditResponse = {
-  findings?: LiveAuditFinding[];
 };
 
 export default function StudioPage() {
@@ -145,12 +125,6 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
   const [selectedNodeId, setSelectedNodeId] = useState<string>(
     () => nodes.find((node) => node.id === "pg-primary")?.id ?? nodes[0]?.id ?? "",
   );
-  const [appliedSuggestionIds, setAppliedSuggestionIds] = useState<string[]>([]);
-  const [suggestions, setSuggestions] = useState<typeof AI_SUGGESTIONS>(AI_SUGGESTIONS);
-  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
-  const [hasAnalyzed, setHasAnalyzed] = useState<boolean>(false);
-  const [analysisStep, setAnalysisStep] = useState<string>("");
-
   const [simulatedRps, setSimulatedRps] = useState<number>(8500);
 
   const [docSections, setDocSections] = useState<AIDocSection[]>(AI_DOC_SECTIONS);
@@ -202,177 +176,6 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
   const [requireTwoApprovals, setRequireTwoApprovals] = useState<boolean>(true);
   const [requireAiCheck, setRequireAiCheck] = useState<boolean>(true);
 
-  const aiHealthScore = Math.min(100, 86 + appliedSuggestionIds.length * 5);
-
-  const runArchitectureAudit = React.useCallback(async () => {
-    setIsAnalyzing(true);
-    setAnalysisStep("Cartographie des composants et détection des SPOF...");
-
-    if (live && currentProject.canvasId) {
-      try {
-        setAnalysisStep("Interrogation de l'Agent IA Lonkoo & Systalink...");
-        const res = await fetch(`/api/canvases/${currentProject.canvasId}/ai/audit`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-        });
-        if (res.ok) {
-          const data = (await res.json()) as LiveAuditResponse;
-          if (data.findings && data.findings.length > 0) {
-            const mapped: typeof AI_SUGGESTIONS = data.findings.map((f: LiveAuditFinding, idx: number) => {
-              const sev = (f.severity || "RECOMMENDED").toLowerCase();
-              const categoryMap: Record<string, AISuggestion["category"]> = {
-                RESILIENCE: "Résilience",
-                STACK: "Stack Technique",
-                SECURITY: "Sécurité",
-                PERFORMANCE: "Performance",
-              };
-              const severityMap: Record<string, AISuggestion["severity"]> = {
-                critical: "critique",
-                recommended: "recommandé",
-                optimization: "optimisation",
-              };
-              return {
-                id: f.id || `live-sug-${idx}`,
-                severity: severityMap[sev] ?? "recommandé",
-                category: categoryMap[f.category ?? ""] || "Stack Technique",
-                title: f.title || "Optimisation recommandée",
-                targetNodeId: f.targetNodeId || nodes[0]?.id || "",
-                currentConfig: f.currentConfig || "Configuration standard",
-                proposedConfig: f.proposedConfig || "Configuration optimisée",
-                rationale: f.rationale || "Améliore la résilience et la scalabilité de l'infrastructure.",
-                impactScore: f.impactScore || "+15 pts Score IA",
-                patch: f.patch || {
-                  tech: f.proposedConfig?.slice(0, 32) || "Optimisé",
-                  version: "v-ha",
-                  replicas: 2,
-                  status: "Optimisé",
-                  metricValue: "+40% RPS",
-                },
-              };
-            });
-            setSuggestions(mapped);
-            setHasAnalyzed(true);
-            setIsAnalyzing(false);
-            return;
-          }
-        }
-      } catch {
-        // Repli gracieux
-      }
-    }
-
-    await new Promise((r) => setTimeout(r, 600));
-    setAnalysisStep("Contrôle de la sécurité des passerelles et de la latence UEMOA...");
-    await new Promise((r) => setTimeout(r, 600));
-    setAnalysisStep("Génération des correctifs haute disponibilité Systalink...");
-    await new Promise((r) => setTimeout(r, 500));
-
-    const dbNode = nodes.find((n) => n.tech?.toLowerCase().includes("sql") || n.id.includes("pg") || n.id.includes("db") || n.title.toLowerCase().includes("data"));
-    const edgeNode = nodes.find((n) => n.id.includes("edge") || n.id.includes("gateway") || n.title.toLowerCase().includes("gateway") || n.title.toLowerCase().includes("web"));
-    const serviceNode = nodes.find((n) => n.id !== dbNode?.id && n.id !== edgeNode?.id) || nodes[0];
-
-    const dynamicSuggestions: typeof AI_SUGGESTIONS = [];
-
-    if (dbNode) {
-      dynamicSuggestions.push({
-        id: `sug-db-systalink-${dbNode.id}`,
-        severity: "critique",
-        category: "Résilience",
-        title: `Migrer ${dbNode.title} vers PostgreSQL HA (DBaaS Systalink Dakar)`,
-        targetNodeId: dbNode.id,
-        currentConfig: `${dbNode.title} - ${dbNode.tech || "PostgreSQL"} (Mono-instance)`,
-        proposedConfig: `PostgreSQL 16 HA + Patroni sur DBaaS Systalink (3 nœuds répliqués à Dakar, latence < 10ms)`,
-        rationale: `L'instance actuelle présente un point de défaillance unique (SPOF). En cas d'incident, l'accès est bloqué. Le DBaaS souverain Systalink assure le basculement automatique et des sauvegardes quotidiennes chiffrées.`,
-        impactScore: "+18 pts Score IA",
-        patch: {
-          tech: "PostgreSQL HA Systalink",
-          version: "v16.4-ha-dakar",
-          replicas: 3,
-          status: "Optimisé",
-          metricValue: "28.5k RPS",
-        },
-      });
-    }
-
-    if (edgeNode) {
-      dynamicSuggestions.push({
-        id: `sug-edge-protection-${edgeNode.id}`,
-        severity: "recommandé",
-        category: "Sécurité",
-        title: `Activer la protection Anti-DDoS et la terminaison SSL Systalink`,
-        targetNodeId: edgeNode.id,
-        currentConfig: `${edgeNode.title} - Exposition directe sans filtrage de trafic`,
-        proposedConfig: `Reverse-proxy souverain avec filtrage Anti-DDoS, SSL Let's Encrypt et cache JWKS à Dakar`,
-        rationale: `Les attaques DDoS et la latence TLS peuvent impacter les usagers en Afrique de l'Ouest. Le réseau Systalink Anycast absorbe les attaques et accélère les requêtes.`,
-        impactScore: "+14 pts Score IA",
-        patch: {
-          tech: "Gateway Anti-DDoS Systalink",
-          version: "v2.1-ddos-shield",
-          replicas: 2,
-          status: "Optimisé",
-          metricValue: "99.99% SLA",
-        },
-      });
-    }
-
-    if (serviceNode && serviceNode.id !== dbNode?.id && serviceNode.id !== edgeNode?.id) {
-      dynamicSuggestions.push({
-        id: `sug-k8s-autoscale-${serviceNode.id}`,
-        severity: "optimisation",
-        category: "Performance",
-        title: `Déployer ${serviceNode.title} sur Kubernetes Managé Systalink`,
-        targetNodeId: serviceNode.id,
-        currentConfig: `${serviceNode.title} (${serviceNode.replicas || 1} instance)`,
-        proposedConfig: `Cluster K8s Managé Systalink avec Horizontal Pod Autoscaling (HPA)`,
-        rationale: `Permet d'absorber les pics de trafic en Afrique de l'Ouest tout en optimisant la facturation en FCFA (XOF).`,
-        impactScore: "+12 pts Score IA",
-        patch: {
-          tech: "K8s Managé Systalink",
-          version: "k8s-v1.30",
-          replicas: 3,
-          status: "Optimisé",
-          metricValue: "+50% Capacité",
-        },
-      });
-    }
-
-    setSuggestions(dynamicSuggestions.length > 0 ? dynamicSuggestions : AI_SUGGESTIONS);
-    setHasAnalyzed(true);
-    setIsAnalyzing(false);
-  }, [currentProject.canvasId, live, nodes]);
-
-  React.useEffect(() => {
-    if (activeTab === "scanner" && !hasAnalyzed && !isAnalyzing) {
-      const timer = window.setTimeout(() => {
-        void runArchitectureAudit();
-      }, 0);
-      return () => window.clearTimeout(timer);
-    }
-  }, [activeTab, hasAnalyzed, isAnalyzing, runArchitectureAudit]);
-
-  const applySuggestion = (sugId: string) => {
-    const sug = suggestions.find((s) => s.id === sugId) || AI_SUGGESTIONS.find((s) => s.id === sugId);
-    if (!sug || appliedSuggestionIds.includes(sugId)) return;
-
-    setNodes((prev) =>
-      prev.map((node) =>
-        node.id === sug.targetNodeId
-          ? {
-              ...node,
-              tech: sug.patch.tech ?? node.tech,
-              version: sug.patch.version ?? node.version,
-              replicas: sug.patch.replicas ?? node.replicas,
-              status: sug.patch.status ?? node.status,
-              metricValue: sug.patch.metricValue ?? node.metricValue,
-              maxRpsCapacity: Math.round(node.maxRpsCapacity * 1.45),
-            }
-          : node
-      )
-    );
-    setAppliedSuggestionIds((prev) => [...prev, sugId]);
-    setSelectedNodeId(sug.targetNodeId);
-  };
-
   const handleRegenerateDocs = () => {
     setIsGeneratingDoc(true);
     setTimeout(() => {
@@ -390,7 +193,7 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
             : `Synthèse de la topologie : Le graphe contient ${nodes.length} briques actives (${stackSummary}).`,
           highlights: [
             `${nodes.length} composants présents dans le graphe`,
-            `Score de cohérence évalué à ${aiHealthScore}%`,
+            `${edges.length} liaisons déclarées entre les composants`,
             `Synchronisé avec le dépôt ${currentProject.githubRepo}`,
           ],
         },
@@ -561,11 +364,7 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
           {(
             [
               { id: "canvas", label: "Architecture", icon: SlidersHorizontal },
-              {
-                id: "scanner",
-                label: `Analyse IA (${suggestions.length - appliedSuggestionIds.length})`,
-                icon: Cpu,
-              },
+              { id: "scanner", label: "Analyse IA", icon: Cpu },
               { id: "chat", label: "Conseiller Systalink", icon: ChatCircleDots },
               { id: "simulator", label: "Simulateur", icon: ChartLineUp },
               { id: "docs", label: "Documentation", icon: FileText },
@@ -643,138 +442,18 @@ function StudioWorkspace({ project: currentProject }: { project: WorkspaceProjec
           </div>
         )}
 
-        {/* ONGLET 2 : ANALYSE IA */}
+        {/* ONGLET 2 : ANALYSE IA (composant dédié : appels, états et erreurs réelles) */}
         {activeTab === "scanner" && (
-          <div className="space-y-4">
-            {isAnalyzing ? (
-              <div className="bg-surface rounded-2xl p-10 border border-edge text-center space-y-6">
-                <div className="relative mx-auto w-20 h-20 flex items-center justify-center">
-                  <span className="absolute inset-0 rounded-full bg-accent/20 animate-ping" />
-                  <span className="absolute inset-2 rounded-full bg-brand/10 animate-pulse" />
-                  <div className="relative z-10 w-14 h-14 rounded-2xl bg-gradient-to-tr from-brand to-accent flex items-center justify-center text-white shadow-lg">
-                    <Cpu size={30} weight="duotone" className="animate-spin" />
-                  </div>
-                </div>
-                <div className="max-w-md mx-auto space-y-2">
-                  <h3 className="text-base font-bold text-ink">Analyse en cours de l&apos;architecture…</h3>
-                  <p className="text-xs text-accent font-mono animate-pulse">{analysisStep}</p>
-                  <p className="text-[11px] text-ink-3">
-                    Diagnostic des points uniques de panne (SPOF), latence UEMOA et recommandations Cloud Souverain Systalink.
-                  </p>
-                </div>
-                <div className="w-64 h-1.5 bg-subtle rounded-full mx-auto overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-brand to-accent animate-[pulse_1s_infinite] w-full" />
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="bg-surface rounded-xl p-5 border border-edge flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-base font-bold text-ink">
-                        Diagnostic de topologie et recommandations
-                      </h2>
-                      <span className="rounded bg-accent/10 px-2 py-0.5 font-mono text-[11px] font-semibold text-accent">
-                        Agent IA & Systalink
-                      </span>
-                    </div>
-                    <p className="text-xs text-ink-3 mt-0.5">
-                      Analyse des {nodes.length} blocs du projet {currentProject.name}.
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => void runArchitectureAudit()}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-edge bg-subtle hover:bg-edge text-ink-2 text-xs font-medium transition-colors cursor-pointer"
-                    >
-                      <ArrowsClockwise size={14} />
-                      <span>Relancer l&apos;analyse</span>
-                    </button>
-                    <div className="flex items-center gap-4 bg-sunken px-4 py-2.5 rounded-lg border border-edge">
-                      <div>
-                        <div className="text-[11px] text-ink-3">Score de cohérence</div>
-                        <div className="text-xl font-bold font-mono text-ink">
-                          {aiHealthScore}%
-                        </div>
-                      </div>
-                      <div className="h-7 w-px bg-strong" />
-                      <div>
-                        <div className="text-[11px] text-ink-3">Correctifs</div>
-                        <div className="text-sm font-bold font-mono text-accent">
-                          {appliedSuggestionIds.length} / {suggestions.length}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-3">
-                  {suggestions.map((sug) => {
-                const isApplied = appliedSuggestionIds.includes(sug.id);
-                return (
-                  <div
-                    key={sug.id}
-                    className="bg-surface rounded-xl p-5 border border-edge"
-                  >
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div className="space-y-2 max-w-3xl">
-                        <div className="flex flex-wrap items-center gap-2 text-xs">
-                          <span className="font-mono uppercase text-[11px] px-2 py-0.5 rounded bg-subtle text-ink-2 font-semibold">
-                            {sug.severity}
-                          </span>
-                          <span className="text-ink-3">{sug.category}</span>
-                          <span className="text-ink-4">·</span>
-                          <span className="font-mono text-accent font-medium">
-                            {sug.impactScore}
-                          </span>
-                        </div>
-
-                        <h3 className="text-sm font-bold text-ink">{sug.title}</h3>
-                        <p className="text-xs text-ink-2 leading-relaxed">{sug.rationale}</p>
-
-                        <div className="pt-1 grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs font-mono">
-                          <div className="p-2.5 rounded-lg bg-sunken border border-edge text-ink-2">
-                            <span className="block text-[11px] text-ink-4 mb-0.5">
-                              Actuel
-                            </span>
-                            {sug.currentConfig}
-                          </div>
-                          <div className="p-2.5 rounded-lg bg-sunken border border-edge text-ink font-semibold">
-                            <span className="block text-[11px] text-accent mb-0.5">
-                              Proposition
-                            </span>
-                            {sug.proposedConfig}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex-shrink-0">
-                        {isApplied ? (
-                          <div className="px-3.5 py-2 rounded-lg bg-subtle text-ink-2 text-xs font-medium flex items-center gap-1.5">
-                            <CheckCircle size={15} weight="fill" className="text-ok" />
-                            <span>Appliqué</span>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => applySuggestion(sug.id)}
-                            className="px-4 py-2 rounded-lg bg-brand hover:bg-brand-hover text-inverse-ink text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <Sparkle size={14} weight="fill" />
-                            <span>Appliquer</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-              </>
-            )}
-          </div>
+          <AiPanel
+            canvasId={live?.canvasId ?? null}
+            live={Boolean(live)}
+            canWrite={canWrite && !live?.readOnly}
+            projectName={currentProject.name}
+            nodes={nodes}
+            edges={edges}
+            setNodes={setNodes}
+            setEdges={setEdges}
+          />
         )}
 
         {/* ONGLET CONSEILLER IA & SYSTALINK */}
