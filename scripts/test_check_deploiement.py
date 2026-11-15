@@ -138,7 +138,7 @@ class AdressePublique(unittest.TestCase):
 
 class AdressesCaddy(unittest.TestCase):
     COMPOSE = "      DOMAINS: ${DOMAINS:-${DOMAIN}}\n"
-    CADDYFILE = "{$DOMAINS} {\n\t@alias not host {$DOMAIN}\n\tredir @alias https://{$DOMAIN}{uri} 308\n}\n"
+    CADDYFILE = "{$DOMAINS} {\n\t@alias not host {$DOMAIN}\n\tredir @alias https://{$DOMAIN}{uri} 307\n}\n"
     DOCKERFILE = "RUN DOMAIN=x DOMAINS=x caddy validate\n"
 
     def test_une_configuration_complete_ne_signale_rien(self):
@@ -154,6 +154,15 @@ class AdressesCaddy(unittest.TestCase):
         ecarts = script.ecarts_adresses_caddy("{$DOMAINS} {\n}\n", self.COMPOSE)
         self.assertEqual(len(ecarts), 1)
         self.assertIn("redirig", ecarts[0])
+
+    def test_une_redirection_permanente_ou_sans_code_est_signalee(self):
+        # Cas réel du 15/11 : Chrome gardait l'ancienne redirection 308 lonkoo.site vers sslip.io et tournait en boucle une fois
+        # lonkoo.site devenue l'adresse principale. Sans code, Caddy répond 302, qui change un POST en GET : 307 est exigé.
+        for permanente in (self.CADDYFILE.replace("307", "308"), self.CADDYFILE.replace("307", "301"),
+                           self.CADDYFILE.replace(" 307", "")):
+            ecarts = script.ecarts_adresses_caddy(permanente, self.COMPOSE)
+            self.assertEqual(len(ecarts), 1, permanente)
+            self.assertIn("temporaire", ecarts[0])
 
     def test_un_compose_qui_ne_transmet_pas_domains_est_signale(self):
         ecarts = script.ecarts_adresses_caddy(self.CADDYFILE, "      DOMAIN: ${DOMAIN}\n")

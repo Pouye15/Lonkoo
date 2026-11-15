@@ -22,9 +22,13 @@
 		-Server
 	}
 
-	# Autres adresses : redirection permanente (308 : la méthode et le chemin sont gardés) vers l'adresse principale.
+	# Autres adresses : redirection TEMPORAIRE (307 : la méthode et le chemin sont gardés) vers l'adresse principale.
+	# Pas 308 : un navigateur garde une redirection permanente sans limite de durée. Le 15/11, quand lonkoo.site est passée
+	# d'adresse secondaire à adresse principale, un Chrome qui avait suivi l'ancienne redirection (lonkoo.site vers sslip.io)
+	# tournait en boucle (ERR_TOO_MANY_REDIRECTS) jusqu'à ce que son cache soit vidé. Une redirection temporaire n'est pas
+	# gardée : l'adresse principale peut encore changer, ou revenir en arrière, sans piéger ceux qui sont déjà passés.
 	@alias not host {$DOMAIN}
-	redir @alias https://{$DOMAIN}{uri} 308
+	redir @alias https://{$DOMAIN}{uri} 307
 
 	# Routes réservées au backend et au serveur temps réel : jamais exposées.
 	# Un « handle » et non un « respond » seul : Caddy exécute tous les « handle » avant un « respond » placé à la racine du

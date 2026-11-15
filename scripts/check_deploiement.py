@@ -119,14 +119,20 @@ def ecarts_adresse(readme: str, textes: dict[str, str], obligatoires) -> list[st
 
 def ecarts_adresses_caddy(caddyfile: str, compose: str, dockerfile: str = "") -> list[str]:
     """Caddy lit DOMAINS (plusieurs adresses possibles) et redirige toutes celles qui ne sont pas DOMAIN vers DOMAIN (la connexion
-    GitHub n'a qu'une adresse de retour) ; le compose les lui donne, DOMAIN par défaut ; la validation faite à la construction de
-    l'image (infra/caddy.Dockerfile) doit poser les deux variables, sinon la construction échoue."""
+    GitHub n'a qu'une adresse de retour), par une redirection TEMPORAIRE (307) : un navigateur garde une redirection permanente
+    sans limite de durée et tourne en boucle si l'adresse principale change ; le compose donne les adresses à Caddy, DOMAIN par
+    défaut ; la validation faite à la construction de l'image (infra/caddy.Dockerfile) doit poser les deux variables, sinon la
+    construction échoue."""
     ecarts = []
     if "{$DOMAINS}" not in caddyfile:
         ecarts.append("infra/Caddyfile : l'adresse du site doit être {$DOMAINS} (plusieurs adresses possibles), pas {$DOMAIN}")
     if "redir @alias" not in caddyfile:
         ecarts.append("infra/Caddyfile : les adresses autres que DOMAIN doivent rediriger vers DOMAIN (redir @alias …) : la connexion "
                       "GitHub échoue depuis une autre adresse (« État de connexion invalide »)")
+    elif not re.search(r"redir @alias\s+\S+\s+307\b", caddyfile):
+        ecarts.append("infra/Caddyfile : la redirection des adresses autres que DOMAIN doit être temporaire (307), ni permanente "
+                      "(301, 308) ni sans code : un navigateur garde une redirection permanente et tourne en boucle si l'adresse "
+                      "principale change")
     if "DOMAINS: ${DOMAINS:-${DOMAIN}}" not in compose:
         ecarts.append(f"{COMPOSE} : le service caddy doit recevoir DOMAINS: ${{DOMAINS:-${{DOMAIN}}}} (DOMAIN par défaut)")
     if dockerfile:
