@@ -117,9 +117,12 @@ def ecarts_adresse(readme: str, textes: dict[str, str], obligatoires) -> list[st
     return ecarts
 
 
-def ecarts_adresses_caddy(caddyfile: str, compose: str) -> list[str]:
-    """Caddy lit DOMAINS (plusieurs adresses possibles) et le compose le lui donne, DOMAIN par défaut."""
+def ecarts_adresses_caddy(caddyfile: str, compose: str, dockerfile: str = "") -> list[str]:
+    """Caddy lit DOMAINS (plusieurs adresses possibles) et le compose le lui donne, DOMAIN par défaut ; la validation faite à la
+    construction de l'image (infra/caddy.Dockerfile) doit poser la même variable, sinon la construction échoue."""
     ecarts = []
+    if dockerfile and "DOMAINS=" not in dockerfile:
+        ecarts.append("infra/caddy.Dockerfile : la validation du Caddyfile doit poser DOMAINS=… (c'est la variable que le Caddyfile lit)")
     if "{$DOMAINS}" not in caddyfile:
         ecarts.append("infra/Caddyfile : l'adresse du site doit être {$DOMAINS} (plusieurs adresses possibles), pas {$DOMAIN}")
     if "DOMAINS: ${DOMAINS:-${DOMAIN}}" not in compose:
@@ -137,7 +140,8 @@ def main() -> int:
         textes[f"docs/{doc.name}"] = doc.read_text(encoding="utf-8")
     ecarts = (ecarts_envois(compose, envois) + ecarts_modele(compose, modele) + ecarts_noms_de_machine(adresses)
               + ecarts_adresse(textes["README.md"], textes, DOCUMENTS_AVEC_ADRESSE)
-              + ecarts_adresses_caddy((RACINE / "infra/Caddyfile").read_text(encoding="utf-8"), compose))
+              + ecarts_adresses_caddy((RACINE / "infra/Caddyfile").read_text(encoding="utf-8"), compose,
+                                   (RACINE / "infra/caddy.Dockerfile").read_text(encoding="utf-8")))
     if ecarts:
         for ecart in ecarts:
             print(f"ÉCART  {ecart}")
