@@ -370,6 +370,14 @@ jobs:
             echo "MAX_PROJECTS_PER_GUEST=7"
           } > "$RUNNER_TEMP/ci.env"
 
+      # Le compose construit ses images sur le serveur : le dossier de chacune doit faire partie de ce que le déploiement
+      # envoie (deploy.yml, docs/DEPLOIEMENT.md), et le modèle de .env doit laisser vides les variables exigées. Ici le
+      # dépôt est entier et le .env rempli : rien d'autre ne verrait ces deux défauts avant le premier démarrage réel.
+      - name: Cohérence du déploiement (dossiers envoyés, modèle de .env)
+        run: |
+          python3 -m unittest scripts/test_check_deploiement.py
+          python3 scripts/check_deploiement.py
+
       - name: Construire et démarrer la pile
         run: docker compose --env-file "$ENV_FILE" up -d --build --wait --wait-timeout 600
 

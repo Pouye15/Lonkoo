@@ -101,7 +101,10 @@ jobs:
         run: |
           # Seuls les dossiers dont le serveur a besoin. Le nouveau dossier remplace l'ancien d'un coup : jamais de
           # fichiers d'une version précédente mêlés à ceux de la nouvelle. Le .env du serveur est hors de ce dossier.
-          tar czf - backend realtime frontend infra \
+          # Chaque dossier que le compose de production construit doit figurer dans cette liste, comme dans le guide
+          # (docs/DEPLOIEMENT.md) : sans lui, « docker compose build » échoue sur le serveur. Le contrôle
+          # scripts/check_deploiement.py le vérifie dans la CI.
+          tar czf - backend realtime frontend agent_ia infra \
             | ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_USER@$SSH_HOST" \
               "set -e; rm -rf $REMOTE_DIR/app.new; mkdir -p $REMOTE_DIR/app.new; tar xzf - -C $REMOTE_DIR/app.new; rm -rf $REMOTE_DIR/app; mv $REMOTE_DIR/app.new $REMOTE_DIR/app"
 

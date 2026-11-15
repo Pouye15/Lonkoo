@@ -12,4 +12,8 @@ description = "Valeurs factices des tests"
 regexes = [
   '''test-ticket-secret-0123456789abcdef0123456789abcdef''',
   '''k3v9Qx7LmT2pWz8RnB5yHc1JdFa6SuEo''',
+  # Microservice agent_ia : le jeton que la CI pose pour ses tests (ci.yml, job « Agent IA ») et la fausse clé de
+  # agent_ia/tests/conftest.py, dont les tests vérifient qu'elle ne fuit ni dans une réponse ni dans un journal.
+  '''jeton-de-test-ci-0123456789''',
+  '''cle-factice-ne-doit-jamais-fuiter-42''',
 ]
