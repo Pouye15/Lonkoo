@@ -6,7 +6,7 @@
 
 ```mermaid
 flowchart LR
-  U["Navigateur<br/>Next.js + React Flow"] -- "HTTPS / WSS" --> P["Caddy<br/>TLS, origine unique"]
+  U["Navigateur<br/>Next.js"] -- "HTTPS / WSS" --> P["Caddy<br/>TLS, origine unique"]
   P -- "/" --> F["Frontend<br/>Next.js"]
   P -- "/api" --> B["Backend<br/>Spring Boot"]
   P -- "/ws" --> R["Temps réel<br/>Hocuspocus (Yjs)"]
@@ -24,7 +24,7 @@ Seuls `/`, `/api` et `/ws` sont exposés. Les routes `/internal` du backend (uti
 
 | Composant | Technologie | Rôle |
 |---|---|---|
-| Frontend | Next.js, React Flow, Tailwind CSS | Canvas interactif, blocs personnalisés, interface |
+| Frontend | Next.js, Tailwind CSS (canvas écrit dans le projet) | Canvas interactif, blocs personnalisés, interface |
 | Temps réel | Yjs, Hocuspocus (serveur et client) | Synchronisation des modifications, présence et curseurs, authentification par canvas |
 | Backend | Spring Boot 4.1 (Java 21), Spring Data JDBC, Flyway, Log4j2 | Comptes, canvas, versions, appels IA, génération, GitHub, déploiement |
 | Base de données | PostgreSQL 16 (JSONB) | Comptes, état des canvas, instantanés, journal |

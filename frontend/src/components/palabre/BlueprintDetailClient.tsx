@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { DemoNotice } from "@/components/ui/DemoNotice";
 import {
   WORKSPACE_PROJECTS,
   COMMUNITY_ARCHITECTS,
@@ -114,6 +115,7 @@ export function BlueprintDetailClient({ blueprint }: { blueprint: BlueprintItem 
         }
       />
       <div className="max-w-6xl mx-auto space-y-6">
+        <DemoNotice>cette architecture, ses notes et ses commentaires sont des exemples fictifs.</DemoNotice>
         {/* En-tête */}
         <div className="bg-surface rounded-xl p-6 border border-edge">
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-5 border-b border-edge-soft">

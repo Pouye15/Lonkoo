@@ -12,7 +12,6 @@ La colonne « Vérifié » se coche seulement après avoir lu la licence dans le
 |---|---|---|---|---|---|---|
 | Next.js | 16.4.5 | MIT | Oui | Frontend | npm | [x] |
 | React / React DOM | 19.3.1 | MIT | Oui | Frontend | npm | [x] |
-| React Flow (@xyflow/react) | [x] | MIT | Oui | Canvas | npm | [ ] |
 | Tailwind CSS (et @tailwindcss/postcss) | 4.3.3 | MIT | Oui | Style (build uniquement) | npm | [x] |
 | @phosphor-icons/react | 2.1.10 | MIT | Oui | Icônes | npm | [x] |
 | TypeScript | 6.0.3 | Apache 2.0 | Oui | Compilation et vérification des types (développement) | npm | [x] |

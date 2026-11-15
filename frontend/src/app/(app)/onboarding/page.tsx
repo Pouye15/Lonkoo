@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { DemoNotice } from "@/components/ui/DemoNotice";
 import {
   GithubLogo,
   LockKey,
@@ -46,6 +47,10 @@ export default function OnboardingPage() {
     <>
       <PageHeader title="Configuration initiale" />
       <div className="max-w-4xl mx-auto space-y-5">
+        <DemoNotice>
+          l&apos;organisation, les technologies et les intégrations de cet écran sont des exemples : rien n&apos;est enregistré ni relié à GitHub,
+          à un serveur MCP ou à Orion. « Continuer » ne fait que passer cet écran.
+        </DemoNotice>
         <div className="bg-surface rounded-xl p-5 border border-edge space-y-4">
           <div className="pb-3 border-b border-edge-soft">
             <h2 className="text-sm font-bold text-ink">

@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { DemoNotice } from "@/components/ui/DemoNotice";
 import { ProjectDiscussion } from "@/components/team/ProjectDiscussion";
 import { IS_LIVE_API } from "@/lib/api";
 import { useWorkspace } from "@/lib/workspace";
@@ -69,6 +70,11 @@ export default function ArchitectureReviewsAndChatPage() {
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* COLONNE GAUCHE : REVUES D'ARCHITECTURE */}
         <div className="lg:col-span-7 space-y-4">
+          <DemoNotice>
+            {IS_LIVE_API
+              ? "ces propositions de modification sont des exemples fictifs : « Fusionner » ne change aucun projet. La discussion d'équipe, à côté, est réelle."
+              : "ces propositions de modification sont des exemples fictifs : « Fusionner » ne change aucun projet."}
+          </DemoNotice>
           <div className="bg-surface rounded-xl p-4 border border-edge space-y-2.5">
             <div className="flex items-center justify-between pb-2 border-b border-edge-soft">
               <div className="flex items-center gap-2 text-xs font-bold text-ink">
