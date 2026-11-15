@@ -26,10 +26,12 @@ Journal des questions posées au comité CADev. Une ligne par question : date d'
 | Remises : la page annonce « -40 % pour les équipes qui participent » et « -70 % pour tous les participants en 2026 ». Se cumulent-elles ? S'appliquent-elles au Serveur Cloud, à Dakar ? | | | |
 | Le Serveur Cloud est-il hébergé à Dakar ? Donne-t-il un accès root ou sudo en SSH et autorise-t-il Docker ? | | | |
 | Un domaine ou sous-domaine est-il fourni avec le produit acheté pour le concours ? | | | |
-| La plateforme affiche une clôture le 15 novembre 2026 : est-ce bien à 17 h GMT ? Quelles sont les nouvelles dates du vote des pairs, de la campagne et de la notation par le jury ? | | | |
+| La plateforme affiche une clôture le 15 novembre 2026 : est-ce bien à 17 h GMT ? Quelles sont les nouvelles dates du vote des pairs, de la campagne et de la notation par le jury ? | non posée : calendrier communiqué par l'organisation (message du 15/11) | Soumission prolongée jusqu'au lundi 16 novembre, 23 h 59 GMT. Vote des pairs : du mardi 17 novembre 00 h 00 au mercredi 18 novembre 23 h 59 GMT. Campagne des équipes et vote du public : du jeudi 19 novembre 00 h 00 au vendredi 20 novembre 23 h 59 GMT. Notation par le jury : 21 et 22 novembre. Résultats : lundi 23 novembre (inchangé) | 15/11 |
 | Les projets que notre plateforme génère pour ses utilisateurs (du code livré, qui dépend par exemple d'Hibernate 6 sous LGPL et de Logback) entrent-ils dans le périmètre de l'interdiction des licences à réciprocité, ou seulement le code de la plateforme elle-même ? | | | |
 
 ## Message prêt à envoyer (version du 15/11, courriel ou WhatsApp)
+
+> **Note du 15/11 (soir) :** la question 2 (calendrier) a reçu sa réponse (voir le tableau ci-dessus) : à retirer avant l'envoi. Le message dit encore « avant notre soumission » et que le dépôt est privé, alors que le projet est enregistré (message de l'organisation du 15/11) et le dépôt public : à réécrire avant tout envoi.
 
 > **Objet : CADev 2026, équipe VISION X, 5 questions avant la clôture**
 >
