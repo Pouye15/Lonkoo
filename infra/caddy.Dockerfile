@@ -6,5 +6,6 @@
 FROM caddy:2-alpine
 COPY Caddyfile /etc/caddy/Caddyfile
 # La syntaxe est vérifiée dès la construction (domaine factice : seule la forme du fichier compte).
-# La variable doit porter le nom que lit le Caddyfile (DOMAINS) : sans elle, l'adresse du site est vide et la validation échoue.
-RUN DOMAINS=lonkoo.example.org caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+# Les variables doivent porter les noms que lit le Caddyfile (DOMAINS pour les adresses, DOMAIN pour l'adresse principale) :
+# sans elles, l'adresse du site est vide et la validation échoue.
+RUN DOMAIN=lonkoo.example.org DOMAINS=lonkoo.example.org caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
