@@ -2,6 +2,9 @@
 # DOMAINS est fourni par l'environnement : une adresse (ex. lonkoo.example.com) ou plusieurs, séparées par des virgules
 # (« a.example.com, b.example.com »). Le compose lui donne DOMAIN pour valeur par défaut. Caddy obtient seul le certificat TLS
 # de chaque adresse ; une adresse dont le DNS ne pointe pas encore ici échoue sans gêner les autres.
+# DOMAIN est l'adresse principale (celle de l'application OAuth GitHub). Toute autre adresse de DOMAINS REDIRIGE vers elle :
+# la connexion GitHub n'a qu'une adresse de retour, et le cookie d'état de la connexion appartient à l'adresse de départ ;
+# servie depuis une autre adresse, elle échouait par « État de connexion invalide ».
 #
 # Les adresses des services valent celles du réseau Docker (voir docker-compose.prod.yml). Elles se règlent par
 # variable seulement pour essayer ce fichier sans Docker (BACKEND_UPSTREAM=localhost:8080, par exemple).
@@ -18,6 +21,10 @@
 		Referrer-Policy "strict-origin-when-cross-origin"
 		-Server
 	}
+
+	# Autres adresses : redirection permanente (308 : la méthode et le chemin sont gardés) vers l'adresse principale.
+	@alias not host {$DOMAIN}
+	redir @alias https://{$DOMAIN}{uri} 308
 
 	# Routes réservées au backend et au serveur temps réel : jamais exposées.
 	# Un « handle » et non un « respond » seul : Caddy exécute tous les « handle » avant un « respond » placé à la racine du

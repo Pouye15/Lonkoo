@@ -118,15 +118,21 @@ def ecarts_adresse(readme: str, textes: dict[str, str], obligatoires) -> list[st
 
 
 def ecarts_adresses_caddy(caddyfile: str, compose: str, dockerfile: str = "") -> list[str]:
-    """Caddy lit DOMAINS (plusieurs adresses possibles) et le compose le lui donne, DOMAIN par défaut ; la validation faite à la
-    construction de l'image (infra/caddy.Dockerfile) doit poser la même variable, sinon la construction échoue."""
+    """Caddy lit DOMAINS (plusieurs adresses possibles) et redirige toutes celles qui ne sont pas DOMAIN vers DOMAIN (la connexion
+    GitHub n'a qu'une adresse de retour) ; le compose les lui donne, DOMAIN par défaut ; la validation faite à la construction de
+    l'image (infra/caddy.Dockerfile) doit poser les deux variables, sinon la construction échoue."""
     ecarts = []
-    if dockerfile and "DOMAINS=" not in dockerfile:
-        ecarts.append("infra/caddy.Dockerfile : la validation du Caddyfile doit poser DOMAINS=… (c'est la variable que le Caddyfile lit)")
     if "{$DOMAINS}" not in caddyfile:
         ecarts.append("infra/Caddyfile : l'adresse du site doit être {$DOMAINS} (plusieurs adresses possibles), pas {$DOMAIN}")
+    if "redir @alias" not in caddyfile:
+        ecarts.append("infra/Caddyfile : les adresses autres que DOMAIN doivent rediriger vers DOMAIN (redir @alias …) : la connexion "
+                      "GitHub échoue depuis une autre adresse (« État de connexion invalide »)")
     if "DOMAINS: ${DOMAINS:-${DOMAIN}}" not in compose:
         ecarts.append(f"{COMPOSE} : le service caddy doit recevoir DOMAINS: ${{DOMAINS:-${{DOMAIN}}}} (DOMAIN par défaut)")
+    if dockerfile:
+        for variable, motif in (("DOMAINS", r"DOMAINS="), ("DOMAIN", r"(?<![A-Z])DOMAIN=")):
+            if not re.search(motif, dockerfile):
+                ecarts.append(f"infra/caddy.Dockerfile : la validation du Caddyfile doit poser {variable}=… (le Caddyfile la lit)")
     return ecarts
 
 

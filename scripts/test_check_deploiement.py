@@ -138,28 +138,36 @@ class AdressePublique(unittest.TestCase):
 
 class AdressesCaddy(unittest.TestCase):
     COMPOSE = "      DOMAINS: ${DOMAINS:-${DOMAIN}}\n"
+    CADDYFILE = "{$DOMAINS} {\n\t@alias not host {$DOMAIN}\n\tredir @alias https://{$DOMAIN}{uri} 308\n}\n"
+    DOCKERFILE = "RUN DOMAIN=x DOMAINS=x caddy validate\n"
 
-    def test_caddy_lit_domains_et_le_compose_le_transmet(self):
-        self.assertEqual(script.ecarts_adresses_caddy("{$DOMAINS} {\n}\n", self.COMPOSE), [])
+    def test_une_configuration_complete_ne_signale_rien(self):
+        self.assertEqual(script.ecarts_adresses_caddy(self.CADDYFILE, self.COMPOSE, self.DOCKERFILE), [])
 
     def test_un_caddyfile_qui_lit_encore_domain_est_signale(self):
-        ecarts = script.ecarts_adresses_caddy("{$DOMAIN} {\n}\n", self.COMPOSE)
+        ecarts = script.ecarts_adresses_caddy(self.CADDYFILE.replace("{$DOMAINS}", "{$DOMAIN}"), self.COMPOSE)
         self.assertEqual(len(ecarts), 1)
         self.assertIn("Caddyfile", ecarts[0])
 
+    def test_sans_la_redirection_les_autres_adresses_servent_l_application(self):
+        # Cas réel du 15/11 : depuis lonkoo.site, la connexion GitHub échouait par « État de connexion invalide ».
+        ecarts = script.ecarts_adresses_caddy("{$DOMAINS} {\n}\n", self.COMPOSE)
+        self.assertEqual(len(ecarts), 1)
+        self.assertIn("redirig", ecarts[0])
+
     def test_un_compose_qui_ne_transmet_pas_domains_est_signale(self):
-        ecarts = script.ecarts_adresses_caddy("{$DOMAINS} {\n}\n", "      DOMAIN: ${DOMAIN}\n")
+        ecarts = script.ecarts_adresses_caddy(self.CADDYFILE, "      DOMAIN: ${DOMAIN}\n")
         self.assertEqual(len(ecarts), 1)
         self.assertIn("DOMAINS", ecarts[0])
 
-
-    def test_une_validation_a_la_construction_qui_pose_encore_domain_est_signalee(self):
+    def test_une_validation_a_la_construction_qui_oublie_une_variable_est_signalee(self):
         # Cas réel du 15/11 : la CI a échoué parce que le Dockerfile de Caddy validait avec DOMAIN=… alors que le Caddyfile lit DOMAINS.
-        caddyfile = "{$DOMAINS} {\n}\n"
-        ecarts = script.ecarts_adresses_caddy(caddyfile, self.COMPOSE, "RUN DOMAIN=x caddy validate\n")
-        self.assertEqual(len(ecarts), 1)
-        self.assertIn("caddy.Dockerfile", ecarts[0])
-        self.assertEqual(script.ecarts_adresses_caddy(caddyfile, self.COMPOSE, "RUN DOMAINS=x caddy validate\n"), [])
+        sans_domains = script.ecarts_adresses_caddy(self.CADDYFILE, self.COMPOSE, "RUN DOMAIN=x caddy validate\n")
+        self.assertEqual(len(sans_domains), 1)
+        self.assertIn("DOMAINS", sans_domains[0])
+        sans_domain = script.ecarts_adresses_caddy(self.CADDYFILE, self.COMPOSE, "RUN DOMAINS=x caddy validate\n")
+        self.assertEqual(len(sans_domain), 1)
+        self.assertIn("poser DOMAIN=", sans_domain[0])
 
 
 class DepotReel(unittest.TestCase):
