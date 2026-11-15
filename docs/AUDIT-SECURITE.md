@@ -52,15 +52,21 @@ pile locale (`localhost`), avis de sécurité des dépendances. Il ne remplace p
 
 ## À faire avant la démo
 
-- [ ] Serveur en **profil `prod`** : le backend refuse alors de démarrer avec une valeur `change-me`, un secret trop court ou une
-      adresse publique sans `https` (`ConfigurationCheck`) ; cookie `Secure`.
-- [ ] **`EXTRA_ALLOWED_ORIGINS` vide** sur le serveur (le profil `prod` refuse de démarrer sinon).
+- [x] Serveur en **profil `prod`** : le backend refuse alors de démarrer avec une valeur `change-me`, un secret trop court ou une
+      adresse publique sans `https` (`ConfigurationCheck`) ; cookie `Secure`. *Vérifié le 15/11 sur le serveur : profil `prod` actif, le backend démarre,
+      cookie de session `Secure; HttpOnly; SameSite=Lax`.*
+- [x] **`EXTRA_ALLOWED_ORIGINS` vide** sur le serveur (le profil `prod` refuse de démarrer sinon). *Vérifié le 15/11 : variable vide dans le conteneur du backend.*
 - [ ] **Régénérer le secret de l'application OAuth GitHub de développement** (il a été collé un temps dans `.env.example`) et
-      créer une application OAuth **distincte** pour la production.
+      créer une application OAuth **distincte** pour la production. *Application de production distincte : faite le 15/11. Reste à régénérer le secret de
+      développement : par précaution, car l'historique Git n'a jamais contenu qu'un « change-me » (gitleaks, 140 commits, toutes branches, 15/11).*
 - [ ] Une fois le serveur en ligne, passer son adresse dans un analyseur d'en-têtes public (par exemple Mozilla Observatory) et
-      noter le résultat ici.
+      noter le résultat ici. *Pas encore fait. Contrôle local du 15/11 : HSTS (un an), `X-Content-Type-Options: nosniff`, `Referrer-Policy`, CSP avec
+      `frame-ancestors 'none'` et `upgrade-insecure-requests`, en-tête `Server` retiré.*
 - [ ] **Relire la sécurité de la PR n° 3** (agent IA) avant de la fusionner : elle ajoute un service exposé et une clé de
       fournisseur d'IA ; les textes du canvas sont des données non fiables (injection de consignes), voir la passation § 4.5.
+      *Elle a été fusionnée dans `main` le 14/11 sans relecture indépendante. Vérifié le 15/11 : l'agent n'est ni routé par Caddy ni publié sur un port
+      (réseau Docker interne, jeton de service obligatoire) ; la clé du fournisseur n'est que dans le `.env` du serveur. Le défaut trouvé en l'essayant n'était pas de
+      sécurité (nom de machine illisible par Java, PR n° 44). Une relecture de sécurité par une autre personne reste à faire.*
 
 ## Ce qui n'a pas été fait
 
