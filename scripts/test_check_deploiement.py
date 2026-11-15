@@ -110,6 +110,32 @@ class NomsDeMachine(unittest.TestCase):
         self.assertEqual(script.ecarts_noms_de_machine({"a": texte}), [])
 
 
+class AdressePublique(unittest.TestCase):
+    README = "Titre\n\n**Site en ligne :** <https://5.22.217.55.sslip.io> (essai)\n"
+
+    def test_les_documents_qui_portent_la_meme_adresse_ne_signalent_rien(self):
+        textes = {"README.md": self.README, "d.md": "voir https://5.22.217.55.sslip.io/login"}
+        self.assertEqual(script.ecarts_adresse(self.README, textes, ("README.md", "d.md")), [])
+
+    def test_un_document_qui_garde_l_ancienne_adresse_est_nomme(self):
+        # Le jour où un nom de domaine remplace sslip.io : le README change, les autres documents sont oubliés.
+        readme = "**Site en ligne :** <https://lonkoo.example.org>"
+        textes = {"README.md": readme, "d.md": "voir https://5.22.217.55.sslip.io/login"}
+        ecarts = script.ecarts_adresse(readme, textes, ("README.md", "d.md"))
+        self.assertEqual(len(ecarts), 2)
+        self.assertTrue(any("d.md : ne mentionne pas" in e for e in ecarts))
+        self.assertTrue(any("d.md : porte une autre adresse provisoire" in e for e in ecarts))
+
+    def test_un_document_obligatoire_sans_l_adresse_est_nomme(self):
+        textes = {"README.md": self.README, "d.md": "rien"}
+        ecarts = script.ecarts_adresse(self.README, textes, ("README.md", "d.md"))
+        self.assertEqual(len(ecarts), 1)
+        self.assertIn("d.md", ecarts[0])
+
+    def test_sans_ligne_de_reference_dans_le_readme_c_est_signale(self):
+        self.assertEqual(len(script.ecarts_adresse("pas de ligne", {}, ())), 1)
+
+
 class DepotReel(unittest.TestCase):
     def test_le_depot_est_coherent(self):
         sortie = io.StringIO()

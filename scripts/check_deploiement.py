@@ -13,6 +13,10 @@ Deux défauts que la CI ne voyait pas, parce qu'elle construit la pile depuis un
 3. Une adresse de service interne ne doit pas avoir de tiret bas dans son nom de machine : java.net.URI ne la lit pas
    (« unsupported URI »), et le backend appellerait l'agent IA en erreur 500 à chaque requête. Les tests passaient, parce
    qu'ils appellent localhost ; cela n'a été vu qu'en essayant pour de vrai, sur le serveur, le 15/11.
+4. L'adresse publique du site est écrite dans la ligne « Site en ligne » du README, qui fait foi ; les documents de
+   soumission et de déploiement doivent porter la même, et aucun ne doit garder une ancienne adresse provisoire
+   (sslip.io, nip.io). Le jour où un nom de domaine la remplace, une seule ligne est à changer : ce contrôle nomme
+   les documents oubliés.
 
 Lancement, depuis la racine du dépôt : python3 scripts/check_deploiement.py
 Code de sortie : 0 si tout est cohérent, 1 sinon (chaque écart est nommé).
@@ -38,6 +42,9 @@ AFFECTATION = re.compile(r"^([A-Z][A-Z0-9_]*)=(.*)$", re.MULTILINE)
 # Fichiers où une adresse de service interne est écrite.
 FICHIERS_ADRESSES = (COMPOSE, "docker-compose.yml", ".env.example", MODELE_ENV,
                      "backend/src/main/resources/application.properties")
+LIGNE_ADRESSE = re.compile(r"\*\*Site en ligne :\*\*\s*<(https://[^>\s]+)>")
+DOCUMENTS_AVEC_ADRESSE = ("README.md", "docs/DECLARATIONS-SOUMISSION.md", "docs/DEPLOIEMENT.md")
+ADRESSE_PROVISOIRE = re.compile(r"https://[0-9a-z.-]*\b(?:sslip|nip)\.io\b")
 TIRET_BAS_DANS_LE_NOM = re.compile(r"https?://[^\s/:\"']*_[^\s/:\"']*")
 
 
@@ -94,12 +101,32 @@ def ecarts_noms_de_machine(fichiers: dict[str, str]) -> list[str]:
     return ecarts
 
 
+def ecarts_adresse(readme: str, textes: dict[str, str], obligatoires) -> list[str]:
+    """L'adresse publique du README doit être celle des documents, sans reste d'une adresse provisoire."""
+    trouvee = LIGNE_ADRESSE.search(readme)
+    if not trouvee:
+        return ["README.md : la ligne « **Site en ligne :** <adresse> » est introuvable (c'est elle qui fait foi)"]
+    officielle = trouvee.group(1).rstrip("/")
+    ecarts = []
+    for nom in obligatoires:
+        if officielle not in textes.get(nom, ""):
+            ecarts.append(f"{nom} : ne mentionne pas l'adresse publique {officielle}")
+    for nom, texte in textes.items():
+        for autre in sorted(set(ADRESSE_PROVISOIRE.findall(texte)) - {officielle}):
+            ecarts.append(f"{nom} : porte une autre adresse provisoire, {autre} (l'adresse publique est {officielle})")
+    return ecarts
+
+
 def main() -> int:
     compose = (RACINE / COMPOSE).read_text(encoding="utf-8")
     envois = {nom: (RACINE / nom).read_text(encoding="utf-8") for nom in ENVOIS}
     modele = (RACINE / MODELE_ENV).read_text(encoding="utf-8")
     adresses = {nom: (RACINE / nom).read_text(encoding="utf-8") for nom in FICHIERS_ADRESSES}
-    ecarts = ecarts_envois(compose, envois) + ecarts_modele(compose, modele) + ecarts_noms_de_machine(adresses)
+    textes = {"README.md": (RACINE / "README.md").read_text(encoding="utf-8")}
+    for doc in sorted((RACINE / "docs").glob("*.md")):
+        textes[f"docs/{doc.name}"] = doc.read_text(encoding="utf-8")
+    ecarts = (ecarts_envois(compose, envois) + ecarts_modele(compose, modele) + ecarts_noms_de_machine(adresses)
+              + ecarts_adresse(textes["README.md"], textes, DOCUMENTS_AVEC_ADRESSE))
     if ecarts:
         for ecart in ecarts:
             print(f"ÉCART  {ecart}")
@@ -107,7 +134,7 @@ def main() -> int:
         return 1
     print(f"Déploiement cohérent : les dossiers construits ({', '.join(sorted(dossiers_construits(compose)))}) "
           f"sont tous envoyés, le modèle de .env laisse vides les {len(set(OBLIGATOIRE.findall(compose)))} variables exigées, "
-          "et aucune adresse de service n'a de tiret bas dans son nom de machine.")
+          "aucune adresse de service n'a de tiret bas dans son nom de machine, et l'adresse publique est la même partout.")
     return 0
 
 
