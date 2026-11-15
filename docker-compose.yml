@@ -60,7 +60,7 @@ services:
       MAX_DEPLOYMENTS_PER_GENERATION: ${MAX_DEPLOYMENTS_PER_GENERATION:-20}
       JOB_STALE_MINUTES: ${JOB_STALE_MINUTES:-30}
       AI_PROVIDER: ${AI_PROVIDER:-agent_ia}
-      AI_AGENT_URL: http://agent_ia:8000
+      AI_AGENT_URL: http://agent-ia:8000
       AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:-lonkoo_dev_service_token_16_chars_min}
       AI_BASE_URL: ${AI_BASE_URL:-}
       AI_DAILY_QUOTA: ${AI_DAILY_QUOTA:-30}
@@ -107,9 +107,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+    # Alias sans tiret bas : java.net.URI ne lit pas le nom du service (voir infra/docker-compose.prod.yml).
     networks:
-      - data
-      - web
+      data:
+      web:
+        aliases: [agent-ia]
 
   realtime:
     build:

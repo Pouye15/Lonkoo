@@ -127,7 +127,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
-    networks: [data, web]
+    # Le backend appelle l'agent par l'alias « agent-ia » : java.net.URI ne lit pas un nom de machine avec un tiret bas, donc
+    # pas le nom du service lui-même. L'agent n'a pas besoin du réseau de la base : il n'est que sur « web ».
+    networks:
+      web:
+        aliases: [agent-ia]
     logging: *journaux
     mem_limit: 512m
     <<: *durcissement

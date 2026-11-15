@@ -47,7 +47,7 @@ public class AgentIaClient implements AiClient {
 
     @Autowired
     public AgentIaClient(
-            @Value("${lonkoo.ai.agent-url:http://agent_ia:8000}") String baseUrl,
+            @Value("${lonkoo.ai.agent-url:http://agent-ia:8000}") String baseUrl,
             @Value("${lonkoo.ai.service-token:${realtime.service-token:}}") String serviceToken,
             @Value("${lonkoo.ai.agent-timeout-seconds:70}") int timeoutSeconds) {
         this(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build(),
@@ -55,11 +55,26 @@ public class AgentIaClient implements AiClient {
     }
 
     public AgentIaClient(HttpClient http, String baseUrl, String serviceToken, Duration timeout) {
-        this.http = http;
-        String resolved = (baseUrl == null || baseUrl.isBlank()) ? "http://agent_ia:8000" : baseUrl;
+        String resolved = (baseUrl == null || baseUrl.isBlank()) ? "http://agent-ia:8000" : baseUrl;
         this.baseUrl = resolved.endsWith("/") ? resolved.substring(0, resolved.length() - 1) : resolved;
+        // java.net.URI ne lit pas un nom de machine avec un tiret bas (getHost() renvoie null) : chaque appel échouerait par
+        // « unsupported URI », une erreur 500 sans cause visible. On refuse donc au démarrage, en disant pourquoi.
+        if (!hasUsableHost(this.baseUrl)) {
+            throw new IllegalStateException("AI_AGENT_URL n'a pas de nom de machine utilisable : Java refuse un tiret bas "
+                    + "dans un nom de machine (écrire agent-ia, pas agent_ia)");
+        }
+        this.http = http;
         this.serviceToken = serviceToken;
         this.timeout = timeout;
+    }
+
+    /** Vrai si l'adresse a un nom de machine que java.net.URI sait lire. */
+    private static boolean hasUsableHost(String url) {
+        try {
+            return java.net.URI.create(url.strip()).getHost() != null;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     @Override

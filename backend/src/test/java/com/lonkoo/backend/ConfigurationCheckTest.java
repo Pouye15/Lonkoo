@@ -134,7 +134,7 @@ class ConfigurationCheckTest {
     @Test
     void theMicroserviceNeedsItsAddressAndItsTokenButNoKeyOfItsOwn() {
         // La clé du modèle vit dans le microservice : le backend n'en a pas besoin, et ne doit pas l'exiger.
-        assertThat(productionWithAi(AiSettings.agent("http://agent_ia:8000", TOKEN)).problems()).isEmpty();
+        assertThat(productionWithAi(AiSettings.agent("http://agent-ia:8000", TOKEN)).problems()).isEmpty();
 
         assertThat(productionWithAi(AiSettings.agent("", "")).problems()).containsExactlyInAnyOrder(
                 "AI_SERVICE_TOKEN est vide alors que AI_PROVIDER vaut agent_ia",
@@ -147,17 +147,25 @@ class ConfigurationCheckTest {
     }
 
     @Test
+    void aMicroserviceNameWithAnUnderscoreIsRefusedBecauseJavaCannotReadIt() {
+        // Cas réel du 15/11 : le nom du service Docker (avec un tiret bas) donnait « unsupported URI » à chaque appel.
+        assertThat(productionWithAi(AiSettings.agent("http://agent_ia:8000", TOKEN)).problems()).containsExactly(
+                "AI_AGENT_URL n'a pas de nom de machine utilisable : Java refuse un tiret bas dans un nom de machine "
+                        + "(écrire agent-ia, pas agent_ia)");
+    }
+
+    @Test
     void theBackendWaitsLongEnoughForTheMicroserviceToRetryOnce() {
         // 30 s par appel au modèle, deux appels possibles : 30 s d'attente couperaient toujours avant la fin.
-        assertThat(productionWithAi(AiSettings.agent("http://agent_ia:8000", TOKEN).withTimeouts(30, 30)).problems())
+        assertThat(productionWithAi(AiSettings.agent("http://agent-ia:8000", TOKEN).withTimeouts(30, 30)).problems())
                 .containsExactly("AI_AGENT_TIMEOUT_SECONDS doit valoir au moins 2 × AI_TIMEOUT_SECONDS + 5 secondes");
-        assertThat(productionWithAi(AiSettings.agent("http://agent_ia:8000", TOKEN).withTimeouts(30, 65)).problems()).isEmpty();
-        assertThat(productionWithAi(AiSettings.agent("http://agent_ia:8000", TOKEN).withTimeouts(30, 70)).problems()).isEmpty();
+        assertThat(productionWithAi(AiSettings.agent("http://agent-ia:8000", TOKEN).withTimeouts(30, 65)).problems()).isEmpty();
+        assertThat(productionWithAi(AiSettings.agent("http://agent-ia:8000", TOKEN).withTimeouts(30, 70)).problems()).isEmpty();
 
         // Hors production, le délai mal dimensionné est signalé sans empêcher le démarrage.
         var outside = new ConfigurationCheck(false, "un-mot-de-passe-solide", SECRET, TOKEN, "http://localhost:3000",
                 "Iv1.id", "secret", "https://lonkoo.example.org/api/auth/github/callback",
-                AiSettings.agent("http://agent_ia:8000", TOKEN).withTimeouts(45, 30));
+                AiSettings.agent("http://agent-ia:8000", TOKEN).withTimeouts(45, 30));
         assertThat(outside.problems()).containsExactly("AI_AGENT_TIMEOUT_SECONDS doit valoir au moins 2 × AI_TIMEOUT_SECONDS + 5 secondes");
         assertThatCode(outside::check).doesNotThrowAnyException();
     }
