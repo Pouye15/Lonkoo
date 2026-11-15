@@ -31,6 +31,18 @@ Conséquences pour nous :
 - **Option MCP.** Elle est pensée pour des agents IA et ne dit pas qu'elle lance un `docker compose` arbitraire. Notre décision reste **le workflow GitHub Actions qui se connecte en SSH puis lance `docker compose`** (voir `architecture.md`). Le MCP pourra servir pour la création du serveur et la supervision, à tester seulement si la documentation montre un gain.
 - **À valider avant d'acheter** (questions dans `QUESTIONS-ORGANISATEUR.md`) : accès root ou sudo en SSH, Docker autorisé, ville du datacenter, application des remises.
 
+## État de la production (15 novembre 2026)
+
+| | |
+|---|---|
+| Adresse | <https://5.22.217.55.sslip.io> (provisoire : voir « Changer l'adresse publique ») |
+| Serveur | Serveur cloud Systalink, région Madrid (Datacloud n'a pas de région Dakar), Ubuntu 24.04, 2 vCPU, 8 Go, 80 Go |
+| Mise en ligne | Premier démarrage à la main le 15/11, puis déploiement par le pipeline (trois exécutions réussies) |
+| Accès | utilisateur `deploy` (clé de déploiement, dans les secrets du dépôt) ; `root` par la clé fournie par la plateforme ; mot de passe SSH interdit ; pare-feu : 22, 80, 443 |
+| Essayé en vrai | HTTPS (Let's Encrypt), parcours d'un invité, connexion GitHub, routes internes refusées, sauvegarde et restauration de test, redémarrage du serveur (70 s, données intactes), IA (voir `IA.md`) |
+| Pas encore essayé | déploiement B (application générée sur un serveur, étape 4) ; copie des sauvegardes hors du serveur ; changement d'adresse |
+| IA | active : `AI_PROVIDER=agent_ia` et la clé du fournisseur dans le `.env` du serveur, modèle réglé par `AI_MODEL` ; sans clé, les routes d'IA répondent 501 |
+
 ## Étape 0 : acheter et préparer (une personne, à faire en premier)
 
 - [ ] Lire `https://docs.systalink.com` dans un navigateur et noter dans ce fichier : accès SSH, Docker, API, régions.
@@ -191,6 +203,18 @@ Le projet généré contient son propre workflow `.github/workflows/deploy-systa
 - Exposition : un sous-domaine par projet derrière Caddy (exige un DNS joker pour le certificat) ou une plage de ports publics pour la démo. **À décider après l'étape 2**, selon ce que permet le DNS de Systalink.
 - Le backend suit l'exécution du workflow (en attente, en cours, déployé, échoué) et l'affiche à l'utilisateur ; il n'appelle jamais l'adresse publique saisie, il l'affiche seulement.
 - Plan B si cette fonction n'est pas prête au gel du périmètre : la génération et l'envoi sur GitHub restent, et l'interface affiche les commandes de déploiement à exécuter à la main.
+
+## Changer l'adresse publique (un nom de domaine à la place de sslip.io)
+
+L'adresse actuelle est provisoire. Le jour où un nom de domaine est acheté, tout ce qui change tient en cinq endroits ; l'interface n'en dépend pas (elle appelle `/api` et `/ws` sur sa propre origine), donc **aucune image n'est à reconstruire**. Cette procédure n'a **pas été essayée** sur ce serveur.
+
+1. **DNS** : un enregistrement `A` `<nouvelle-adresse>` vers l'IP du serveur. La propagation peut aller de quelques minutes à 72 h (indication de Datacloud) : vérifier avec `nslookup <nouvelle-adresse>` **avant** de continuer, sinon Caddy n'obtient pas le certificat.
+2. **Serveur** : dans `/opt/lonkoo/.env`, remplacer `DOMAIN=` par `<nouvelle-adresse>`, puis `docker compose -f infra/docker-compose.prod.yml --env-file /opt/lonkoo/.env up -d` (Caddy demande le certificat ; le backend recalcule son adresse publique et l'adresse de retour GitHub).
+3. **Application OAuth GitHub** (Settings) : « Homepage URL » `https://<nouvelle-adresse>` et « Authorization callback URL » `https://<nouvelle-adresse>/api/auth/github/callback`.
+4. **Secret du dépôt** `PRODUCTION_DOMAIN` = `<nouvelle-adresse>` (le pipeline vérifie la mise en ligne à cette adresse), puis « Run workflow » de « Déploiement » pour le prouver.
+5. **Documents** : remplacer l'adresse sur la ligne « Site en ligne » du `README.md`, puis lancer `python3 scripts/check_deploiement.py` : il nomme les documents qui portent encore l'ancienne adresse. Mettre aussi à jour le formulaire de soumission.
+
+À savoir : l'ancienne adresse **cesse de répondre** (Caddy ne sert que `DOMAIN`) et les sessions en cours sont perdues (le cookie appartient à l'ancienne adresse). Ne changez pas l'adresse pendant que le jury note, ni après l'avoir donnée dans le formulaire de soumission sans la mettre à jour là aussi. Pour garder l'ancienne en redirection, il faudrait un second bloc dans le `Caddyfile` (`<ancienne-adresse> { redir https://{$DOMAIN}{uri} permanent }`), donc un déploiement et un second certificat.
 
 ## Avant la soumission
 

@@ -4,6 +4,8 @@
 
 Projet réalisé pour le concours **CADev 2026** (Systalink), sur le thème « Construire la plateforme d'échange africaine, pour les devs, par les devs ».
 
+**Site en ligne :** <https://5.22.217.55.sslip.io> (cliquer sur « Essayer sans compte »). C'est une adresse provisoire : le service sslip.io renvoie vers notre serveur. Un nom de domaine pourra la remplacer : voir « Changer l'adresse publique » dans [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md).
+
 ## En bref
 
 Lonkoo est un studio collaboratif où une équipe de développeurs conçoit l'architecture d'une application à plusieurs, en temps réel, avec un copilote IA qui propose et audite sans jamais décider à leur place. Une fois le modèle validé, la plateforme génère le projet de démarrage, le pousse sur GitHub et le déploie sur Systalink.
@@ -12,12 +14,12 @@ Lonkoo est un studio collaboratif où une équipe de développeurs conçoit l'ar
 
 1. Créer un canvas partagé et y inviter son équipe.
 2. Concevoir l'architecture à plusieurs (curseurs, sélection et modifications en direct).
-3. Demander de l'aide à l'IA (esquisse, complétion, audit) : point de raccordement prêt, agent à brancher (voir « État d'avancement »).
+3. Demander de l'aide à l'IA : esquisse d'architecture, audit, conseiller conversationnel (active sur le site en ligne ; voir « État d'avancement »).
 4. Enregistrer une version nommée de l'architecture.
 5. Générer le projet de démarrage et le pousser sur GitHub.
 6. Déployer sur Systalink et ouvrir l'application en ligne.
 
-## État d'avancement (5 novembre 2026)
+## État d'avancement (15 novembre 2026)
 
 Échéance de soumission : **dimanche 15 novembre 2026, 17 h GMT** (tableau de bord Datacloud et règlement). Détail, constats et reste à faire : [docs/AUDIT-ET-ROADMAP-BACKEND.md](docs/AUDIT-ET-ROADMAP-BACKEND.md).
 
@@ -27,11 +29,11 @@ Lonkoo est un studio collaboratif où une équipe de développeurs conçoit l'ar
 | Comptes (invité éphémère, GitHub), projets, équipe et rôles, liens de partage révocables, projets publics en lecture seule et galerie | Fait, testé |
 | Modèles de départ à la création d'un projet (marketplace, clinique, école, tontine, livraison de colis), chacun construit et démarré par la CI | Fait, testé |
 | Audit d'architecture par règles (onglet « Audit » du Studio : 10 règles, trois gravités, score calculé sur le schéma, une correction applicable en un clic) | Fait, testé |
-| Génération du projet, envoi sur GitHub, déploiement | Fait et testé contre un **faux GitHub**, puis essayé une fois contre le **vrai GitHub** le 25/10 (connexion, dépôt privé, envoi, lancement et suivi du workflow) ; **pas encore sur un serveur** : le workflow a échoué comme prévu, faute de serveur et de secrets |
-| Copilote IA (esquisse, complétion, audit) | Point de raccordement prêt (`AiClient`, trois routes validées) ; **l'agent reste à brancher**. `AI_PROVIDER=fake` renvoie des réponses figées étiquetées `demo`. Les suggestions de l'IA, sous l'onglet « Audit », sont des données de démonstration |
+| Génération du projet, envoi sur GitHub, déploiement | Fait et testé contre un **faux GitHub**, puis essayé une fois contre le **vrai GitHub** le 25/10 (connexion, dépôt privé, envoi, lancement et suivi du workflow) ; **le déploiement d'une application générée sur un serveur n'a pas encore été essayé** (le serveur de Lonkoo lui-même, lui, est en ligne : dernière ligne) |
+| Copilote IA (esquisse, complétion, audit, conseiller) | **Actif sur le site en ligne depuis le 15/11** (Google Gemini, par le microservice interne `agent_ia`). Esquisse, audit et conseiller ont été essayés avec une vraie clé : 7 à 14 secondes par réponse, modèle `gemini-3-flash-preview` (le modèle prévu, `gemini-3.8-flash`, était saturé chez Google ce jour-là). **La complétion est écrite et testée sans réseau, mais pas encore essayée en vrai.** La sortie est validée contre le contrat du canvas et ne s'applique qu'avec l'accord de la personne. Limites par jour : 5 propositions et 10 messages par invité. **Réserve :** la clé semble du niveau gratuit de Google, qui peut alors réutiliser les textes envoyés (voir [docs/IA.md](docs/IA.md)). Sans serveur (mode démonstration), l'onglet d'analyse montre un exemple étiqueté démonstration |
 | Discussion d'équipe : un fil par projet, lu et écrit par tous les membres (page Revues), qui se met à jour tout seul | Fait, testé |
 | Communauté : profils, revues, commentaires, Fork | Maquette (seule la galerie publique est réelle) |
-| Mise en ligne (compose de production, Caddy, pipeline, sauvegarde) | Écrite et répétée hors serveur (dossier `infra/`, `docs/DEPLOIEMENT.md`) ; **le serveur reste à acheter et à régler** |
+| Mise en ligne (compose de production, Caddy, pipeline, sauvegarde) | **En ligne depuis le 15/11** sur un serveur cloud Systalink (Madrid, Ubuntu 24.04, 2 vCPU, 8 Go), en HTTPS (Let's Encrypt). Déploiement automatique à chaque fusion dans `main` (trois exécutions réussies), sauvegarde quotidienne de la base avec une restauration essayée, redémarrage du serveur essayé (70 secondes, données intactes). **Pas encore fait :** copie des sauvegardes hors du serveur, et nom de domaine (l'adresse actuelle est provisoire). Détail : [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md) |
 
 **Reprendre le travail** (ce qui reste avant la démo, qui fait quoi, comment démarrer, les règles) : [docs/PASSATION-RESTE-A-FAIRE.md](docs/PASSATION-RESTE-A-FAIRE.md).
 

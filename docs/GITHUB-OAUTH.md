@@ -77,7 +77,7 @@ La première commande montre le relais obtenu (`eun1`, `uks1`…) ; la seconde f
 
 ## 2. Application de production
 
-**Reportée à l'étape de déploiement** (décision du 21/10) : rien à créer tant que l'adresse publique n'existe pas. À créer de la même façon **dès que l'adresse publique est connue** (voir `DEPLOIEMENT.md`, étape 0). Si elle n'est pas encore choisie, créer l'application avec une adresse provisoire : les deux adresses se modifient ensuite dans **Settings** de l'application.
+**Faite le 15/11** pour l'adresse publique actuelle (voir le `README.md`) : « Expire user access tokens » **décoché** (le backend ne sait pas utiliser le `refresh_token` : le jeton expirerait au bout de 8 heures), « Enable Device Flow » décoché ; l'identifiant et le secret sont dans le `.env` du serveur. Si l'adresse change, modifier les deux adresses dans **Settings** de l'application (voir `DEPLOIEMENT.md`, « Changer l'adresse publique »). Décision d'origine du 21/10 : rien à créer tant que l'adresse publique n'existe pas. À créer de la même façon **dès que l'adresse publique est connue** (voir `DEPLOIEMENT.md`, étape 0). Si elle n'est pas encore choisie, créer l'application avec une adresse provisoire : les deux adresses se modifient ensuite dans **Settings** de l'application.
 
 | Champ | Valeur |
 |---|---|
