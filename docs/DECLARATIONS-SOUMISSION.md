@@ -1,6 +1,6 @@
 # Liste de contrôle de la soumission CADev 2026
 
-**Date limite : dimanche 15 novembre 2026, 17 h GMT** (tableau de bord Datacloud : « 29 sept. au 15 nov. 2026 » ; règlement). L'ancienne échéance était le dimanche 25 octobre, 17 h 00, heure de Dakar (GMT). Aucune soumission après l'heure limite.
+**Date limite : lundi 16 novembre 2026, 23 h 59 GMT** (prolongée par l'organisation, message reçu le 15/11 : « face à la forte affluence de dernière minute » ; elle était fixée au dimanche 15 novembre, 17 h GMT, et avant au dimanche 25 octobre). Le projet est enregistré (même message). Aucune soumission après l'heure limite.
 Visez la veille pour garder une marge.
 
 **Adresse du site en ligne :** <https://lonkoo.site> (nom de domaine acheté chez Systalink, adresse principale depuis le 15/11). **Adresse donnée dans le formulaire de soumission :** <https://5.22.217.55.sslip.io> ; elle redirige vers le site (redirection temporaire) et continue de répondre tant que le serveur la garde dans `DOMAINS`. Si l'adresse principale change encore, la procédure est dans `DEPLOIEMENT.md`, « Changer l'adresse publique ».
@@ -9,7 +9,7 @@ Visez la veille pour garder une marge.
 
 - [ ] Équipe inscrite via la plateforme Datacloud (2 à 5 membres), représentant désigné, répartition du prix déclarée, pays de représentation choisi (définitif).
 - [ ] Chaque membre : majeur, nationalité ou résidence en Afrique francophone, compte Datacloud, règlement accepté.
-- [x] Projet **déployé et accessible en ligne** (article 6) : <https://lonkoo.site> (l'adresse du formulaire, <https://5.22.217.55.sslip.io>, y redirige), essayé le 15/11 : parcours d'un invité, connexion GitHub, IA et redémarrage du serveur sur l'adresse sslip, avant le changement d'adresse ; connexion GitHub depuis les deux adresses et parcours automatiques `e2e/` refaits sur `lonkoo.site` après. **Non refaits sur `lonkoo.site` :** l'IA, l'envoi d'un projet sur GitHub, le redémarrage du serveur.
+- [x] Projet **déployé et accessible en ligne** (article 6) : <https://lonkoo.site> (l'adresse du formulaire, <https://5.22.217.55.sslip.io>, y redirige), essayé le 15/11 : parcours d'un invité, connexion GitHub, IA, envoi d'un projet sur GitHub et redémarrage du serveur d'abord sur l'adresse sslip, avant le changement d'adresse ; puis refaits sur `lonkoo.site` : connexion GitHub depuis les deux adresses, parcours automatiques `e2e/`, les quatre fonctions de l'IA (un appel chacune), envoi d'un projet sur GitHub (sans le fichier de workflow : l'application n'a pas l'autorisation « workflow »), redémarrage du serveur (31 secondes de coupure, données intactes).
 - [x] Au moins un **produit ou service Datacloud acheté** avant la soumission, avec le code promo de l'équipe : serveur cloud Systalink à **Madrid** (Datacloud ne propose pas Dakar). L'étape 4 « Produit Systalink actif » a été validée par Systalink le 15/11 (message du support) : **à revérifier sur le tableau de bord**. Les VPS hors Dakar sont exclus de la remise de 40 % (article 8) : pas de remise garantie.
 - [ ] Aucun composant sous licence GPL, AGPL ou LGPL (voir `LICENCES-TIERCES.md`). **Point ouvert :** `certifi` (MPL-2.0), livré dans l'image du microservice IA, n'est ni dans la liste permissive de l'article 6 ni dans la liste interdite ; la question à l'organisateur est rédigée dans `QUESTIONS-ORGANISATEUR.md`, **pas encore envoyée**.
 - [ ] Projet réalisé pour l'essentiel pendant le concours (à partir du 29 septembre). Rien d'antérieur, sauf code déclaré d'un membre.
@@ -26,7 +26,7 @@ Visez la veille pour garder une marge.
 
 ## Avant de cliquer sur « Soumettre »
 
-- [x] Parcours complet testé de bout en bout sur l'adresse de production : à la main (invité, connexion GitHub, IA, génération et envoi d'un projet sur GitHub, le 15/11, sur l'adresse sslip avant le changement d'adresse) et par le parcours automatique `e2e/` (`cd e2e && E2E_BASE_URL=https://lonkoo.site npm run e2e` : 145 vérifications réussies sur 6 parcours le 15/11, d'abord sur l'adresse sslip, puis sur `lonkoo.site` après le changement d'adresse ; seule la galerie publique est ignorée, faute de projet public d'un compte GitHub).
+- [x] Parcours complet testé de bout en bout sur l'adresse de production : à la main (invité, connexion GitHub, IA, génération et envoi d'un projet sur GitHub, le 15/11, sur l'adresse sslip puis sur `lonkoo.site` après le changement d'adresse) et par le parcours automatique `e2e/` (`cd e2e && E2E_BASE_URL=https://lonkoo.site npm run e2e` : 145 vérifications réussies sur 6 parcours le 15/11, d'abord sur l'adresse sslip, puis sur `lonkoo.site` après le changement d'adresse ; seule la galerie publique est ignorée, faute de projet public d'un compte GitHub).
 - [ ] `docs/sbom/` à jour (`python3 scripts/make_sbom.py --verify`), la CI le vérifie.
 - [ ] Compte de démonstration disponible, sans inscription.
 - [ ] Première page claire en 30 secondes : une phrase, un exemple déjà rempli, un bouton.
@@ -38,7 +38,7 @@ Visez la veille pour garder une marge.
 
 ## Vote des pairs (obligatoire pour chaque membre)
 
-**Dates à confirmer** (avant le report de l'échéance, le vote était fixé du dimanche 25 octobre 18 h 00 au lundi 26 octobre 23 h 59).
+**Du mardi 17 novembre 2026, 00 h 00, au mercredi 18 novembre, 23 h 59 GMT** (calendrier de l'organisation, reçu le 15/11).
 Si un seul membre ne vote pas, **toute l'équipe est exclue**.
 
 - [ ] Membre 1 a voté
@@ -49,10 +49,10 @@ Si un seul membre ne vote pas, **toute l'équipe est exclue**.
 
 ## Suite du calendrier
 
-Les dates ci-dessous sont celles d'**avant** le report de l'échéance : **à confirmer**.
+Calendrier de l'organisation, reçu le 15/11 (il remplace les dates d'avant le report de l'échéance).
 
-| Ancienne date (à confirmer) | Étape |
+| Date (GMT) | Étape |
 |---|---|
-| 27 au 30 octobre | Campagne de l'équipe et vote du public (honnête, sans échange de votes) |
-| 31 octobre au 1er novembre | Notation par le jury. Préparez-vous à défendre l'architecture et la sécurité |
-| 2 novembre | Proclamation des résultats |
+| Jeudi 19 novembre, 00 h 00, au vendredi 20 novembre, 23 h 59 | Campagne de l'équipe et vote du public (honnête, sans échange de votes) |
+| 21 et 22 novembre | Notation par le jury. Préparez-vous à défendre l'architecture et la sécurité |
+| Lundi 23 novembre | Proclamation des résultats (date inchangée) |

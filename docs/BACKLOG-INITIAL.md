@@ -8,7 +8,7 @@ Le détail du backend (lots, ordre de travail, contrats, risques, ordre de coupe
 
 **Responsables (proposition du 2026-10-16, à valider en équipe) :** Diagne = qualité, sécurité, démo ; Fall = interface et canvas ; Gaye = génération et déploiement ; Ngom = IA ; Pouye = backend et temps réel. Un élément « en binôme » nomme les deux personnes : la seconde relit et peut reprendre.
 
-> **Plan d'origine du 16/10 ; l'échéance est maintenant le 20 novembre 2026** (heure et autres dates à confirmer). Les dates cibles ci-dessous sont celles de ce plan, aujourd'hui dépassées. Les cases cochées sont ce qui est **fait et vérifié au 25/10** ; une mention « Partiel » dit ce qui manque. L'état détaillé et le reste à faire sont dans [AUDIT-ET-ROADMAP-BACKEND.md](AUDIT-ET-ROADMAP-BACKEND.md) (section « Situation au 25/10 »).
+> **Plan d'origine du 16/10 ; l'échéance de soumission est maintenant le lundi 16 novembre 2026, 23 h 59 GMT** (calendrier de l'organisation reçu le 15/11 : voir `DECLARATIONS-SOUMISSION.md`). Les dates cibles ci-dessous sont celles de ce plan, aujourd'hui dépassées. Les cases cochées sont ce qui est **fait et vérifié au 25/10** ; une mention « Partiel » dit ce qui manque. L'état détaillé et le reste à faire sont dans [AUDIT-ET-ROADMAP-BACKEND.md](AUDIT-ET-ROADMAP-BACKEND.md) (section « Situation au 25/10 »).
 
 ## Jalons (plan d'origine, dépassé)
 
@@ -88,4 +88,4 @@ Le détail du backend (lots, ordre de travail, contrats, risques, ordre de coupe
 - [ ] Démo de secours enregistrée — *Diagne, 23/10*
 - [ ] Rédiger les déclarations de soumission (titularité de chaque membre, composants, IA) — *Diagne, chacun pour la sienne, 23/10*
 - [ ] Nettoyer les textes de travail avant la soumission (`LICENSE`, `[à préciser]`, notes internes) — *Diagne, 23/10*
-- [ ] Rappel : voter, les 5 membres, pendant la période de vote des pairs (dates à confirmer) — *tous*
+- [ ] Rappel : voter, les 5 membres, pendant la période de vote des pairs (du 17 novembre 00 h 00 au 18 novembre 23 h 59 GMT) — *tous*

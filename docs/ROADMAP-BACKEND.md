@@ -1,6 +1,6 @@
 # Feuille de route du backend
 
-> Plan établi le 2026-10-20 (J-4 avant la soumission alors visée du samedi 24 octobre, midi). **L'échéance de soumission est désormais le 20 novembre 2026** (l'heure exacte et les nouvelles dates du vote des pairs, de la campagne et du jury sont **à confirmer** auprès de l'organisateur). Les dates et le « Plan jour par jour » ci-dessous sont celles du plan d'origine.
+> Plan établi le 2026-10-20 (J-4 avant la soumission alors visée du samedi 24 octobre, midi). **L'échéance de soumission est, depuis le 15/11, le lundi 16 novembre 2026 à 23 h 59 GMT** (calendrier de l'organisation : vote des pairs les 17 et 18 novembre, campagne et vote du public les 19 et 20, jury les 21 et 22, résultats le 23 ; voir `DECLARATIONS-SOUMISSION.md`). Les dates et le « Plan jour par jour » ci-dessous sont celles du plan d'origine.
 >
 > **État d'avancement et reste à faire : voir [AUDIT-ET-ROADMAP-BACKEND.md](AUDIT-ET-ROADMAP-BACKEND.md), section « Situation au 25/10 ».** Le § 1 (« En bref »), le « point de situation » du § 2, le plan du § 5 et les cases des lots ci-dessous datent du 20/10 et **ne sont pas tenus à jour** ; ce document reste la référence des contrats (§ 7), du raccordement de l'IA (§ 9) et des décisions (§ 11).
 >
