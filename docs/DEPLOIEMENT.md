@@ -35,12 +35,12 @@ Conséquences pour nous :
 
 | | |
 |---|---|
-| Adresse | <https://5.22.217.55.sslip.io> (provisoire : voir « Changer l'adresse publique ») |
+| Adresse | <https://lonkoo.site> (adresse principale depuis le 15/11 ; nom de domaine et DNS chez Systalink). <https://5.22.217.55.sslip.io> (adresse donnée à la soumission) et `www.lonkoo.site` y redirigent (307) |
 | Serveur | Serveur cloud Systalink, région Madrid (Datacloud n'a pas de région Dakar), Ubuntu 24.04, 2 vCPU, 8 Go, 80 Go |
 | Mise en ligne | Premier démarrage à la main le 15/11, puis déploiement par le pipeline (trois exécutions réussies) |
 | Accès | utilisateur `deploy` (clé de déploiement, dans les secrets du dépôt) ; `root` par la clé fournie par la plateforme ; mot de passe SSH interdit ; pare-feu : 22, 80, 443 |
-| Essayé en vrai | HTTPS (Let's Encrypt), parcours d'un invité, connexion GitHub, routes internes refusées, sauvegarde et restauration de test, redémarrage du serveur (70 s, données intactes), IA (voir `IA.md`) |
-| Pas encore essayé | déploiement B (application générée sur un serveur, étape 4) ; copie des sauvegardes hors du serveur ; changement d'adresse |
+| Essayé en vrai | HTTPS (Let's Encrypt), parcours d'un invité, connexion GitHub, routes internes refusées, sauvegarde et restauration de test, redémarrage du serveur (70 s, données intactes), IA (voir `IA.md`), changement d'adresse de `5.22.217.55.sslip.io` à `lonkoo.site` (serveur, application OAuth, secret du dépôt : connexion GitHub depuis les deux adresses, parcours `e2e/` sur `lonkoo.site`, 145 vérifications) |
+| Pas encore essayé | déploiement B (application générée sur un serveur, étape 4) ; copie des sauvegardes hors du serveur ; sur `lonkoo.site` : l'IA, l'envoi d'un projet sur GitHub et le redémarrage du serveur (essayés avant le changement d'adresse) |
 | IA | active : `AI_PROVIDER=agent_ia` et la clé du fournisseur dans le `.env` du serveur, modèle réglé par `AI_MODEL` ; sans clé, les routes d'IA répondent 501 |
 
 ## Étape 0 : acheter et préparer (une personne, à faire en premier)
@@ -206,17 +206,17 @@ Le projet généré contient son propre workflow `.github/workflows/deploy-systa
 
 ## Changer l'adresse publique (un nom de domaine à la place de sslip.io)
 
-L'adresse actuelle est provisoire. Le jour où un nom de domaine est acheté, tout ce qui change tient en cinq endroits ; l'interface n'en dépend pas (elle appelle `/api` et `/ws` sur sa propre origine), donc **aucune image n'est à reconstruire**. Cette procédure n'a **pas été essayée** sur ce serveur.
+Le 15/11, l'adresse est passée de `5.22.217.55.sslip.io` à `lonkoo.site` par cette procédure. Tout ce qui change tient en cinq endroits ; l'interface n'en dépend pas (elle appelle `/api` et `/ws` sur sa propre origine), donc **aucune image n'est à reconstruire**. **Faire les étapes 2, 3 et 4 à la suite, dans cet ordre** : tant que le serveur et l'application OAuth ne portent pas la même adresse, la connexion GitHub échoue (constaté le 15/11 : GitHub refusait l'adresse de retour quand l'application OAuth avait changé avant le serveur).
 
 1. **DNS** : un enregistrement `A` `<nouvelle-adresse>` vers l'IP du serveur. La propagation peut aller de quelques minutes à 72 h (indication de Datacloud) : vérifier avec `nslookup <nouvelle-adresse>` **avant** de continuer, sinon Caddy n'obtient pas le certificat.
 2. **Serveur** : dans `/opt/lonkoo/.env`, remplacer `DOMAIN=` par `<nouvelle-adresse>`, puis `docker compose -f infra/docker-compose.prod.yml --env-file /opt/lonkoo/.env up -d` (Caddy demande le certificat ; le backend recalcule son adresse publique et l'adresse de retour GitHub).
 3. **Application OAuth GitHub** (Settings) : « Homepage URL » `https://<nouvelle-adresse>` et « Authorization callback URL » `https://<nouvelle-adresse>/api/auth/github/callback`.
-4. **Secret du dépôt** `PRODUCTION_DOMAIN` = `<nouvelle-adresse>` (le pipeline vérifie la mise en ligne à cette adresse), puis « Run workflow » de « Déploiement » pour le prouver.
-5. **Documents** : remplacer l'adresse sur la ligne « Site en ligne » du `README.md`, puis lancer `python3 scripts/check_deploiement.py` : il nomme les documents qui portent encore l'ancienne adresse. Mettre aussi à jour le formulaire de soumission.
+4. **Secret du dépôt** `PRODUCTION_DOMAIN` = `<nouvelle-adresse>` : l'adresse principale (le même nom que `DOMAIN`), pas une adresse qui redirige, car le pipeline vérifie la mise en ligne à cette adresse sans suivre les redirections ; puis « Run workflow » de « Déploiement » pour le prouver.
+5. **Documents** : remplacer l'adresse sur la ligne « Site en ligne » du `README.md` ; l'adresse déjà donnée dans le formulaire de soumission reste sur la ligne « Adresse donnée à la soumission » (elle continue de répondre, par redirection : voir `DOMAINS` ci-dessous). Puis lancer `python3 scripts/check_deploiement.py` : il nomme les documents qui portent encore l'ancienne adresse, ou qui ne portent pas celle du formulaire. Mettre aussi à jour le formulaire de soumission si la plateforme le permet ; sinon, garder l'ancienne adresse en service.
 
 **Garder l'ancienne adresse en plus** (recommandé si elle a déjà été donnée : formulaire de soumission, vidéo, jury) : dans le `.env` du serveur, `DOMAINS="<adresse-principale>, www.<nouvelle-adresse>, <nouvelle-adresse>"` (entre guillemets) en plus de `DOMAIN`, puis `up -d`. Caddy obtient un certificat pour chaque adresse. `DOMAIN` est l'adresse **principale** (celle de l'application OAuth GitHub) : **toute autre adresse de `DOMAINS` redirige vers elle** (307, temporaire : la méthode et le chemin sont gardés, et le navigateur ne retient pas la redirection ; avec un 308, un navigateur qui l'avait suivie tournait en boucle dès que l'adresse principale changeait, constaté le 15/11 sur `lonkoo.site`, et seul un cache vidé l'en sortait). Cette redirection est nécessaire : l'application OAuth n'a qu'une adresse de retour, et la connexion GitHub démarrée depuis une autre adresse échoue par « État de connexion invalide » (constaté le 15/11 sur `lonkoo.site`). Pour que le nouveau nom devienne l'adresse affichée, il faut passer `DOMAIN` au nouveau nom (et l'application OAuth, et `PRODUCTION_DOMAIN`) : l'ancienne adresse redirige alors vers lui.
 
-Sans `DOMAINS`, l'ancienne adresse **cesse de répondre** (Caddy ne sert que `DOMAIN`) et les sessions en cours sont perdues (le cookie appartient à l'ancienne adresse). Ne changez pas l'adresse pendant que le jury note, ni après l'avoir donnée dans le formulaire de soumission sans la mettre à jour là aussi. Pour garder l'ancienne en redirection, il faudrait un second bloc dans le `Caddyfile` (`<ancienne-adresse> { redir https://{$DOMAIN}{uri} permanent }`), donc un déploiement et un second certificat.
+Sans `DOMAINS`, l'ancienne adresse **cesse de répondre** (Caddy ne sert que `DOMAIN`) et les sessions en cours sont perdues (le cookie appartient à l'ancienne adresse). Ne changez pas l'adresse pendant que le jury note, ni après l'avoir donnée dans le formulaire de soumission sans garder l'ancienne dans `DOMAINS` (ou sans mettre à jour le formulaire). Avec `DOMAINS`, l'ancienne adresse redirige vers la nouvelle (307, jamais une redirection permanente : un navigateur la garde et tourne en boucle si l'adresse principale change ensuite), sans second bloc dans le `Caddyfile` ; les sessions en cours sont perdues dans les deux cas, le cookie appartenant à l'adresse où il a été posé.
 
 ## Avant la soumission
 

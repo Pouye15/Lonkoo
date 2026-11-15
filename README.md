@@ -4,7 +4,9 @@
 
 Projet réalisé pour le concours **CADev 2026** (Systalink), sur le thème « Construire la plateforme d'échange africaine, pour les devs, par les devs ».
 
-**Site en ligne :** <https://5.22.217.55.sslip.io> (cliquer sur « Essayer sans compte »). C'est une adresse provisoire : le service sslip.io renvoie vers notre serveur. Un nom de domaine pourra la remplacer : voir « Changer l'adresse publique » dans [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md).
+**Site en ligne :** <https://lonkoo.site> (cliquer sur « Essayer sans compte »).
+
+**Adresse donnée à la soumission :** <https://5.22.217.55.sslip.io> (elle redirige vers le site ; changer d'adresse : [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md), « Changer l'adresse publique »).
 
 ## En bref
 
@@ -33,7 +35,7 @@ Lonkoo est un studio collaboratif où une équipe de développeurs conçoit l'ar
 | Copilote IA (esquisse, complétion, audit, conseiller) | **Actif sur le site en ligne depuis le 15/11** (Google Gemini, par le microservice interne `agent_ia`). Les quatre fonctions ont été essayées avec une vraie clé : de 2 à 30 secondes environ selon la fonction, modèle `gemini-3.1-flash-lite` (le modèle prévu, `gemini-3.8-flash`, était saturé chez Google ce jour-là). La sortie est validée contre le contrat du canvas et ne s'applique qu'avec l'accord de la personne. Limites par jour : 5 propositions et 10 messages par invité. **Réserve :** la clé est du niveau gratuit de Google AI Studio : le quota du fournisseur est faible (20 requêtes par jour pour l'un des modèles essayés, atteint le 15/11 ; les autres limites ne sont pas publiées) et Google peut réutiliser les textes envoyés ; quand le quota est atteint, l'interface affiche un message d'indisponibilité (voir [docs/IA.md](docs/IA.md)). Sans serveur (mode démonstration), l'onglet d'analyse montre un exemple étiqueté démonstration |
 | Discussion d'équipe : un fil par projet, lu et écrit par tous les membres (page Revues), qui se met à jour tout seul | Fait, testé |
 | Communauté : profils, revues, commentaires, Fork | Maquette (seule la galerie publique est réelle) |
-| Mise en ligne (compose de production, Caddy, pipeline, sauvegarde) | **En ligne depuis le 15/11** sur un serveur cloud Systalink (Madrid, Ubuntu 24.04, 2 vCPU, 8 Go), en HTTPS (Let's Encrypt). Déploiement automatique à chaque fusion dans `main` (trois exécutions réussies), sauvegarde quotidienne de la base avec une restauration essayée, redémarrage du serveur essayé (70 secondes, données intactes). **Pas encore fait :** copie des sauvegardes hors du serveur, et nom de domaine (l'adresse actuelle est provisoire). Détail : [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md) |
+| Mise en ligne (compose de production, Caddy, pipeline, sauvegarde) | **En ligne depuis le 15/11** sur un serveur cloud Systalink (Madrid, Ubuntu 24.04, 2 vCPU, 8 Go), en HTTPS (Let's Encrypt). Déploiement automatique à chaque fusion dans `main` (trois exécutions réussies), sauvegarde quotidienne de la base avec une restauration essayée, redémarrage du serveur essayé (70 secondes, données intactes). **Pas encore fait :** copie régulière des sauvegardes hors du serveur. Le nom de domaine `lonkoo.site` est l'adresse principale depuis le 15/11 (l'adresse donnée à la soumission y redirige). Détail : [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md) |
 
 **Reprendre le travail** (ce qui reste avant la démo, qui fait quoi, comment démarrer, les règles) : [docs/PASSATION-RESTE-A-FAIRE.md](docs/PASSATION-RESTE-A-FAIRE.md).
 

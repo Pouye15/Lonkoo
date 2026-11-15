@@ -3,13 +3,13 @@
 **Date limite : dimanche 15 novembre 2026, 17 h GMT** (tableau de bord Datacloud : « 29 sept. au 15 nov. 2026 » ; règlement). L'ancienne échéance était le dimanche 25 octobre, 17 h 00, heure de Dakar (GMT). Aucune soumission après l'heure limite.
 Visez la veille pour garder une marge.
 
-**Adresse du site en ligne :** <https://5.22.217.55.sslip.io> (provisoire ; la procédure pour la remplacer par un nom de domaine est dans `DEPLOIEMENT.md`, « Changer l'adresse publique »). Si l'adresse change, la modifier aussi dans le formulaire de soumission.
+**Adresse du site en ligne :** <https://lonkoo.site> (nom de domaine acheté chez Systalink, adresse principale depuis le 15/11). **Adresse donnée dans le formulaire de soumission :** <https://5.22.217.55.sslip.io> ; elle redirige vers le site (redirection temporaire) et continue de répondre tant que le serveur la garde dans `DOMAINS`. Si l'adresse principale change encore, la procédure est dans `DEPLOIEMENT.md`, « Changer l'adresse publique ».
 
 ## Recevabilité (sans ces points, le projet n'est pas noté)
 
 - [ ] Équipe inscrite via la plateforme Datacloud (2 à 5 membres), représentant désigné, répartition du prix déclarée, pays de représentation choisi (définitif).
 - [ ] Chaque membre : majeur, nationalité ou résidence en Afrique francophone, compte Datacloud, règlement accepté.
-- [x] Projet **déployé et accessible en ligne** (article 6) : <https://5.22.217.55.sslip.io>, essayé le 15/11 (parcours d'un invité, connexion GitHub, IA, redémarrage du serveur).
+- [x] Projet **déployé et accessible en ligne** (article 6) : <https://lonkoo.site> (l'adresse du formulaire, <https://5.22.217.55.sslip.io>, y redirige), essayé le 15/11 : parcours d'un invité, connexion GitHub, IA et redémarrage du serveur sur l'adresse sslip, avant le changement d'adresse ; connexion GitHub depuis les deux adresses et parcours automatiques `e2e/` refaits sur `lonkoo.site` après. **Non refaits sur `lonkoo.site` :** l'IA, l'envoi d'un projet sur GitHub, le redémarrage du serveur.
 - [x] Au moins un **produit ou service Datacloud acheté** avant la soumission, avec le code promo de l'équipe : serveur cloud Systalink à **Madrid** (Datacloud ne propose pas Dakar). L'étape 4 « Produit Systalink actif » a été validée par Systalink le 15/11 (message du support) : **à revérifier sur le tableau de bord**. Les VPS hors Dakar sont exclus de la remise de 40 % (article 8) : pas de remise garantie.
 - [ ] Aucun composant sous licence GPL, AGPL ou LGPL (voir `LICENCES-TIERCES.md`). **Point ouvert :** `certifi` (MPL-2.0), livré dans l'image du microservice IA, n'est ni dans la liste permissive de l'article 6 ni dans la liste interdite ; la question à l'organisateur est rédigée dans `QUESTIONS-ORGANISATEUR.md`, **pas encore envoyée**.
 - [ ] Projet réalisé pour l'essentiel pendant le concours (à partir du 29 septembre). Rien d'antérieur, sauf code déclaré d'un membre.
@@ -26,7 +26,7 @@ Visez la veille pour garder une marge.
 
 ## Avant de cliquer sur « Soumettre »
 
-- [x] Parcours complet testé de bout en bout sur l'adresse de production : à la main (invité, connexion GitHub, IA, génération et envoi d'un projet sur GitHub, le 15/11) et par le parcours automatique `e2e/` (`cd e2e && E2E_BASE_URL=https://5.22.217.55.sslip.io npm run e2e` : 145 vérifications réussies sur 6 parcours le 15/11 ; seule la galerie publique est ignorée, faute de projet public d'un compte GitHub).
+- [x] Parcours complet testé de bout en bout sur l'adresse de production : à la main (invité, connexion GitHub, IA, génération et envoi d'un projet sur GitHub, le 15/11, sur l'adresse sslip avant le changement d'adresse) et par le parcours automatique `e2e/` (`cd e2e && E2E_BASE_URL=https://lonkoo.site npm run e2e` : 145 vérifications réussies sur 6 parcours le 15/11, d'abord sur l'adresse sslip, puis sur `lonkoo.site` après le changement d'adresse ; seule la galerie publique est ignorée, faute de projet public d'un compte GitHub).
 - [ ] `docs/sbom/` à jour (`python3 scripts/make_sbom.py --verify`), la CI le vérifie.
 - [ ] Compte de démonstration disponible, sans inscription.
 - [ ] Première page claire en 30 secondes : une phrase, un exemple déjà rempli, un bouton.

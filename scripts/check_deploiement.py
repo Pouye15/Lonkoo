@@ -16,7 +16,9 @@ Deux défauts que la CI ne voyait pas, parce qu'elle construit la pile depuis un
 4. L'adresse publique du site est écrite dans la ligne « Site en ligne » du README, qui fait foi ; les documents de
    soumission et de déploiement doivent porter la même, et aucun ne doit garder une ancienne adresse provisoire
    (sslip.io, nip.io). Le jour où un nom de domaine la remplace, une seule ligne est à changer : ce contrôle nomme
-   les documents oubliés.
+   les documents oubliés. Une ligne facultative « Adresse donnée à la soumission » dit l'adresse du formulaire quand
+   elle n'est plus l'adresse publique (elle redirige vers elle) : c'est la seule adresse provisoire tolérée, et les
+   déclarations de soumission doivent la porter.
 
 Lancement, depuis la racine du dépôt : python3 scripts/check_deploiement.py
 Code de sortie : 0 si tout est cohérent, 1 sinon (chaque écart est nommé).
@@ -43,7 +45,9 @@ AFFECTATION = re.compile(r"^([A-Z][A-Z0-9_]*)=(.*)$", re.MULTILINE)
 FICHIERS_ADRESSES = (COMPOSE, "docker-compose.yml", ".env.example", MODELE_ENV,
                      "backend/src/main/resources/application.properties")
 LIGNE_ADRESSE = re.compile(r"\*\*Site en ligne :\*\*\s*<(https://[^>\s]+)>")
-DOCUMENTS_AVEC_ADRESSE = ("README.md", "docs/DECLARATIONS-SOUMISSION.md", "docs/DEPLOIEMENT.md")
+LIGNE_SOUMISE = re.compile(r"\*\*Adresse donnée à la soumission :\*\*\s*<(https://[^>\s]+)>")
+DOCUMENT_SOUMISSION = "docs/DECLARATIONS-SOUMISSION.md"
+DOCUMENTS_AVEC_ADRESSE = ("README.md", DOCUMENT_SOUMISSION, "docs/DEPLOIEMENT.md")
 ADRESSE_PROVISOIRE = re.compile(r"https://[0-9a-z.-]*\b(?:sslip|nip)\.io\b")
 TIRET_BAS_DANS_LE_NOM = re.compile(r"https?://[^\s/:\"']*_[^\s/:\"']*")
 
@@ -102,17 +106,26 @@ def ecarts_noms_de_machine(fichiers: dict[str, str]) -> list[str]:
 
 
 def ecarts_adresse(readme: str, textes: dict[str, str], obligatoires) -> list[str]:
-    """L'adresse publique du README doit être celle des documents, sans reste d'une adresse provisoire."""
+    """L'adresse publique du README doit être celle des documents, sans reste d'une adresse provisoire.
+
+    Si un nom de domaine a remplacé l'adresse donnée dans le formulaire de soumission, le README la garde sur une ligne « Adresse
+    donnée à la soumission » : elle redirige vers l'adresse publique. C'est la seule adresse provisoire tolérée, et les
+    déclarations de soumission doivent la porter (c'est elle que la plateforme a reçue)."""
     trouvee = LIGNE_ADRESSE.search(readme)
     if not trouvee:
         return ["README.md : la ligne « **Site en ligne :** <adresse> » est introuvable (c'est elle qui fait foi)"]
     officielle = trouvee.group(1).rstrip("/")
+    soumise_trouvee = LIGNE_SOUMISE.search(readme)
+    soumise = soumise_trouvee.group(1).rstrip("/") if soumise_trouvee else None
     ecarts = []
     for nom in obligatoires:
         if officielle not in textes.get(nom, ""):
             ecarts.append(f"{nom} : ne mentionne pas l'adresse publique {officielle}")
+    if soumise and soumise != officielle and soumise not in textes.get(DOCUMENT_SOUMISSION, ""):
+        ecarts.append(f"{DOCUMENT_SOUMISSION} : ne mentionne pas l'adresse donnée à la soumission {soumise} (celle du formulaire)")
+    tolerees = {officielle} | ({soumise} if soumise else set())
     for nom, texte in textes.items():
-        for autre in sorted(set(ADRESSE_PROVISOIRE.findall(texte)) - {officielle}):
+        for autre in sorted(set(ADRESSE_PROVISOIRE.findall(texte)) - tolerees):
             ecarts.append(f"{nom} : porte une autre adresse provisoire, {autre} (l'adresse publique est {officielle})")
     return ecarts
 
