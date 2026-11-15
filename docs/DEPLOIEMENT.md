@@ -99,10 +99,12 @@ Le premier démarrage se fait à la main : les erreurs s'y lisent tout de suite,
    ```
 
    Remplir `DOMAIN`, `POSTGRES_PASSWORD`, `REALTIME_TICKET_SECRET`, `REALTIME_SERVICE_TOKEN` (trois secrets **différents**, `openssl rand -hex 32`), puis `GITHUB_OAUTH_CLIENT_ID` et `GITHUB_OAUTH_CLIENT_SECRET` de l'application de production (étape 0).
+
+   **IA (facultative)** : sans `AI_PROVIDER`, les routes d'IA répondent 501 et l'interface l'indique ; il n'y a rien d'autre à faire. Pour l'activer, décommenter `AI_PROVIDER=agent_ia` et renseigner `AI_API_KEY` (la clé du fournisseur, qui ne vit que dans ce fichier). Ajouter `AI_SERVICE_TOKEN` (`openssl rand -hex 16`) est conseillé : à défaut, le jeton du temps réel sert aussi à l'IA. Le service `agent_ia` est construit et démarré dans tous les cas ; il ne répond qu'au backend.
 3. **Envoi du code et démarrage** (depuis la racine du dépôt) :
 
    ```bash
-   tar czf - backend realtime frontend infra | ssh deploy@<adresse> "mkdir -p /opt/lonkoo/app && tar xzf - -C /opt/lonkoo/app"
+   tar czf - backend realtime frontend agent_ia infra | ssh deploy@<adresse> "mkdir -p /opt/lonkoo/app && tar xzf - -C /opt/lonkoo/app"
    ssh deploy@<adresse> "cd /opt/lonkoo/app && docker compose -f infra/docker-compose.prod.yml --env-file /opt/lonkoo/.env up -d --build --wait"
    ```
 
@@ -114,6 +116,7 @@ Le premier démarrage se fait à la main : les erreurs s'y lisent tout de suite,
 | Le backend redémarre en boucle, `Configuration de production refusée : …` | Valeur d'exemple (`change-me`), deux secrets identiques, secret trop court ou `DOMAIN` qui désigne la machine locale : le message nomme les variables, jamais leurs valeurs |
 | Caddy ne sert que du `http`, ou répond une erreur TLS | DNS qui ne pointe pas encore vers le serveur, ou ports 80 et 443 fermés : `docker compose logs caddy` |
 | La construction s'arrête avec `Killed` ou le code de sortie 137 | Mémoire insuffisante : Next.js demande plus de 2 Go à la construction, un serveur de 8 Go est prévu |
+| La construction s'arrête sur `path … not found` (un dossier comme `agent_ia`) | Ce dossier n'a pas été envoyé au serveur : la liste de la commande `tar` doit contenir tous les dossiers que le compose construit (`scripts/check_deploiement.py` le vérifie) |
 
 ## Étape 3 : pipeline (déploiement A)
 
@@ -136,7 +139,7 @@ Le premier démarrage se fait à la main : les erreurs s'y lisent tout de suite,
 
    Les secrets de l'application (base, temps réel, GitHub) ne sont **pas** dans GitHub : ils sont dans `/opt/lonkoo/.env`, que le pipeline ne touche jamais.
 3. **Lancer** : onglet Actions, workflow « Déploiement », *Run workflow*. Ensuite, chaque fusion dans `main` redéploie. Tant que les secrets manquent, une fusion ne déploie rien (un avis le dit) et un lancement manuel échoue en les nommant.
-4. **Ce que fait le pipeline** : envoie `backend`, `realtime`, `frontend` et `infra` par SSH (le dossier remplace l'ancien d'un coup), reconstruit et relance la pile (`up -d --build --wait`), puis vérifie **de l'extérieur** : santé du backend et du temps réel, interface en mode API, route interne en 404, et un parcours d'invité (session, projet d'accueil, canvas, instantané lu à travers le temps réel). Il échoue, avec l'état et les derniers journaux de la pile, si l'une de ces vérifications échoue.
+4. **Ce que fait le pipeline** : envoie `backend`, `realtime`, `frontend`, `agent_ia` et `infra` par SSH (le dossier remplace l'ancien d'un coup), reconstruit et relance la pile (`up -d --build --wait`), puis vérifie **de l'extérieur** : santé du backend et du temps réel, interface en mode API, route interne en 404, et un parcours d'invité (session, projet d'accueil, canvas, instantané lu à travers le temps réel). Il échoue, avec l'état et les derniers journaux de la pile, si l'une de ces vérifications échoue.
 5. **Retour arrière** : *Run workflow* avec `ref` égal à un commit antérieur de `main`.
 
 **À savoir : les sessions sont en base** (Spring Session JDBC, migration V13) : un déploiement ou un redémarrage ne déconnecte plus personne, et un invité garde son projet. Une seule chose est perdue : **le jeton GitHub, gardé en mémoire du serveur par choix** (le recopier dans la table des sessions le mettrait en clair dans les sauvegardes). Après un redémarrage, une personne reste connectée mais doit reconnecter GitHub avant d'envoyer un projet (l'interface le propose). Les données sont conservées (volume `pgdata`). Évitez malgré tout de déployer pendant la période de notation, et ne renommez ni ne déplacez la classe `CurrentUser` (voir `SessionCompatibilityTest`).
