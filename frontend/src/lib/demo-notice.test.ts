@@ -11,6 +11,7 @@ const FICTIONAL_SCREENS = [
   "app/(app)/palabre/page.tsx",
   "app/(app)/reviews/page.tsx",
   "app/(app)/settings/page.tsx",
+  "app/(app)/onboarding/page.tsx",
   "components/palabre/BlueprintDetailClient.tsx",
 ];
 
