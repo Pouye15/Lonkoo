@@ -35,7 +35,7 @@ Journal des questions posées au comité CADev. Une ligne par question : date d'
 >
 > Bonjour,
 >
-> Nous sommes l'équipe VISION X (5 membres), projet Lonkoo, en ligne sur https://5.22.217.55.sslip.io. Avant notre soumission, merci de répondre par écrit :
+> Nous sommes l'équipe VISION X (5 membres), projet Lonkoo, en ligne sur https://lonkoo.site (adresse donnée dans notre soumission : https://5.22.217.55.sslip.io, qui y redirige). Avant notre soumission, merci de répondre par écrit :
 >
 > 1. **Dépôt :** le dépôt GitHub est privé aujourd'hui. Comment donner accès au jury (invitation de comptes précis, lesquels ? ou passage en public à la soumission) ?
 > 2. **Calendrier :** la clôture est-elle bien le dimanche 15 novembre 2026 à 17 h GMT ? Quelles sont les dates et heures du vote des pairs (chaque membre doit-il voter, jusqu'à quand ?), de la campagne et de la notation par le jury ?

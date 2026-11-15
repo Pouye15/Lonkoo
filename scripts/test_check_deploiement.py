@@ -135,6 +135,36 @@ class AdressePublique(unittest.TestCase):
     def test_sans_ligne_de_reference_dans_le_readme_c_est_signale(self):
         self.assertEqual(len(script.ecarts_adresse("pas de ligne", {}, ())), 1)
 
+    # Un nom de domaine remplace l'adresse sslip.io, qui reste celle du formulaire de soumission (elle redirige vers le site).
+    SOUMISE = ("Titre\n\n**Site en ligne :** <https://lonkoo.example.org>\n\n"
+               "**Adresse donnée à la soumission :** <https://5.22.217.55.sslip.io> (elle redirige)\n")
+    DECLARATIONS = script.DOCUMENT_SOUMISSION
+
+    def test_l_adresse_donnee_a_la_soumission_est_toleree_et_attendue_dans_les_declarations(self):
+        textes = {"README.md": self.SOUMISE, self.DECLARATIONS: "https://lonkoo.example.org et https://5.22.217.55.sslip.io",
+                  "d.md": "voir https://lonkoo.example.org/login et https://5.22.217.55.sslip.io"}
+        self.assertEqual(script.ecarts_adresse(self.SOUMISE, textes, ("README.md", self.DECLARATIONS, "d.md")), [])
+
+    def test_des_declarations_qui_oublient_l_adresse_du_formulaire_sont_nommees(self):
+        textes = {"README.md": self.SOUMISE, self.DECLARATIONS: "https://lonkoo.example.org"}
+        ecarts = script.ecarts_adresse(self.SOUMISE, textes, ("README.md", self.DECLARATIONS))
+        self.assertEqual(len(ecarts), 1)
+        self.assertIn("donnée à la soumission", ecarts[0])
+
+    def test_une_autre_adresse_provisoire_reste_signalee_malgre_l_adresse_de_soumission(self):
+        textes = {"README.md": self.SOUMISE, self.DECLARATIONS: "https://lonkoo.example.org https://5.22.217.55.sslip.io",
+                  "d.md": "https://lonkoo.example.org https://203.0.113.9.sslip.io"}
+        ecarts = script.ecarts_adresse(self.SOUMISE, textes, ("README.md", self.DECLARATIONS, "d.md"))
+        self.assertEqual(len(ecarts), 1)
+        self.assertIn("203.0.113.9.sslip.io", ecarts[0])
+
+    def test_sans_la_ligne_de_soumission_l_ancienne_adresse_reste_signalee(self):
+        readme = "**Site en ligne :** <https://lonkoo.example.org>"
+        textes = {"README.md": readme, self.DECLARATIONS: "https://lonkoo.example.org https://5.22.217.55.sslip.io"}
+        ecarts = script.ecarts_adresse(readme, textes, ("README.md", self.DECLARATIONS))
+        self.assertEqual(len(ecarts), 1)
+        self.assertIn("porte une autre adresse provisoire", ecarts[0])
+
 
 class AdressesCaddy(unittest.TestCase):
     COMPOSE = "      DOMAINS: ${DOMAINS:-${DOMAIN}}\n"
