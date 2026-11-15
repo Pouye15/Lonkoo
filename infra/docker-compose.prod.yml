@@ -201,6 +201,8 @@ services:
         condition: service_healthy
     environment:
       DOMAIN: ${DOMAIN:?Définir DOMAIN dans le .env du serveur}
+      # Les adresses servies par Caddy : DOMAIN seule par défaut. DOMAIN reste l'adresse canonique (backend, retour GitHub).
+      DOMAINS: ${DOMAINS:-${DOMAIN}}
     ports:
       - "80:80"
       - "443:443"

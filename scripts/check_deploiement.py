@@ -117,6 +117,16 @@ def ecarts_adresse(readme: str, textes: dict[str, str], obligatoires) -> list[st
     return ecarts
 
 
+def ecarts_adresses_caddy(caddyfile: str, compose: str) -> list[str]:
+    """Caddy lit DOMAINS (plusieurs adresses possibles) et le compose le lui donne, DOMAIN par défaut."""
+    ecarts = []
+    if "{$DOMAINS}" not in caddyfile:
+        ecarts.append("infra/Caddyfile : l'adresse du site doit être {$DOMAINS} (plusieurs adresses possibles), pas {$DOMAIN}")
+    if "DOMAINS: ${DOMAINS:-${DOMAIN}}" not in compose:
+        ecarts.append(f"{COMPOSE} : le service caddy doit recevoir DOMAINS: ${{DOMAINS:-${{DOMAIN}}}} (DOMAIN par défaut)")
+    return ecarts
+
+
 def main() -> int:
     compose = (RACINE / COMPOSE).read_text(encoding="utf-8")
     envois = {nom: (RACINE / nom).read_text(encoding="utf-8") for nom in ENVOIS}
@@ -126,7 +136,8 @@ def main() -> int:
     for doc in sorted((RACINE / "docs").glob("*.md")):
         textes[f"docs/{doc.name}"] = doc.read_text(encoding="utf-8")
     ecarts = (ecarts_envois(compose, envois) + ecarts_modele(compose, modele) + ecarts_noms_de_machine(adresses)
-              + ecarts_adresse(textes["README.md"], textes, DOCUMENTS_AVEC_ADRESSE))
+              + ecarts_adresse(textes["README.md"], textes, DOCUMENTS_AVEC_ADRESSE)
+              + ecarts_adresses_caddy((RACINE / "infra/Caddyfile").read_text(encoding="utf-8"), compose))
     if ecarts:
         for ecart in ecarts:
             print(f"ÉCART  {ecart}")
