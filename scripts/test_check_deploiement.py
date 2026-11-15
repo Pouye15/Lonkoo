@@ -136,6 +136,32 @@ class AdressePublique(unittest.TestCase):
         self.assertEqual(len(script.ecarts_adresse("pas de ligne", {}, ())), 1)
 
 
+class AdressesCaddy(unittest.TestCase):
+    COMPOSE = "      DOMAINS: ${DOMAINS:-${DOMAIN}}\n"
+
+    def test_caddy_lit_domains_et_le_compose_le_transmet(self):
+        self.assertEqual(script.ecarts_adresses_caddy("{$DOMAINS} {\n}\n", self.COMPOSE), [])
+
+    def test_un_caddyfile_qui_lit_encore_domain_est_signale(self):
+        ecarts = script.ecarts_adresses_caddy("{$DOMAIN} {\n}\n", self.COMPOSE)
+        self.assertEqual(len(ecarts), 1)
+        self.assertIn("Caddyfile", ecarts[0])
+
+    def test_un_compose_qui_ne_transmet_pas_domains_est_signale(self):
+        ecarts = script.ecarts_adresses_caddy("{$DOMAINS} {\n}\n", "      DOMAIN: ${DOMAIN}\n")
+        self.assertEqual(len(ecarts), 1)
+        self.assertIn("DOMAINS", ecarts[0])
+
+
+    def test_une_validation_a_la_construction_qui_pose_encore_domain_est_signalee(self):
+        # Cas réel du 15/11 : la CI a échoué parce que le Dockerfile de Caddy validait avec DOMAIN=… alors que le Caddyfile lit DOMAINS.
+        caddyfile = "{$DOMAINS} {\n}\n"
+        ecarts = script.ecarts_adresses_caddy(caddyfile, self.COMPOSE, "RUN DOMAIN=x caddy validate\n")
+        self.assertEqual(len(ecarts), 1)
+        self.assertIn("caddy.Dockerfile", ecarts[0])
+        self.assertEqual(script.ecarts_adresses_caddy(caddyfile, self.COMPOSE, "RUN DOMAINS=x caddy validate\n"), [])
+
+
 class DepotReel(unittest.TestCase):
     def test_le_depot_est_coherent(self):
         sortie = io.StringIO()

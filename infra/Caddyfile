@@ -1,5 +1,7 @@
 # Origine unique : / (interface), /api (backend), /ws (temps réel).
-# DOMAIN est fourni par l'environnement (ex. lonkoo.example.com). Caddy obtient le certificat TLS seul.
+# DOMAINS est fourni par l'environnement : une adresse (ex. lonkoo.example.com) ou plusieurs, séparées par des virgules
+# (« a.example.com, b.example.com »). Le compose lui donne DOMAIN pour valeur par défaut. Caddy obtient seul le certificat TLS
+# de chaque adresse ; une adresse dont le DNS ne pointe pas encore ici échoue sans gêner les autres.
 #
 # Les adresses des services valent celles du réseau Docker (voir docker-compose.prod.yml). Elles se règlent par
 # variable seulement pour essayer ce fichier sans Docker (BACKEND_UPSTREAM=localhost:8080, par exemple).
@@ -7,7 +9,7 @@
 # JOURNAUX : volontairement aucune directive « log », donc aucun journal d'accès. Le jeton d'un lien de partage est
 # dans le chemin (/join/<jeton> pour la page, /api/join/<jeton> pour l'API) et ne doit jamais être écrit (S-07).
 # N'activez pas les journaux sans exclure ces deux chemins avec « log_skip ».
-{$DOMAIN} {
+{$DOMAINS} {
 	encode zstd gzip
 
 	header {
