@@ -29,24 +29,19 @@ Journal des questions posées au comité CADev. Une ligne par question : date d'
 | La plateforme affiche une clôture le 15 novembre 2026 : est-ce bien à 17 h GMT ? Quelles sont les nouvelles dates du vote des pairs, de la campagne et de la notation par le jury ? | | | |
 | Les projets que notre plateforme génère pour ses utilisateurs (du code livré, qui dépend par exemple d'Hibernate 6 sous LGPL et de Logback) entrent-ils dans le périmètre de l'interdiction des licences à réciprocité, ou seulement le code de la plateforme elle-même ? | | | |
 
-## Message prêt à envoyer (courriel, ou WhatsApp en version courte)
+## Message prêt à envoyer (version du 15/11, courriel ou WhatsApp)
 
-> **Objet : CADev 2026, équipe VISION X, questions avant soumission**
+> **Objet : CADev 2026, équipe VISION X, 5 questions avant la clôture**
 >
 > Bonjour,
 >
-> Nous sommes l'équipe VISION X (5 membres) et participons à la CADev 2026 avec le projet Lonkoo. Avant d'acheter notre produit Datacloud et de finaliser le projet, nous avons besoin de votre réponse écrite sur les points suivants :
+> Nous sommes l'équipe VISION X (5 membres), projet Lonkoo, en ligne sur https://5.22.217.55.sslip.io. Avant notre soumission, merci de répondre par écrit :
 >
-> 1. Où trouver le texte intégral du règlement ? Le lien « conditions générales » de la page du concours ne s'ouvre sur aucun contenu.
-> 2. Licences : le règlement vise-t-il uniquement les bibliothèques liées à notre code, ou aussi l'environnement d'exécution (OpenJDK, images Docker, système) ? Les licences à double option (par exemple EPL 2.0 ou GPL 2 avec exception Classpath, présente dans toute application Spring Boot) sont-elles admises ? Les dépendances de développement et de build (par exemple sous MPL-2.0) entrent-elles dans le périmètre ?
-> 3. Quels droits le lauréat cède-t-il sur le projet ? Cela décidera de la licence finale de notre dépôt.
-> 4. Notre dépôt GitHub est privé. Comment donner accès au jury : invitation de comptes précis, ou passage en public à la soumission ?
-> 5. Remises : la page annonce « -40 % pour les équipes qui participent » et « -70 % pour tous les participants en 2026 ». Se cumulent-elles ? S'appliquent-elles au Serveur Cloud, à Dakar ?
-> 6. Le Serveur Cloud est-il hébergé à Dakar ? Donne-t-il un accès root ou sudo en SSH et autorise-t-il Docker ? Un domaine est-il fourni ?
-> 7. Quel est le format attendu pour la déclaration d'usage de l'IA, et faut-il une déclaration par membre ?
-> 8. Calendrier : la clôture est-elle bien le dimanche 15 novembre 2026 à 17 h GMT ? Quelles sont les nouvelles dates du vote des pairs, de la campagne et de la notation par le jury ?
-> 9. Projets générés : notre plateforme génère un projet de démarrage pour l'utilisateur (du code qui dépend par exemple d'Hibernate 6, sous LGPL, et de Logback). Ce code livré à l'utilisateur entre-t-il dans le périmètre des licences interdites, ou seulement le code de notre plateforme ?
+> 1. **Dépôt :** le dépôt GitHub est privé aujourd'hui. Comment donner accès au jury (invitation de comptes précis, lesquels ? ou passage en public à la soumission) ?
+> 2. **Calendrier :** la clôture est-elle bien le dimanche 15 novembre 2026 à 17 h GMT ? Quelles sont les dates et heures du vote des pairs (chaque membre doit-il voter, jusqu'à quand ?), de la campagne et de la notation par le jury ?
+> 3. **Licences :** (a) une dépendance livrée sous MPL-2.0 et non modifiée (le magasin de certificats `certifi`, dans un microservice Python) est-elle admise ? (b) l'interdiction de GPL, AGPL et LGPL vise-t-elle seulement les bibliothèques liées à notre code, ou aussi l'environnement d'exécution (OpenJDK, images Docker) et les licences à double option (EPL 2.0 ou GPL 2 avec exception Classpath) ? (c) notre plateforme génère des projets de démarrage dont le code dépend d'Hibernate (LGPL) : entrent-ils dans le périmètre ?
+> 4. **Hébergement :** notre serveur cloud Systalink est à Madrid (Datacloud ne propose pas Dakar), acheté avec le code promo CADEV. Votre support a validé l'étape 4 « Produit Systalink actif » le 15/11. Confirmez-vous que cet achat satisfait l'exigence du règlement, sans pénalité hors Dakar ?
+> 5. **Déclarations :** la déclaration d'usage de l'IA est-elle de forme libre, et en faut-il une par membre ?
 >
-> Merci d'avance pour votre réponse.
->
-> L'équipe VISION X, représentée par [nom du représentant]
+> Merci d'avance.
+> L'équipe VISION X, représentée par [nom du représentant].
