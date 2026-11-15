@@ -10,6 +10,9 @@ Deux défauts que la CI ne voyait pas, parce qu'elle construit la pile depuis un
 2. Le modèle `infra/production.env.example` est copié tel quel sur le serveur, puis rempli à la main. Chaque variable que le
    compose exige (`${VAR:?...}`) doit y être VIDE : une valeur d'exemple oubliée serait acceptée en silence (le backend
    ne reconnaît que « change-me »), alors qu'une valeur vide arrête le démarrage en nommant la variable.
+3. Une adresse de service interne ne doit pas avoir de tiret bas dans son nom de machine : java.net.URI ne la lit pas
+   (« unsupported URI »), et le backend appellerait l'agent IA en erreur 500 à chaque requête. Les tests passaient, parce
+   qu'ils appellent localhost ; cela n'a été vu qu'en essayant pour de vrai, sur le serveur, le 15/11.
 
 Lancement, depuis la racine du dépôt : python3 scripts/check_deploiement.py
 Code de sortie : 0 si tout est cohérent, 1 sinon (chaque écart est nommé).
@@ -32,6 +35,10 @@ CONTEXTE = re.compile(r"^\s*context:\s*(\S+)\s*$", re.MULTILINE)
 TAR = re.compile(r"tar czf - ((?:[A-Za-z_][\w.-]*(?: +|$))+)", re.MULTILINE)
 OBLIGATOIRE = re.compile(r"\$\{([A-Z][A-Z0-9_]*):\?")
 AFFECTATION = re.compile(r"^([A-Z][A-Z0-9_]*)=(.*)$", re.MULTILINE)
+# Fichiers où une adresse de service interne est écrite.
+FICHIERS_ADRESSES = (COMPOSE, "docker-compose.yml", ".env.example", MODELE_ENV,
+                     "backend/src/main/resources/application.properties")
+TIRET_BAS_DANS_LE_NOM = re.compile(r"https?://[^\s/:\"']*_[^\s/:\"']*")
 
 
 def dossiers_construits(compose: str) -> set[str]:
@@ -76,18 +83,31 @@ def ecarts_modele(compose: str, modele: str) -> list[str]:
     return ecarts
 
 
+def ecarts_noms_de_machine(fichiers: dict[str, str]) -> list[str]:
+    """Les adresses http(s) dont le nom de machine contient un tiret bas."""
+    ecarts = []
+    for nom, texte in fichiers.items():
+        for adresse in sorted(set(TIRET_BAS_DANS_LE_NOM.findall(texte))):
+            ecarts.append(
+                f"{nom} : l'adresse {adresse} a un tiret bas dans son nom de machine, que java.net.URI ne lit pas ; "
+                "donner au service un alias sans tiret bas (agent-ia)")
+    return ecarts
+
+
 def main() -> int:
     compose = (RACINE / COMPOSE).read_text(encoding="utf-8")
     envois = {nom: (RACINE / nom).read_text(encoding="utf-8") for nom in ENVOIS}
     modele = (RACINE / MODELE_ENV).read_text(encoding="utf-8")
-    ecarts = ecarts_envois(compose, envois) + ecarts_modele(compose, modele)
+    adresses = {nom: (RACINE / nom).read_text(encoding="utf-8") for nom in FICHIERS_ADRESSES}
+    ecarts = ecarts_envois(compose, envois) + ecarts_modele(compose, modele) + ecarts_noms_de_machine(adresses)
     if ecarts:
         for ecart in ecarts:
             print(f"ÉCART  {ecart}")
         print("Déploiement : incohérent (voir docs/DEPLOIEMENT.md).")
         return 1
     print(f"Déploiement cohérent : les dossiers construits ({', '.join(sorted(dossiers_construits(compose)))}) "
-          f"sont tous envoyés, et le modèle de .env laisse vides les {len(set(OBLIGATOIRE.findall(compose)))} variables exigées.")
+          f"sont tous envoyés, le modèle de .env laisse vides les {len(set(OBLIGATOIRE.findall(compose)))} variables exigées, "
+          "et aucune adresse de service n'a de tiret bas dans son nom de machine.")
     return 0
 
 

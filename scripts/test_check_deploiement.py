@@ -94,6 +94,22 @@ class ModeleDeEnv(unittest.TestCase):
         self.assertEqual(script.ecarts_modele(COMPOSE, MODELE_VIDE.replace("\n", "\r\n")), [])
 
 
+class NomsDeMachine(unittest.TestCase):
+    def test_un_tiret_bas_dans_le_nom_de_machine_est_nomme(self):
+        # Cas réel du 15/11 : le nom du service Docker, avec un tiret bas, donnait « unsupported URI » en Java.
+        ecarts = script.ecarts_noms_de_machine({"docker-compose.yml": "AI_AGENT_URL: http://agent_ia:8000\n"})
+        self.assertEqual(len(ecarts), 1)
+        self.assertIn("docker-compose.yml", ecarts[0])
+        self.assertIn("http://agent_ia", ecarts[0])
+
+    def test_un_alias_avec_un_tiret_est_accepte(self):
+        self.assertEqual(script.ecarts_noms_de_machine({"a": "AI_AGENT_URL=http://agent-ia:8000\n"}), [])
+
+    def test_un_tiret_bas_dans_le_chemin_ou_la_variable_n_est_pas_un_nom_de_machine(self):
+        texte = "https://${DOMAIN}/api/auth/github/callback\nhttps://exemple.org/un_chemin?x=a_b\n"
+        self.assertEqual(script.ecarts_noms_de_machine({"a": texte}), [])
+
+
 class DepotReel(unittest.TestCase):
     def test_le_depot_est_coherent(self):
         sortie = io.StringIO()

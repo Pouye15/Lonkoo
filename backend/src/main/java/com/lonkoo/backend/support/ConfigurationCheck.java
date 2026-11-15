@@ -219,6 +219,9 @@ public class ConfigurationCheck {
                 problems.add("AI_AGENT_URL est vide alors que AI_PROVIDER vaut agent_ia");
             } else if (isPlaceholder(ai.agentUrl())) {
                 problems.add("AI_AGENT_URL porte une valeur d'exemple");
+            } else if (!hasUsableHost(ai.agentUrl())) {
+                problems.add("AI_AGENT_URL n'a pas de nom de machine utilisable : Java refuse un tiret bas dans un nom de "
+                        + "machine (écrire agent-ia, pas agent_ia)");
             }
         }
         if (production && !gemini && !agent && !provider.isBlank()
@@ -231,6 +234,15 @@ public class ConfigurationCheck {
             problems.add("AI_AGENT_TIMEOUT_SECONDS doit valoir au moins 2 × AI_TIMEOUT_SECONDS + 5 secondes");
         }
         return problems;
+    }
+
+    /** Vrai si l'adresse a un nom de machine que java.net.URI sait lire (pas de tiret bas). */
+    private static boolean hasUsableHost(String url) {
+        try {
+            return java.net.URI.create(url.strip()).getHost() != null;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     private static boolean isMissing(String value) {
