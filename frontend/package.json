@@ -11,7 +11,7 @@
     "test": "node --test src/lib/*.test.ts"
   },
   "dependencies": {
-    "@hocuspocus/provider": "4.8.0",
+    "@hocuspocus/provider": "4.9.0",
     "@phosphor-icons/react": "^2.1.10",
     "next": "^16.4.5",
     "react": "^19.3.1",
